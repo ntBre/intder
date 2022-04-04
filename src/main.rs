@@ -1,7 +1,4 @@
-use std::{
-    fs::File,
-    io::{BufRead, BufReader},
-};
+use rust_intder::Intder;
 
 fn main() {
     let args = std::env::args().collect::<Vec<String>>();
@@ -12,18 +9,5 @@ fn main() {
             std::process::exit(1);
         }
     };
-
-    let f = match File::open(infile) {
-        Ok(f) => f,
-        Err(_) => {
-            eprintln!("failed to open infile '{}'", infile);
-            std::process::exit(1);
-        }
-    };
-
-    let reader = BufReader::new(f);
-    for line in reader.lines() {
-	let line = line.unwrap();
-        dbg!(line);
-    }
+    Intder::load(infile);
 }
