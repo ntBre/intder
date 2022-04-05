@@ -3,6 +3,7 @@ use std::{
     io::{BufRead, BufReader},
 };
 
+use nalgebra as na;
 use regex::Regex;
 
 #[derive(Debug, PartialEq)]
@@ -21,7 +22,7 @@ pub struct Intder {
     /// ```
     /// becomes `[1.0, 1.0, 0.0]` if there are 3 `simple_internals`
     symmetry_internals: Vec<Vec<f64>>,
-    geom: Vec<f64>,
+    geom: Vec<na::Vector3<f64>>,
     disps: Vec<Vec<f64>>,
 }
 
@@ -110,9 +111,13 @@ impl Intder {
                         .map(|x| x.parse::<usize>().unwrap()),
                 );
             } else if geom.is_match(&line) {
-                intder.geom.extend(
-                    line.split_whitespace().map(|x| x.parse::<f64>().unwrap()),
-                );
+                if let [x, y, z] = line
+                    .split_whitespace()
+                    .map(|x| x.parse::<f64>().unwrap())
+                    .collect::<Vec<f64>>()[..]
+                {
+                    intder.geom.push(na::Vector3::new(x, y, z));
+                }
             } else if line.contains("DISP") {
                 in_disps = true;
                 disp_tmp = vec![0.0; intder.simple_internals.len()];
@@ -144,17 +149,26 @@ mod tests {
                 vec![1., -1., 0.],
             ],
             geom: vec![
-                0.000000000000,
-                1.431390244079,
-                0.986041163966,
-                0.000000000000,
-                0.000000000000,
-                -0.124238450265,
-                0.000000000000,
-                -1.431390244079,
-                0.986041163966,
+                na::Vector3::new(
+                    0.000000000000,
+                    1.431390244079,
+                    0.986041163966,
+                ),
+                na::Vector3::new(
+                    0.000000000000,
+                    0.000000000000,
+                    -0.124238450265,
+                ),
+                na::Vector3::new(
+                    0.000000000000,
+                    -1.431390244079,
+                    0.986041163966,
+                ),
             ],
             disps: vec![
+                vec![0.005, 0.0, 0.0],
+                vec![0.0, 0.005, 0.0],
+                vec![0.0, 0.0, 0.005],
                 vec![-0.005, -0.005, -0.01],
                 vec![-0.005, -0.005, 0.0],
                 vec![-0.005, -0.005, 0.010],
