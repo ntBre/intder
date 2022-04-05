@@ -8,13 +8,29 @@ use regex::Regex;
 
 /// from https://physics.nist.gov/cgi-bin/cuu/Value?bohrrada0
 const ANGBOHR: f64 = 0.5291_772_109;
-const DEGRAD: f64 = 180.0 / std::f64::consts::PI;
+// const DEGRAD: f64 = 180.0 / std::f64::consts::PI;
+
+type Vec3 = na::Vector3<f64>;
+type Mat = na::DMatrix<f64>;
 
 #[derive(Debug, PartialEq)]
 pub enum SiIC {
     Stretch(usize, usize),
     /// central atom is second like normal people would expect
     Bend(usize, usize, usize),
+}
+
+impl SiIC {
+    pub fn value(&self, geom: &Vec<Vec3>) -> f64 {
+        match self {
+            SiIC::Stretch(i, j) => (geom[*j] - geom[*i]).magnitude() * ANGBOHR,
+            SiIC::Bend(i, j, k) => {
+                let ji = geom[*i] - geom[*j];
+                let jk = geom[*k] - geom[*j];
+                (ji.dot(&jk) / (ji.magnitude() * jk.magnitude())).acos()
+            }
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -27,7 +43,7 @@ pub struct Intder {
     /// ```
     /// becomes `[1.0, 1.0, 0.0]` if there are 3 `simple_internals`
     symmetry_internals: Vec<Vec<f64>>,
-    geom: Vec<na::Vector3<f64>>,
+    geom: Vec<Vec3>,
     disps: Vec<Vec<f64>>,
 }
 
@@ -144,12 +160,6 @@ impl Intder {
         intder
     }
 
-    /// return the unit vector from atom i to atom j
-    // fn unit(&self, i: usize, j: usize) -> na::Vector3<f64> {
-    //     let diff = self.geom[j] - self.geom[i];
-    //     diff / diff.magnitude()
-    // }
-
     // TODO this isn't going to be how I use this in the future, but I want to
     // write something to check the math.
 
@@ -158,20 +168,7 @@ impl Intder {
     pub fn initial_values_simple(&self) -> Vec<f64> {
         let mut ret = Vec::new();
         for s in &self.simple_internals {
-            match s {
-                SiIC::Stretch(i, j) => {
-                    let diff = self.geom[*j] - self.geom[*i];
-                    ret.push(diff.magnitude() * ANGBOHR);
-                }
-                SiIC::Bend(i, j, k) => {
-                    let ji = self.geom[*i] - self.geom[*j];
-                    let jk = self.geom[*k] - self.geom[*j];
-                    ret.push(
-                        (ji.dot(&jk) / (ji.magnitude() * jk.magnitude()))
-                            .acos(),
-                    );
-                }
-            }
+            ret.push(s.value(&self.geom));
         }
         ret
     }
@@ -191,6 +188,72 @@ impl Intder {
             ret.push(sum);
         }
         ret
+    }
+
+    /// return the unit vector from atom i to atom j
+    fn unit(&self, i: usize, j: usize) -> Vec3 {
+        let diff = self.geom[j] - self.geom[i];
+        diff / diff.magnitude()
+    }
+
+    /// distance between atoms i and j
+    fn dist(&self, i: usize, j: usize) -> f64 {
+        (self.geom[j] - self.geom[i]).magnitude()
+    }
+
+    /// return the B matrix in angstroms. each row is an internal coordinate (i)
+    /// and each column is a cartesian coordinate (j) and Bᵢⱼ = Cⱼ/Iᵢ
+    pub fn b_matrix(&self) -> Mat {
+        // flatten the geometry and convert to angstroms
+        let mut geom = Vec::new();
+        for c in &self.geom {
+            for e in c {
+                geom.push(e * ANGBOHR);
+            }
+        }
+        let mut b_mat = Vec::new();
+        for ic in &self.simple_internals {
+            let geom = geom.clone();
+            let mut tmp = vec![0.0; geom.len()];
+            // TODO write up the math from McIntosh78 and Molecular Vibrations
+            match ic {
+                SiIC::Stretch(a, b) => {
+                    let e_12 = self.unit(*a, *b);
+                    for i in 0..3 {
+                        tmp[3 * a + i] = -e_12[i % 3];
+                        tmp[3 * b + i] = e_12[i % 3];
+                    }
+                    b_mat.extend(tmp);
+                }
+                SiIC::Bend(a, b, c) => {
+                    let phi = ic.value(&self.geom);
+                    // NOTE: letting 3 be the central atom in line with Mol.
+                    // Vib. notation
+                    let e_31 = self.unit(*b, *a);
+                    let e_32 = self.unit(*b, *c);
+                    let r_31 = self.dist(*b, *a) * ANGBOHR;
+                    let r_32 = self.dist(*b, *c) * ANGBOHR;
+                    let pc = phi.cos();
+                    let ps = phi.sin();
+                    let s_t1 = (pc * e_31 - e_32) / (r_31 * ps);
+                    let s_t2 = (pc * e_32 - e_31) / (r_32 * ps);
+                    let s_t3 = ((r_31 - r_32 * pc) * e_31
+                        + (r_32 - r_31 * pc) * e_32)
+                        / (r_31 * r_32 * ps);
+                    for i in 0..3 {
+                        tmp[3*a+i] = s_t1[i%3];
+                        tmp[3*b+i] = s_t3[i%3];
+                        tmp[3*c+i] = s_t2[i%3];
+                    }
+                    b_mat.extend(tmp);
+                }
+            }
+        }
+        Mat::from_row_slice(
+            self.simple_internals.len(),
+            geom.len(),
+            &b_mat,
+        )
     }
 }
 
@@ -269,5 +332,48 @@ mod tests {
         let want = vec![1.3556853647, 1.8221415968, 0.0000000000];
         let want = want.as_slice();
         assert_abs_diff_eq!(got, want, epsilon = 1e-7);
+    }
+
+    #[test]
+    fn test_b_matrix() {
+        let intder = Intder::load("testfiles/intder.in");
+        let want = Mat::from_row_slice(
+            3,
+            9,
+            &vec![
+                // row 1
+                0.0,
+                0.7901604711325243,
+                0.61290001620136003,
+                -0.0,
+                -0.7901604711325243,
+                -0.61290001620136003,
+                0.0,
+                0.0,
+                0.0,
+                // row 2
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.7901604711325243,
+                -0.61290001620136003,
+                -0.0,
+                -0.7901604711325243,
+                0.61290001620136003,
+                // row 3
+                -0.0,
+                0.63936038937065331,
+                -0.82427360602746957,
+                0.0,
+                0.0,
+                1.6485472120549391,
+                -0.0,
+                -0.63936038937065331,
+                -0.82427360602746957,
+	    ],
+        );
+        let got = intder.b_matrix();
+        assert_abs_diff_eq!(got, want, epsilon = 2e-7);
     }
 }

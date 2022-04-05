@@ -1,0 +1,5 @@
+See [[pdf:~/Library/McIntosh78.pdf][McIntosh78]] for details on the construction of B matrix
+- in turn it refers to /Molecular Vibrations/, which has been sitting on the floor
+  behind me the whole time I was beating my head against the fortran version...
+
+also see [[https://github.com/psi4/psi3/blob/master/src/bin/intder/README][nate's readme]] from trying to convert it to C++
