@@ -6,9 +6,14 @@ use std::{
 use nalgebra as na;
 use regex::Regex;
 
+/// from https://physics.nist.gov/cgi-bin/cuu/Value?bohrrada0
+const ANGBOHR: f64 = 0.5291_772_109;
+const DEGRAD: f64 = 180.0 / std::f64::consts::PI;
+
 #[derive(Debug, PartialEq)]
 pub enum SiIC {
     Stretch(usize, usize),
+    /// central atom is second like normal people would expect
     Bend(usize, usize, usize),
 }
 
@@ -95,11 +100,24 @@ impl Intder {
                 let mut sp = line.split_whitespace();
                 sp.next();
                 let mut idx = usize::default();
+                let mut i_max = 0;
                 for (i, c) in sp.enumerate() {
                     if i % 2 == 0 {
                         idx = c.parse::<usize>().unwrap() - 1;
                     } else {
                         tmp[idx] = c.parse().unwrap();
+                    }
+                    i_max += 1;
+                }
+                match i_max {
+                    2 => (),
+                    4 => {
+                        for t in &mut tmp {
+                            *t *= std::f64::consts::SQRT_2 / 2.0;
+                        }
+                    }
+                    _ => {
+                        panic!("unmatched i_max value of {}", i_max);
                     }
                 }
                 intder.symmetry_internals.push(tmp);
@@ -125,11 +143,64 @@ impl Intder {
         }
         intder
     }
+
+    /// return the unit vector from atom i to atom j
+    // fn unit(&self, i: usize, j: usize) -> na::Vector3<f64> {
+    //     let diff = self.geom[j] - self.geom[i];
+    //     diff / diff.magnitude()
+    // }
+
+    // TODO this isn't going to be how I use this in the future, but I want to
+    // write something to check the math.
+
+    /// currently returns a vector of simple internal values in Ångstroms or
+    /// radians
+    pub fn initial_values_simple(&self) -> Vec<f64> {
+        let mut ret = Vec::new();
+        for s in &self.simple_internals {
+            match s {
+                SiIC::Stretch(i, j) => {
+                    let diff = self.geom[*j] - self.geom[*i];
+                    ret.push(diff.magnitude() * ANGBOHR);
+                }
+                SiIC::Bend(i, j, k) => {
+                    let ji = self.geom[*i] - self.geom[*j];
+                    let jk = self.geom[*k] - self.geom[*j];
+                    ret.push(
+                        (ji.dot(&jk) / (ji.magnitude() * jk.magnitude()))
+                            .acos(),
+                    );
+                }
+            }
+        }
+        ret
+    }
+
+    // TODO see above todo, same here
+
+    /// currently returns a vector of symmetry internal values in Ångstroms or
+    /// radians
+    pub fn initial_values_symmetry(&self) -> Vec<f64> {
+        let mut ret = Vec::new();
+        let siics = self.initial_values_simple();
+        for sic in &self.symmetry_internals {
+            let mut sum = f64::default();
+            for (i, s) in sic.iter().enumerate() {
+                sum += s * siics[i];
+            }
+            ret.push(sum);
+        }
+        ret
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use approx::assert_abs_diff_eq;
+
     use super::*;
+
+    const S: f64 = std::f64::consts::SQRT_2 / 2.;
 
     #[test]
     fn test_load() {
@@ -144,9 +215,9 @@ mod tests {
                 SiIC::Bend(0, 1, 2),
             ],
             symmetry_internals: vec![
-                vec![1., 1., 0.],
+                vec![S, S, 0.],
                 vec![0., 0., 1.],
-                vec![1., -1., 0.],
+                vec![S, -S, 0.],
             ],
             geom: vec![
                 na::Vector3::new(
@@ -178,5 +249,25 @@ mod tests {
             ],
         };
         assert_eq!(got, want);
+    }
+
+    #[test]
+    fn test_initial_values_simple() {
+        let intder = Intder::load("testfiles/intder.in");
+        let got = intder.initial_values_simple();
+        let got = got.as_slice();
+        let want = vec![0.9586143145, 0.9586143145, 1.8221415968];
+        let want = want.as_slice();
+        assert_abs_diff_eq!(got, want, epsilon = 1e-7);
+    }
+
+    #[test]
+    fn test_initial_values_symmetry() {
+        let intder = Intder::load("testfiles/intder.in");
+        let got = intder.initial_values_symmetry();
+        let got = got.as_slice();
+        let want = vec![1.3556853647, 1.8221415968, 0.0000000000];
+        let want = want.as_slice();
+        assert_abs_diff_eq!(got, want, epsilon = 1e-7);
     }
 }
