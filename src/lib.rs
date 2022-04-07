@@ -201,11 +201,48 @@ impl Intder {
         (self.geom[j] - self.geom[i]).magnitude()
     }
 
+    pub fn s_vec(&self, ic: &SiIC, len: usize) -> Vec<f64> {
+        let mut tmp = vec![0.0; len];
+        // TODO write up the math from McIntosh78 and Molecular Vibrations
+        match ic {
+            SiIC::Stretch(a, b) => {
+                let e_12 = self.unit(*a, *b);
+                for i in 0..3 {
+                    tmp[3 * a + i] = -e_12[i % 3];
+                    tmp[3 * b + i] = e_12[i % 3];
+                }
+            }
+            SiIC::Bend(a, b, c) => {
+                let phi = ic.value(&self.geom);
+                // NOTE: letting 3 be the central atom in line with Mol.
+                // Vib. notation
+                let e_31 = self.unit(*b, *a);
+                let e_32 = self.unit(*b, *c);
+                let r_31 = self.dist(*b, *a) * ANGBOHR;
+                let r_32 = self.dist(*b, *c) * ANGBOHR;
+                let pc = phi.cos();
+                let ps = phi.sin();
+                let s_t1 = (pc * e_31 - e_32) / (r_31 * ps);
+                let s_t2 = (pc * e_32 - e_31) / (r_32 * ps);
+                let s_t3 = ((r_31 - r_32 * pc) * e_31
+                    + (r_32 - r_31 * pc) * e_32)
+                    / (r_31 * r_32 * ps);
+                for i in 0..3 {
+                    tmp[3 * a + i] = s_t1[i % 3];
+                    tmp[3 * b + i] = s_t3[i % 3];
+                    tmp[3 * c + i] = s_t2[i % 3];
+                }
+            }
+        }
+        tmp
+    }
+
     /// return the B matrix in angstroms. each row is an internal coordinate (i)
     /// and each column is a cartesian coordinate (j) and Bᵢⱼ = Cⱼ/Iᵢ
     pub fn b_matrix(&self) -> Mat {
         // flatten the geometry and convert to angstroms
-        let mut geom = Vec::new();
+        let geom_len = 3 * self.geom.len();
+        let mut geom = Vec::with_capacity(geom_len);
         for c in &self.geom {
             for e in c {
                 geom.push(e * ANGBOHR);
@@ -213,47 +250,9 @@ impl Intder {
         }
         let mut b_mat = Vec::new();
         for ic in &self.simple_internals {
-            let geom = geom.clone();
-            let mut tmp = vec![0.0; geom.len()];
-            // TODO write up the math from McIntosh78 and Molecular Vibrations
-            match ic {
-                SiIC::Stretch(a, b) => {
-                    let e_12 = self.unit(*a, *b);
-                    for i in 0..3 {
-                        tmp[3 * a + i] = -e_12[i % 3];
-                        tmp[3 * b + i] = e_12[i % 3];
-                    }
-                    b_mat.extend(tmp);
-                }
-                SiIC::Bend(a, b, c) => {
-                    let phi = ic.value(&self.geom);
-                    // NOTE: letting 3 be the central atom in line with Mol.
-                    // Vib. notation
-                    let e_31 = self.unit(*b, *a);
-                    let e_32 = self.unit(*b, *c);
-                    let r_31 = self.dist(*b, *a) * ANGBOHR;
-                    let r_32 = self.dist(*b, *c) * ANGBOHR;
-                    let pc = phi.cos();
-                    let ps = phi.sin();
-                    let s_t1 = (pc * e_31 - e_32) / (r_31 * ps);
-                    let s_t2 = (pc * e_32 - e_31) / (r_32 * ps);
-                    let s_t3 = ((r_31 - r_32 * pc) * e_31
-                        + (r_32 - r_31 * pc) * e_32)
-                        / (r_31 * r_32 * ps);
-                    for i in 0..3 {
-                        tmp[3*a+i] = s_t1[i%3];
-                        tmp[3*b+i] = s_t3[i%3];
-                        tmp[3*c+i] = s_t2[i%3];
-                    }
-                    b_mat.extend(tmp);
-                }
-            }
+            b_mat.extend(self.s_vec(ic, geom_len));
         }
-        Mat::from_row_slice(
-            self.simple_internals.len(),
-            geom.len(),
-            &b_mat,
-        )
+        Mat::from_row_slice(self.simple_internals.len(), geom_len, &b_mat)
     }
 }
 
@@ -371,7 +370,7 @@ mod tests {
                 -0.0,
                 -0.63936038937065331,
                 -0.82427360602746957,
-	    ],
+            ],
         );
         let got = intder.b_matrix();
         assert_abs_diff_eq!(got, want, epsilon = 2e-7);
