@@ -8,10 +8,11 @@ use regex::Regex;
 
 /// from https://physics.nist.gov/cgi-bin/cuu/Value?bohrrada0
 const ANGBOHR: f64 = 0.5291_772_109;
-// const DEGRAD: f64 = 180.0 / std::f64::consts::PI;
+const DEGRAD: f64 = 180.0 / std::f64::consts::PI;
 
 type Vec3 = na::Vector3<f64>;
-type Mat = na::DMatrix<f64>;
+pub type DMat = na::DMatrix<f64>;
+pub type DVec = na::DVector<f64>;
 
 #[derive(Debug, PartialEq)]
 pub enum SiIC {
@@ -37,14 +38,9 @@ impl SiIC {
 pub struct Intder {
     input_options: Vec<usize>,
     simple_internals: Vec<SiIC>,
-    /// for now represent these as a vec of simple internals. For example,
-    /// ```text
-    ///     1   1   1.000000000   2   1.000000000
-    /// ```
-    /// becomes `[1.0, 1.0, 0.0]` if there are 3 `simple_internals`
-    symmetry_internals: Vec<Vec<f64>>,
-    geom: Vec<Vec3>,
-    disps: Vec<Vec<f64>>,
+    pub symmetry_internals: Vec<Vec<f64>>,
+    pub geom: Vec<Vec3>,
+    pub disps: Vec<Vec<f64>>,
 }
 
 impl Intder {
@@ -160,12 +156,37 @@ impl Intder {
         intder
     }
 
-    // TODO this isn't going to be how I use this in the future, but I want to
-    // write something to check the math.
+    pub fn print_geom(&self) {
+        for atom in &self.geom {
+            for c in atom {
+                print!("{:20.10}", c);
+            }
+            println!();
+        }
+    }
+
+    /// print the simple internal coordinate values, assuming that vals are in
+    /// the same order as self.simple_internals for unit purposes
+    pub fn print_simple(&self, vals: &[f64]) {
+        for (i, v) in vals.iter().enumerate() {
+            if let SiIC::Bend(_, _, _) = self.simple_internals[i] {
+                println!("{:5}{:>18.10}", i, v * DEGRAD);
+            } else {
+                println!("{:5}{:>18.10}", i, v);
+            }
+        }
+    }
+
+    /// print the symmetry internal coordinate values
+    pub fn print_symmetry(&self, vals: &[f64]) {
+        for (i, v) in vals.iter().enumerate() {
+            println!("{:5}{:>18.10}", i, v);
+        }
+    }
 
     /// currently returns a vector of simple internal values in Ångstroms or
     /// radians
-    pub fn initial_values_simple(&self) -> Vec<f64> {
+    pub fn simple_values(&self) -> Vec<f64> {
         let mut ret = Vec::new();
         for s in &self.simple_internals {
             ret.push(s.value(&self.geom));
@@ -173,13 +194,11 @@ impl Intder {
         ret
     }
 
-    // TODO see above todo, same here
-
     /// currently returns a vector of symmetry internal values in Ångstroms or
     /// radians
-    pub fn initial_values_symmetry(&self) -> Vec<f64> {
+    pub fn symmetry_values(&self) -> Vec<f64> {
         let mut ret = Vec::new();
-        let siics = self.initial_values_simple();
+        let siics = self.simple_values();
         for sic in &self.symmetry_internals {
             let mut sum = f64::default();
             for (i, s) in sic.iter().enumerate() {
@@ -237,9 +256,8 @@ impl Intder {
         tmp
     }
 
-    /// return the B matrix in angstroms. each row is an internal coordinate (i)
-    /// and each column is a cartesian coordinate (j) and Bᵢⱼ = Cⱼ/Iᵢ
-    pub fn b_matrix(&self) -> Mat {
+    /// return the B matrix in simple internal coordinates
+    pub fn b_matrix(&self) -> DMat {
         // flatten the geometry and convert to angstroms
         let geom_len = 3 * self.geom.len();
         let mut geom = Vec::with_capacity(geom_len);
@@ -252,7 +270,23 @@ impl Intder {
         for ic in &self.simple_internals {
             b_mat.extend(self.s_vec(ic, geom_len));
         }
-        Mat::from_row_slice(self.simple_internals.len(), geom_len, &b_mat)
+        DMat::from_row_slice(self.simple_internals.len(), geom_len, &b_mat)
+    }
+
+    /// return the symmetry internal coordinate B matrix by computing the simple
+    /// internal B and converting it
+    pub fn sym_b_matrix(&self) -> DMat {
+        let b = self.b_matrix();
+        let (r, c) = b.shape();
+        let mut bs = DMat::zeros(r, c);
+        for j in 0..3 * self.geom.len() {
+            for i in 0..self.symmetry_internals.len() {
+                let u_i = DVec::from(self.symmetry_internals[i].clone());
+                let b_j = DVec::from(b.column(j));
+                bs[(i, j)] = u_i.dot(&b_j);
+            }
+        }
+        bs
     }
 }
 
@@ -313,10 +347,12 @@ mod tests {
         assert_eq!(got, want);
     }
 
+    // MACHB:S is initial simple internals
+
     #[test]
     fn test_initial_values_simple() {
         let intder = Intder::load("testfiles/intder.in");
-        let got = intder.initial_values_simple();
+        let got = intder.simple_values();
         let got = got.as_slice();
         let want = vec![0.9586143145, 0.9586143145, 1.8221415968];
         let want = want.as_slice();
@@ -326,7 +362,7 @@ mod tests {
     #[test]
     fn test_initial_values_symmetry() {
         let intder = Intder::load("testfiles/intder.in");
-        let got = intder.initial_values_symmetry();
+        let got = intder.symmetry_values();
         let got = got.as_slice();
         let want = vec![1.3556853647, 1.8221415968, 0.0000000000];
         let want = want.as_slice();
@@ -336,7 +372,7 @@ mod tests {
     #[test]
     fn test_b_matrix() {
         let intder = Intder::load("testfiles/intder.in");
-        let want = Mat::from_row_slice(
+        let want = DMat::from_row_slice(
             3,
             9,
             &vec![
@@ -375,4 +411,54 @@ mod tests {
         let got = intder.b_matrix();
         assert_abs_diff_eq!(got, want, epsilon = 2e-7);
     }
+
+    #[test]
+    fn test_sym_b() {
+        let intder = Intder::load("testfiles/intder.in");
+        let got = intder.sym_b_matrix();
+        let want = DMat::from_row_slice(
+            3,
+            9,
+            &vec![
+                // row 1
+                0.0,
+                0.55872782736336513,
+                0.4333857576453265,
+                0.0,
+                0.0,
+                -0.86677151529065299,
+                0.0,
+                -0.55872782736336513,
+                0.4333857576453265,
+                // row 2
+                0.0,
+                0.63936038937065331,
+                -0.82427360602746957,
+                0.0,
+                0.0,
+                1.6485472120549391,
+                0.0,
+                -0.63936038937065331,
+                -0.82427360602746957,
+                // row 3
+                0.0,
+                0.55872782736336513,
+                0.4333857576453265,
+                0.0,
+                -1.1174556547267303,
+                0.0,
+                0.0,
+                0.55872782736336513,
+                -0.4333857576453265,
+            ],
+        );
+        assert_abs_diff_eq!(got, want, epsilon = 2e-7);
+    }
+    // #[test]
+    // fn test_bbt() {
+    //     let intder = Intder::load("testfiles/intder.in");
+    //     let b = intder.b_matrix();
+    // 	let btb = &b.transpose() * b;
+    // 	dbg!(dbg!(btb).determinant());
+    // }
 }
