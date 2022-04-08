@@ -1,4 +1,3 @@
-use nalgebra as na;
 use rust_intder::{DVec, Intder};
 
 fn main() {
@@ -61,9 +60,7 @@ fn main() {
 
         println!();
         println!("A MATRIX FOR (SYMMETRY) INTERNAL COORDINATES");
-        let chol =
-            na::Cholesky::new(d).expect("Cholesky decomposition of D failed");
-        println!("{}", bs.transpose() * chol.inverse());
+        println!("{}", Intder::a_matrix(&bs));
         println!();
 
         todo!();

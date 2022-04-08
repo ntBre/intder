@@ -288,6 +288,14 @@ impl Intder {
         }
         bs
     }
+
+    /// Let D = BBᵀ and return A = BᵀD⁻¹
+    pub fn a_matrix(b: &DMat) -> DMat {
+        let d = b * b.transpose();
+        let chol =
+            na::Cholesky::new(d).expect("Cholesky decomposition of D failed");
+        b.transpose() * chol.inverse()
+    }
 }
 
 #[cfg(test)]
@@ -454,11 +462,44 @@ mod tests {
         );
         assert_abs_diff_eq!(got, want, epsilon = 2e-7);
     }
-    // #[test]
-    // fn test_bbt() {
-    //     let intder = Intder::load("testfiles/intder.in");
-    //     let b = intder.b_matrix();
-    // 	let btb = &b.transpose() * b;
-    // 	dbg!(dbg!(btb).determinant());
-    // }
+
+    #[test]
+    fn test_a_matrix() {
+        let want = DMat::from_row_slice(
+            9,
+            3,
+            &vec![
+                0.0,
+                0.0,
+                0.0,
+                0.55872782736336513,
+                0.29376736196418923,
+                0.24846624860790423,
+                0.14446191921510884,
+                -0.12624318866430007,
+                0.19272663384313321,
+                0.0,
+                0.0,
+                0.0,
+                -2.0677083281253247e-17,
+                -6.0369866375237933e-18,
+                -0.49693249721580846,
+                -0.28892383843021768,
+                0.25248637732860013,
+                -7.1323182117049485e-18,
+                0.0,
+                0.0,
+                0.0,
+                -0.55872782736336513,
+                -0.29376736196418923,
+                0.24846624860790423,
+                0.14446191921510884,
+                -0.12624318866430007,
+                -0.19272663384313321,
+            ],
+        );
+        let intder = Intder::load("testfiles/intder.in");
+        let got = Intder::a_matrix(&intder.sym_b_matrix());
+        assert_abs_diff_eq!(got, want, epsilon = 3e-8);
+    }
 }
