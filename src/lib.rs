@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::{BufRead, BufReader},
+    io::{BufRead, BufReader, Write},
     ops::Index,
 };
 
@@ -353,7 +353,33 @@ impl Intder {
         b.transpose() * chol.inverse()
     }
 
+    /// print the initial geometry stuff
+    fn print_init(&self) {
+        let simple_vals = self.simple_values(&self.geom);
+        let sic_vals = self.symmetry_values(&self.geom);
+        println!();
+        println!("NUCLEAR CARTESIAN COORDINATES (BOHR)\n");
+        self.print_geom();
+        println!();
+        println!(
+        "VALUES OF SIMPLE INTERNAL COORDINATES (ANG. or DEG.) FOR REFERENCE \
+	     GEOMETRY\n"
+    );
+        self.print_simple(&simple_vals);
+        println!();
+        println!(
+        "VALUES OF SYMMETRY INTERNAL COORDINATES (ANG. or RAD.) FOR REFERENCE \
+	     GEOMETRY\n"
+    );
+        self.print_symmetry(&sic_vals);
+        println!();
+        println!();
+    }
+
     pub fn convert_disps(&self) -> Vec<DVec> {
+        if DEBUG {
+            self.print_init();
+        }
         let mut ret = Vec::new();
         for (i, disp) in self.disps.iter().enumerate() {
             let mut sic_current = DVec::from(self.symmetry_values(&self.geom));
@@ -414,17 +440,21 @@ impl Intder {
 
             if DEBUG {
                 println!("NEW CARTESIAN GEOMETRY (BOHR)\n");
-                for i in 0..cart_current.len() / 3 {
-                    for j in 0..3 {
-                        print!("{:20.10}", cart_current[3 * i + j]);
-                    }
-                    println!();
-                }
+                Self::print_cart(&mut std::io::stdout(), &cart_current);
                 println!();
             }
             ret.push(cart_current);
         }
         ret
+    }
+
+    pub fn print_cart<W: Write>(w: &mut W, cart: &DVec) {
+        for i in 0..cart.len() / 3 {
+            for j in 0..3 {
+                write!(w, "{:20.10}", cart[3 * i + j]).unwrap();
+            }
+            writeln!(w).unwrap();
+        }
     }
 }
 

@@ -1,4 +1,7 @@
-use rust_intder::{Intder, DEBUG};
+use std::fs::File;
+use std::io::Write;
+
+use rust_intder::Intder;
 
 fn main() {
     let args = std::env::args().collect::<Vec<String>>();
@@ -10,27 +13,10 @@ fn main() {
         }
     };
     let intder = Intder::load(infile);
-    let simple_vals = intder.simple_values(&intder.geom);
-    let sic_vals = intder.symmetry_values(&intder.geom);
-
-    if DEBUG {
-        println!();
-        println!("NUCLEAR CARTESIAN COORDINATES (BOHR)\n");
-        intder.print_geom();
-        println!();
-        println!(
-	    "VALUES OF SIMPLE INTERNAL COORDINATES (ANG. or DEG.) FOR REFERENCE \
-	     GEOMETRY\n"
-	);
-        intder.print_simple(&simple_vals);
-        println!();
-        println!(
-	    "VALUES OF SYMMETRY INTERNAL COORDINATES (ANG. or RAD.) FOR REFERENCE \
-	     GEOMETRY\n"
-	);
-        intder.print_symmetry(&sic_vals);
-        println!();
-        println!();
+    let new_carts = intder.convert_disps();
+    let mut file07 = File::create("file07").expect("failed to create file07");
+    for cart in new_carts {
+        writeln!(file07, "# GEOMUP #################").unwrap();
+        Intder::print_cart(&mut file07, &cart);
     }
-    intder.convert_disps();
 }
