@@ -10,6 +10,8 @@ use regex::Regex;
 /// from https://physics.nist.gov/cgi-bin/cuu/Value?bohrrada0
 pub const ANGBOHR: f64 = 0.5291_772_109;
 const DEGRAD: f64 = 180.0 / std::f64::consts::PI;
+pub const DEBUG: bool = false;
+const TOLDISP: f64 = 1e-14;
 
 type Vec3 = na::Vector3<f64>;
 pub type DMat = na::DMatrix<f64>;
@@ -350,6 +352,80 @@ impl Intder {
             na::Cholesky::new(d).expect("Cholesky decomposition of D failed");
         b.transpose() * chol.inverse()
     }
+
+    pub fn convert_disps(&self) -> Vec<DVec> {
+        let mut ret = Vec::new();
+        for (i, disp) in self.disps.iter().enumerate() {
+            let mut sic_current = DVec::from(self.symmetry_values(&self.geom));
+            let mut cart_current: DVec = self.geom.clone().into();
+
+            let disp = DVec::from(disp.clone());
+            let sic_desired = &sic_current + &disp;
+
+            if DEBUG {
+                println!("DISPLACEMENT{:5}\n", i);
+                println!("INTERNAL DISPLACEMENTS\n");
+                for (i, d) in disp.iter().enumerate() {
+                    if *d != 0.0 {
+                        println!("{i:5}{d:20.10}");
+                    }
+                }
+                println!();
+                println!("SYMMETRY INTERNAL COORDINATE FINAL VALUES\n");
+                self.print_symmetry(sic_desired.as_slice());
+                println!();
+            }
+
+            let mut iter = 1;
+            while (&sic_current - &sic_desired).abs().max() > TOLDISP {
+                let b_sym = self.sym_b_matrix(&Geom::from(&cart_current));
+                let d = &b_sym * b_sym.transpose();
+                let a = Intder::a_matrix(&b_sym);
+
+                if DEBUG {
+                    println!(
+                        "ITER={:5} MAX INTERNAL DEVIATION = {:.4e}",
+                        iter,
+                        (&sic_current - &sic_desired).abs().max()
+                    );
+                    println!("B*BT MATRIX FOR (SYMMETRY) INTERNAL COORDINATES");
+                    println!("{}", d);
+
+                    println!(
+                        "DETERMINANT OF B*BT MATRIX={:8.3}",
+                        d.determinant()
+                    );
+
+                    println!();
+                    println!("A MATRIX FOR (SYMMETRY) INTERNAL COORDINATES");
+                    println!("{:.8}", a);
+                    println!();
+                }
+
+                let step = a * (&sic_desired - &sic_current);
+                cart_current += step / ANGBOHR;
+
+                sic_current = DVec::from(
+                    self.symmetry_values(&Geom::from(&cart_current)),
+                );
+
+                iter += 1;
+            }
+
+            if DEBUG {
+                println!("NEW CARTESIAN GEOMETRY (BOHR)\n");
+                for i in 0..cart_current.len() / 3 {
+                    for j in 0..3 {
+                        print!("{:20.10}", cart_current[3 * i + j]);
+                    }
+                    println!();
+                }
+                println!();
+            }
+            ret.push(cart_current);
+        }
+        ret
+    }
 }
 
 #[cfg(test)]
@@ -470,14 +546,14 @@ mod tests {
                 -0.82427360602746957,
             ],
         );
-        let got = intder.b_matrix();
+        let got = intder.b_matrix(&intder.geom);
         assert_abs_diff_eq!(got, want, epsilon = 2e-7);
     }
 
     #[test]
     fn test_sym_b() {
         let intder = Intder::load("testfiles/intder.in");
-        let got = intder.sym_b_matrix();
+        let got = intder.sym_b_matrix(&intder.geom);
         let want = DMat::from_row_slice(
             3,
             9,
@@ -553,7 +629,70 @@ mod tests {
             ],
         );
         let intder = Intder::load("testfiles/intder.in");
-        let got = Intder::a_matrix(&intder.sym_b_matrix());
+        let got = Intder::a_matrix(&intder.sym_b_matrix(&intder.geom));
         assert_abs_diff_eq!(got, want, epsilon = 3e-8);
+    }
+
+    #[test]
+    fn test_convert_disps() {
+        let intder = Intder {
+            disps: vec![
+                vec![0.005, 0.0, 0.0],
+                vec![0.0, 0.005, 0.0],
+                vec![0.0, 0.0, 0.005],
+                vec![-0.005, -0.005, -0.01],
+            ],
+            ..Intder::load("testfiles/intder.in")
+        };
+        let got = intder.convert_disps();
+        let want = vec![
+            na::dvector![
+                0.0000000000,
+                1.4366694195,
+                0.9874061512,
+                0.0000000000,
+                -0.0000000000,
+                -0.1269683874,
+                0.0000000000,
+                -1.4366694195,
+                0.9874061512
+            ],
+            na::dvector![
+                0.0000000000,
+                1.4341614301,
+                0.9848472035,
+                0.0000000000,
+                -0.0000000000,
+                -0.1218504921,
+                0.0000000000,
+                -1.4341614301,
+                0.9848472035
+            ],
+            na::dvector![
+                0.0000000000,
+                1.4337425639,
+                0.9878589402,
+                0.0000000000,
+                -0.0046953159,
+                -0.1242319281,
+                0.0000000000,
+                -1.4290472480,
+                0.9842169028
+            ],
+            na::dvector![
+                0.0000000000,
+                1.4186597974,
+                0.9822041564,
+                0.0000000000,
+                0.0094006500,
+                -0.1238566934,
+                0.0000000000,
+                -1.4280604475,
+                0.9894964520
+            ],
+        ];
+        for i in 0..got.len() {
+            assert_abs_diff_eq!(got[i], want[i], epsilon = 4e-8);
+        }
     }
 }
