@@ -1,6 +1,7 @@
 use std::{
     fs::File,
     io::{BufRead, BufReader},
+    ops::Index,
 };
 
 use nalgebra as na;
@@ -22,7 +23,7 @@ pub enum SiIC {
 }
 
 impl SiIC {
-    pub fn value(&self, geom: &Vec<Vec3>) -> f64 {
+    pub fn value(&self, geom: &Geom) -> f64 {
         match self {
             SiIC::Stretch(i, j) => (geom[*j] - geom[*i]).magnitude() * ANGBOHR,
             SiIC::Bend(i, j, k) => {
@@ -34,12 +35,72 @@ impl SiIC {
     }
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub struct Geom(Vec<Vec3>);
+
+impl Geom {
+    pub fn new() -> Self {
+        Geom(Vec::new())
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn push(&mut self, it: Vec3) {
+        self.0.push(it)
+    }
+}
+
+impl From<&DVec> for Geom {
+    fn from(dvec: &DVec) -> Self {
+        let mut ret = Self::new();
+        for i in 0..dvec.len() / 3 {
+            let id = 3 * i;
+            if let [x, y, z] = dvec.as_slice()[id..id + 3] {
+                ret.push(Vec3::new(x, y, z));
+            }
+        }
+        ret
+    }
+}
+
+impl Into<DVec> for Geom {
+    fn into(self) -> DVec {
+        let mut geom = Vec::with_capacity(self.len());
+        for c in &self {
+            for e in &c {
+                geom.push(*e);
+            }
+        }
+        DVec::from(geom)
+    }
+}
+
+impl IntoIterator for &Geom {
+    type Item = Vec3;
+
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.clone().into_iter()
+    }
+}
+
+impl Index<usize> for Geom {
+    type Output = Vec3;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.0[index]
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub struct Intder {
     input_options: Vec<usize>,
     simple_internals: Vec<SiIC>,
     pub symmetry_internals: Vec<Vec<f64>>,
-    pub geom: Vec<Vec3>,
+    pub geom: Geom,
     pub disps: Vec<Vec<f64>>,
 }
 
@@ -49,7 +110,7 @@ impl Intder {
             input_options: Vec::new(),
             simple_internals: Vec::new(),
             symmetry_internals: Vec::new(),
-            geom: Vec::new(),
+            geom: Geom::new(),
             disps: Vec::new(),
         }
     }
@@ -156,21 +217,9 @@ impl Intder {
         intder
     }
 
-    /// return the geometry as a vector in Angstroms, assuming it started in
-    /// Bohr
-    pub fn geom_vec(&self) -> DVec {
-        let mut geom = Vec::with_capacity(self.geom.len());
-        for c in &self.geom {
-            for e in c {
-                geom.push(ANGBOHR * e);
-            }
-        }
-        DVec::from(geom)
-    }
-
     pub fn print_geom(&self) {
         for atom in &self.geom {
-            for c in atom {
+            for c in &atom {
                 print!("{:20.10}", c);
             }
             println!();
@@ -198,19 +247,19 @@ impl Intder {
 
     /// currently returns a vector of simple internal values in Ångstroms or
     /// radians
-    pub fn simple_values(&self) -> Vec<f64> {
+    pub fn simple_values(&self, geom: &Geom) -> Vec<f64> {
         let mut ret = Vec::new();
         for s in &self.simple_internals {
-            ret.push(s.value(&self.geom));
+            ret.push(s.value(&geom));
         }
         ret
     }
 
     /// currently returns a vector of symmetry internal values in Ångstroms or
     /// radians
-    pub fn symmetry_values(&self) -> Vec<f64> {
+    pub fn symmetry_values(&self, geom: &Geom) -> Vec<f64> {
         let mut ret = Vec::new();
-        let siics = self.simple_values();
+        let siics = self.simple_values(&geom);
         for sic in &self.symmetry_internals {
             let mut sum = f64::default();
             for (i, s) in sic.iter().enumerate() {
@@ -222,35 +271,35 @@ impl Intder {
     }
 
     /// return the unit vector from atom i to atom j
-    fn unit(&self, i: usize, j: usize) -> Vec3 {
-        let diff = self.geom[j] - self.geom[i];
+    fn unit(geom: &Geom, i: usize, j: usize) -> Vec3 {
+        let diff = geom[j] - geom[i];
         diff / diff.magnitude()
     }
 
     /// distance between atoms i and j
-    fn dist(&self, i: usize, j: usize) -> f64 {
-        (self.geom[j] - self.geom[i]).magnitude()
+    fn dist(geom: &Geom, i: usize, j: usize) -> f64 {
+        (geom[j] - geom[i]).magnitude()
     }
 
-    pub fn s_vec(&self, ic: &SiIC, len: usize) -> Vec<f64> {
+    pub fn s_vec(geom: &Geom, ic: &SiIC, len: usize) -> Vec<f64> {
         let mut tmp = vec![0.0; len];
         // TODO write up the math from McIntosh78 and Molecular Vibrations
         match ic {
             SiIC::Stretch(a, b) => {
-                let e_12 = self.unit(*a, *b);
+                let e_12 = Self::unit(geom, *a, *b);
                 for i in 0..3 {
                     tmp[3 * a + i] = -e_12[i % 3];
                     tmp[3 * b + i] = e_12[i % 3];
                 }
             }
             SiIC::Bend(a, b, c) => {
-                let phi = ic.value(&self.geom);
+                let phi = ic.value(geom);
                 // NOTE: letting 3 be the central atom in line with Mol.
                 // Vib. notation
-                let e_31 = self.unit(*b, *a);
-                let e_32 = self.unit(*b, *c);
-                let r_31 = self.dist(*b, *a) * ANGBOHR;
-                let r_32 = self.dist(*b, *c) * ANGBOHR;
+                let e_31 = Self::unit(geom, *b, *a);
+                let e_32 = Self::unit(geom, *b, *c);
+                let r_31 = Self::dist(geom, *b, *a) * ANGBOHR;
+                let r_32 = Self::dist(geom, *b, *c) * ANGBOHR;
                 let pc = phi.cos();
                 let ps = phi.sin();
                 let s_t1 = (pc * e_31 - e_32) / (r_31 * ps);
@@ -269,22 +318,22 @@ impl Intder {
     }
 
     /// return the B matrix in simple internal coordinates
-    pub fn b_matrix(&self) -> DMat {
-        let geom_len = 3 * self.geom.len();
+    pub fn b_matrix(&self, geom: &Geom) -> DMat {
+        let geom_len = 3 * geom.len();
         let mut b_mat = Vec::new();
         for ic in &self.simple_internals {
-            b_mat.extend(self.s_vec(ic, geom_len));
+            b_mat.extend(Self::s_vec(geom, ic, geom_len));
         }
         DMat::from_row_slice(self.simple_internals.len(), geom_len, &b_mat)
     }
 
     /// return the symmetry internal coordinate B matrix by computing the simple
     /// internal B and converting it
-    pub fn sym_b_matrix(&self) -> DMat {
-        let b = self.b_matrix();
+    pub fn sym_b_matrix(&self, geom: &Geom) -> DMat {
+        let b = self.b_matrix(geom);
         let (r, c) = b.shape();
         let mut bs = DMat::zeros(r, c);
-        for j in 0..3 * self.geom.len() {
+        for j in 0..3 * geom.len() {
             for i in 0..self.symmetry_internals.len() {
                 let u_i = DVec::from(self.symmetry_internals[i].clone());
                 let b_j = DVec::from(b.column(j));
@@ -328,7 +377,7 @@ mod tests {
                 vec![0., 0., 1.],
                 vec![S, -S, 0.],
             ],
-            geom: vec![
+            geom: Geom(vec![
                 na::Vector3::new(
                     0.000000000000,
                     1.431390244079,
@@ -344,7 +393,7 @@ mod tests {
                     -1.431390244079,
                     0.986041163966,
                 ),
-            ],
+            ]),
             disps: vec![
                 vec![0.005, 0.0, 0.0],
                 vec![0.0, 0.005, 0.0],
@@ -365,7 +414,7 @@ mod tests {
     #[test]
     fn test_initial_values_simple() {
         let intder = Intder::load("testfiles/intder.in");
-        let got = intder.simple_values();
+        let got = intder.simple_values(&intder.geom);
         let got = got.as_slice();
         let want = vec![0.9586143145, 0.9586143145, 1.8221415968];
         let want = want.as_slice();
@@ -375,7 +424,7 @@ mod tests {
     #[test]
     fn test_initial_values_symmetry() {
         let intder = Intder::load("testfiles/intder.in");
-        let got = intder.symmetry_values();
+        let got = intder.symmetry_values(&intder.geom);
         let got = got.as_slice();
         let want = vec![1.3556853647, 1.8221415968, 0.0000000000];
         let want = want.as_slice();
