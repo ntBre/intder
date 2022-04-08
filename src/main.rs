@@ -1,3 +1,4 @@
+use nalgebra as na;
 use rust_intder::{DVec, Intder};
 
 fn main() {
@@ -52,10 +53,20 @@ fn main() {
         intder.print_symmetry(new_sics.as_slice());
         println!();
 
-        println!("iter {i}");
-        println!("{}", (&bs * bs.transpose()).to_string());
-        println!("{}", bs.transpose().to_string());
-        break;
+        println!("B*BT MATRIX FOR (SYMMETRY) INTERNAL COORDINATES");
+        let d = &bs * bs.transpose();
+        println!("{}", d);
+
+        println!("DETERMINANT OF B*BT MATRIX={:8.3}", d.determinant());
+
+        println!();
+        println!("A MATRIX FOR (SYMMETRY) INTERNAL COORDINATES");
+        let chol =
+            na::Cholesky::new(d).expect("Cholesky decomposition of D failed");
+        println!("{}", bs.transpose() * chol.inverse());
+        println!();
+
+        todo!();
     }
     println!();
 }
