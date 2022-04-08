@@ -22,6 +22,7 @@ pub enum SiIC {
     Stretch(usize, usize),
     /// central atom is second like normal people would expect
     Bend(usize, usize, usize),
+    Tors(usize, usize, usize, usize),
 }
 
 impl SiIC {
@@ -33,6 +34,7 @@ impl SiIC {
                 let jk = geom[*k] - geom[*j];
                 (ji.dot(&jk) / (ji.magnitude() * jk.magnitude())).acos()
             }
+            SiIC::Tors(_, _, _, _) => todo!(),
         }
     }
 }
@@ -126,7 +128,7 @@ impl Intder {
             }
         };
 
-        let siic = Regex::new(r"STRE|BEND").unwrap();
+        let siic = Regex::new(r"STRE|BEND|TORS|OUT|LIN|SPF|RCOM").unwrap();
         // something like "    1   1   1.000000000   2   1.000000000"
         let syic = Regex::new(r"^\s*(\d+\s+)(\d\s+[0-9.-]+\s*)+$").unwrap();
         let zero = Regex::new(r"^\s*0$").unwrap();
@@ -163,6 +165,12 @@ impl Intder {
                         sp[1].parse::<usize>().unwrap() - 1,
                         sp[2].parse::<usize>().unwrap() - 1,
                         sp[3].parse::<usize>().unwrap() - 1,
+                    ),
+                    "TORS" => SiIC::Tors(
+                        sp[1].parse::<usize>().unwrap() - 1,
+                        sp[2].parse::<usize>().unwrap() - 1,
+                        sp[3].parse::<usize>().unwrap() - 1,
+                        sp[4].parse::<usize>().unwrap() - 1,
                     ),
                     e => {
                         eprintln!("unknown coordinate type '{}'", e);
@@ -296,8 +304,8 @@ impl Intder {
             }
             SiIC::Bend(a, b, c) => {
                 let phi = ic.value(geom);
-                // NOTE: letting 3 be the central atom in line with Mol.
-                // Vib. notation
+                // NOTE: letting 3 (the number 3, but atom `b`) be the central
+                // atom in line with Mol. Vib. notation
                 let e_31 = Self::unit(geom, *b, *a);
                 let e_32 = Self::unit(geom, *b, *c);
                 let r_31 = Self::dist(geom, *b, *a) * ANGBOHR;
@@ -315,6 +323,15 @@ impl Intder {
                     tmp[3 * c + i] = s_t2[i % 3];
                 }
             }
+            SiIC::Tors(a, b, c, d) => {
+		todo!();
+                // for i in 0..3 {
+                //     tmp[3 * a + i] = s_t1[i % 3];
+                //     tmp[3 * b + i] = s_t3[i % 3];
+                //     tmp[3 * c + i] = s_t2[i % 3];
+                //     tmp[3 * d + i] = s_t2[i % 3];
+                // }
+	    }
         }
         tmp
     }
