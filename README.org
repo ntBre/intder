@@ -8,6 +8,9 @@ I think B does only depend on the simple internals
 
 B relates the simple internals to the Cartesian coordinates
 
+This was true, but BS is B converted to symmetry-internal coordinates, and that
+is what is actually used in =BINVRT=.
+
 I want to solve for the change in the Cartesian coordinates that gives the final
 symmetry internal coordinate values I want
 
@@ -18,4 +21,10 @@ final SICs or something.
 BX = S
 
 for X to be the final Cartesians (for water) it will be 9x1, which means B has
-to be Nx9. 
+to be Nx9.
+
+
+MACHB also returns the current values of the SICs for the current geometry.
+Where does the geometry get updated? I have the A matrix, which I think is used
+to update it, but I need to do the update, check the values of the SICs and
+decide if a new iteration is needed or not

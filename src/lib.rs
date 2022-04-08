@@ -7,7 +7,7 @@ use nalgebra as na;
 use regex::Regex;
 
 /// from https://physics.nist.gov/cgi-bin/cuu/Value?bohrrada0
-const ANGBOHR: f64 = 0.5291_772_109;
+pub const ANGBOHR: f64 = 0.5291_772_109;
 const DEGRAD: f64 = 180.0 / std::f64::consts::PI;
 
 type Vec3 = na::Vector3<f64>;
@@ -156,6 +156,18 @@ impl Intder {
         intder
     }
 
+    /// return the geometry as a vector in Angstroms, assuming it started in
+    /// Bohr
+    pub fn geom_vec(&self) -> DVec {
+        let mut geom = Vec::with_capacity(self.geom.len());
+        for c in &self.geom {
+            for e in c {
+                geom.push(ANGBOHR * e);
+            }
+        }
+        DVec::from(geom)
+    }
+
     pub fn print_geom(&self) {
         for atom in &self.geom {
             for c in atom {
@@ -258,14 +270,7 @@ impl Intder {
 
     /// return the B matrix in simple internal coordinates
     pub fn b_matrix(&self) -> DMat {
-        // flatten the geometry and convert to angstroms
         let geom_len = 3 * self.geom.len();
-        let mut geom = Vec::with_capacity(geom_len);
-        for c in &self.geom {
-            for e in c {
-                geom.push(e * ANGBOHR);
-            }
-        }
         let mut b_mat = Vec::new();
         for ic in &self.simple_internals {
             b_mat.extend(self.s_vec(ic, geom_len));
