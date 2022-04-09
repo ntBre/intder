@@ -58,14 +58,12 @@ impl Geom {
 
 impl From<&DVec> for Geom {
     fn from(dvec: &DVec) -> Self {
-        let mut ret = Self::new();
-        for i in 0..dvec.len() / 3 {
-            let id = 3 * i;
-            if let [x, y, z] = dvec.as_slice()[id..id + 3] {
-                ret.push(Vec3::new(x, y, z));
-            }
-        }
-        ret
+        Self(
+            dvec.as_slice()
+                .chunks(3)
+                .map(|x| Vec3::from_row_slice(x))
+                .collect(),
+        )
     }
 }
 
@@ -73,9 +71,7 @@ impl Into<DVec> for Geom {
     fn into(self) -> DVec {
         let mut geom = Vec::with_capacity(self.len());
         for c in &self {
-            for e in &c {
-                geom.push(*e);
-            }
+	    geom.extend(&c);
         }
         DVec::from(geom)
     }
@@ -140,8 +136,7 @@ impl Intder {
         let reader = BufReader::new(f);
         let mut in_disps = false;
         let mut disp_tmp = vec![];
-        for line in reader.lines() {
-            let line = line.unwrap();
+        for line in reader.lines().flatten() {
             if line.contains("# INTDER #") || line.len() == 0 {
                 continue;
             } else if in_disps {
