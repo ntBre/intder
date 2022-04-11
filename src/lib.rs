@@ -12,8 +12,9 @@ use regex::Regex;
 /// from https://physics.nist.gov/cgi-bin/cuu/Value?bohrrada0
 pub const ANGBOHR: f64 = 0.5291_772_109;
 const DEGRAD: f64 = 180.0 / std::f64::consts::PI;
-pub const DEBUG: bool = false;
+pub const DEBUG: bool = true;
 const TOLDISP: f64 = 1e-14;
+const MAX_ITER: usize = 20;
 
 type Vec3 = na::Vector3<f64>;
 pub type DMat = na::DMatrix<f64>;
@@ -405,9 +406,11 @@ impl Intder {
         }
         let mut ret = Vec::new();
         for (i, disp) in self.disps.iter().enumerate() {
+            // initialize sics and carts to those from the input file
             let mut sic_current = DVec::from(self.symmetry_values(&self.geom));
             let mut cart_current: DVec = self.geom.clone().into();
 
+            // get a vector from the displacement from the input file
             let disp = DVec::from(disp.clone());
             let sic_desired = &sic_current + &disp;
 
@@ -425,6 +428,8 @@ impl Intder {
                 println!();
             }
 
+            // measure convergence by max internal deviation between the current
+            // SICs and desired SICs
             let mut iter = 1;
             while (&sic_current - &sic_desired).abs().max() > TOLDISP {
                 let b_sym = self.sym_b_matrix(&Geom::from(&cart_current));
@@ -441,7 +446,7 @@ impl Intder {
                     println!("{:.6}", d);
 
                     println!(
-                        "DETERMINANT OF B*BT MATRIX={:8.3}",
+                        "DETERMINANT OF B*BT MATRIX={:8.4}",
                         d.determinant()
                     );
 
@@ -459,9 +464,18 @@ impl Intder {
                 );
 
                 iter += 1;
+
+                if MAX_ITER > 0 && iter > MAX_ITER {
+                    panic!("max iterations exceeded");
+                }
             }
 
             if DEBUG {
+                println!(
+                    "ITER={:5} MAX INTERNAL DEVIATION = {:.4e}\n",
+                    iter,
+                    (&sic_current - &sic_desired).abs().max()
+                );
                 println!("NEW CARTESIAN GEOMETRY (BOHR)\n");
                 Self::print_cart(&mut std::io::stdout(), &cart_current);
                 println!();
@@ -646,13 +660,22 @@ mod tests {
 
     #[test]
     fn test_sym_b() {
-        let tests = vec![MatTest {
-            infile: "testfiles/intder.in",
-            rows: 3,
-            cols: 9,
-            vecfile: "testfiles/h2o.bsmat",
-            eps: 2e-7,
-        }];
+        let tests = vec![
+            MatTest {
+                infile: "testfiles/intder.in",
+                rows: 3,
+                cols: 9,
+                vecfile: "testfiles/h2o.bsmat",
+                eps: 2e-7,
+            },
+            MatTest {
+                infile: "testfiles/c7h2.in",
+                rows: 21,
+                cols: 27,
+                vecfile: "testfiles/c7h2.bsmat",
+                eps: 2.2e-7,
+            },
+        ];
         for test in tests {
             let intder = Intder::load(test.infile);
             let got = intder.sym_b_matrix(&intder.geom);
@@ -667,10 +690,30 @@ mod tests {
 
     #[test]
     fn test_a_matrix() {
-        let want = DMat::from_row_slice(9, 3, &load_vec("testfiles/h2o.amat"));
-        let intder = Intder::load("testfiles/intder.in");
-        let got = Intder::a_matrix(&intder.sym_b_matrix(&intder.geom));
-        assert_abs_diff_eq!(got, want, epsilon = 3e-8);
+        let tests = vec![
+            MatTest {
+                infile: "testfiles/intder.in",
+                rows: 9,
+                cols: 3,
+                vecfile: "testfiles/h2o.amat",
+                eps: 3e-8,
+            },
+            // low precision from intder.out
+            MatTest {
+                infile: "testfiles/c3h2.in",
+                rows: 15,
+                cols: 9,
+                vecfile: "testfiles/c3h2.amat",
+                eps: 1e-6,
+            },
+        ];
+        for test in tests {
+            let intder = Intder::load(test.infile);
+            let load = load_vec(test.vecfile);
+            let want = DMat::from_row_slice(test.rows, test.cols, &load);
+            let got = Intder::a_matrix(&intder.sym_b_matrix(&intder.geom));
+            assert_abs_diff_eq!(got, want, epsilon = test.eps);
+        }
     }
 
     /// load a file where each line is a DVec
@@ -696,14 +739,42 @@ mod tests {
             infile: &'a str,
             wantfile: &'a str,
         }
+        // I think there's an issue in my iterations. I'm only testing the first
+        // iterations so far. going to have to test more than that.
+
+        // TODO does it converge for another molecule without torsions? - that
+        // will help narrow down if it's a torsion problem or I was just getting
+        // lucky with the ones I picked for water. it does converge for all
+        // water because I did test that, so I suspect it's the torsions.
+
+        // TODO might have to try McIntosh formulas for s vecs
+
+	// I bet I need to use the generalized McIntosh formulas for torsions.
+	// Follow their refs or copy the intder code.
+
+	// my code doesn't even work for t-HOCO, it's definitely messed up
         let tests = vec![
             Test {
                 infile: "testfiles/h2o.in",
                 wantfile: "testfiles/h2o.small.07",
             },
+	    // HOCO is a classic 4-atom torsion so it should work with the Mol.
+	    // Vib. formulas if anything will
+            Test {
+                infile: "testfiles/thoco.in",
+                wantfile: "testfiles/thoco.07",
+            },
+            // this is still failing, progress:
+            // b_mat looks good, bs_mat tested, a_mat looks fine for c3h2
+
             // Test {
             //     infile: "testfiles/c7h2.in",
             //     wantfile: "testfiles/c7h2.small.07",
+            // },
+
+            // Test {
+            //     infile: "testfiles/c3h2.in",
+            //     wantfile: "testfiles/c3h2.07",
             // },
         ];
         for test in tests {
