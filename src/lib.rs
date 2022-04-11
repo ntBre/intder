@@ -1,9 +1,11 @@
 use std::{
     fs::File,
     io::{BufRead, BufReader, Write},
-    ops::Index,
 };
 
+mod geom;
+
+use geom::Geom;
 use nalgebra as na;
 use regex::Regex;
 
@@ -22,76 +24,21 @@ pub enum SiIC {
     Stretch(usize, usize),
     /// central atom is second like normal people would expect
     Bend(usize, usize, usize),
-    Tors(usize, usize, usize, usize),
+    Torsion(usize, usize, usize, usize),
 }
 
 impl SiIC {
     pub fn value(&self, geom: &Geom) -> f64 {
+        use SiIC::*;
         match self {
-            SiIC::Stretch(i, j) => (geom[*j] - geom[*i]).magnitude() * ANGBOHR,
-            SiIC::Bend(i, j, k) => {
+            Stretch(i, j) => (geom[*j] - geom[*i]).magnitude() * ANGBOHR,
+            Bend(i, j, k) => {
                 let ji = geom[*i] - geom[*j];
                 let jk = geom[*k] - geom[*j];
                 (ji.dot(&jk) / (ji.magnitude() * jk.magnitude())).acos()
             }
-            SiIC::Tors(_, _, _, _) => todo!(),
+            Torsion(i, j, k, l) => 1.0,
         }
-    }
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct Geom(Vec<Vec3>);
-
-impl Geom {
-    pub fn new() -> Self {
-        Geom(Vec::new())
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn push(&mut self, it: Vec3) {
-        self.0.push(it)
-    }
-}
-
-impl From<&DVec> for Geom {
-    fn from(dvec: &DVec) -> Self {
-        Self(
-            dvec.as_slice()
-                .chunks(3)
-                .map(|x| Vec3::from_row_slice(x))
-                .collect(),
-        )
-    }
-}
-
-impl Into<DVec> for Geom {
-    fn into(self) -> DVec {
-        let mut geom = Vec::with_capacity(self.len());
-        for c in &self {
-            geom.extend(&c);
-        }
-        DVec::from(geom)
-    }
-}
-
-impl IntoIterator for &Geom {
-    type Item = Vec3;
-
-    type IntoIter = std::vec::IntoIter<Self::Item>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.clone().into_iter()
-    }
-}
-
-impl Index<usize> for Geom {
-    type Output = Vec3;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.0[index]
     }
 }
 
@@ -161,7 +108,7 @@ impl Intder {
                         sp[2].parse::<usize>().unwrap() - 1,
                         sp[3].parse::<usize>().unwrap() - 1,
                     ),
-                    "TORS" => SiIC::Tors(
+                    "TORS" => SiIC::Torsion(
                         sp[1].parse::<usize>().unwrap() - 1,
                         sp[2].parse::<usize>().unwrap() - 1,
                         sp[3].parse::<usize>().unwrap() - 1,
@@ -318,7 +265,7 @@ impl Intder {
                     tmp[3 * c + i] = s_t2[i % 3];
                 }
             }
-            SiIC::Tors(_a, _b, _c, _d) => {
+            SiIC::Torsion(_a, _b, _c, _d) => {
                 todo!();
                 // for i in 0..3 {
                 //     tmp[3 * a + i] = s_t1[i % 3];
@@ -531,12 +478,48 @@ mod tests {
 
     #[test]
     fn test_initial_values_simple() {
-        let intder = Intder::load("testfiles/intder.in");
-        let got = intder.simple_values(&intder.geom);
-        let got = got.as_slice();
-        let want = vec![0.9586143145, 0.9586143145, 1.8221415968];
-        let want = want.as_slice();
-        assert_abs_diff_eq!(got, want, epsilon = 1e-7);
+        let tests = vec![
+            (
+                "testfiles/intder.in",
+                vec![0.9586143145, 0.9586143145, 1.8221415968],
+            ),
+            (
+                "testfiles/c7h2.in",
+                vec![
+                    1.4260535407,
+                    1.4260535407,
+                    1.3992766813,
+                    1.3992766813,
+                    2.6090029486,
+                    2.6090029486,
+                    3.6728481977,
+                    3.6728481977,
+                    2.5991099760,
+                    2.5991099760,
+                    2.5961248359,
+                    2.5961248359,
+                    2.5945738184,
+                    2.5945738184,
+                    2.8272853896,
+                    3.1415926536,
+                    3.1415926536,
+                    3.1415926536,
+                    3.1415926536,
+                    4.8869219056,
+                    3.1415926536,
+                ],
+            ),
+        ];
+        for test in tests {
+            let intder = Intder::load(test.0);
+	    dbg!(&intder);
+            let got = intder.simple_values(&intder.geom);
+            assert_abs_diff_eq!(
+                DVec::from(got),
+                DVec::from(test.1),
+                epsilon = 1e-7
+            );
+        }
     }
 
     #[test]
@@ -696,24 +679,20 @@ mod tests {
     fn test_convert_disps() {
         struct Test<'a> {
             infile: &'a str,
-            disps: Vec<Vec<f64>>,
             wantfile: &'a str,
         }
-        let tests = vec![Test {
-            infile: "testfiles/intder.in",
-            disps: vec![
-                vec![0.005, 0.0, 0.0],
-                vec![0.0, 0.005, 0.0],
-                vec![0.0, 0.0, 0.005],
-                vec![-0.005, -0.005, -0.01],
-            ],
-            wantfile: "testfiles/h2o.small.07",
-        }];
+        let tests = vec![
+            Test {
+                infile: "testfiles/h2o.in",
+                wantfile: "testfiles/h2o.small.07",
+            },
+            // Test {
+            //     infile: "testfiles/c7h2.in",
+            //     wantfile: "testfiles/c7h2.small.07",
+            // },
+        ];
         for test in tests {
-            let intder = Intder {
-                disps: test.disps,
-                ..Intder::load(test.infile)
-            };
+            let intder = Intder::load(test.infile);
             let got = intder.convert_disps();
             let want = load_geoms(test.wantfile);
             for i in 0..got.len() {
