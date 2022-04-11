@@ -448,6 +448,8 @@ impl Intder {
 
 #[cfg(test)]
 mod tests {
+    use std::io::Read;
+
     use approx::assert_abs_diff_eq;
 
     use super::*;
@@ -560,45 +562,19 @@ mod tests {
         assert_abs_diff_eq!(got, want, epsilon = 1e-7);
     }
 
+    fn load_vec(filename: &str) -> Vec<f64> {
+        let mut f = std::fs::File::open(filename).unwrap();
+        let mut buf = String::new();
+        f.read_to_string(&mut buf).unwrap();
+        buf.split_whitespace()
+            .map(|x| x.parse::<f64>().unwrap())
+            .collect::<Vec<_>>()
+    }
+
     #[test]
     fn test_b_matrix() {
         let intder = Intder::load("testfiles/intder.in");
-        let want = DMat::from_row_slice(
-            3,
-            9,
-            &vec![
-                // row 1
-                0.0,
-                0.7901604711325243,
-                0.61290001620136003,
-                -0.0,
-                -0.7901604711325243,
-                -0.61290001620136003,
-                0.0,
-                0.0,
-                0.0,
-                // row 2
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.7901604711325243,
-                -0.61290001620136003,
-                -0.0,
-                -0.7901604711325243,
-                0.61290001620136003,
-                // row 3
-                -0.0,
-                0.63936038937065331,
-                -0.82427360602746957,
-                0.0,
-                0.0,
-                1.6485472120549391,
-                -0.0,
-                -0.63936038937065331,
-                -0.82427360602746957,
-            ],
-        );
+        let want = DMat::from_row_slice(3, 9, &load_vec("testfiles/h2o.bmat"));
         let got = intder.b_matrix(&intder.geom);
         assert_abs_diff_eq!(got, want, epsilon = 2e-7);
     }
@@ -607,80 +583,13 @@ mod tests {
     fn test_sym_b() {
         let intder = Intder::load("testfiles/intder.in");
         let got = intder.sym_b_matrix(&intder.geom);
-        let want = DMat::from_row_slice(
-            3,
-            9,
-            &vec![
-                // row 1
-                0.0,
-                0.55872782736336513,
-                0.4333857576453265,
-                0.0,
-                0.0,
-                -0.86677151529065299,
-                0.0,
-                -0.55872782736336513,
-                0.4333857576453265,
-                // row 2
-                0.0,
-                0.63936038937065331,
-                -0.82427360602746957,
-                0.0,
-                0.0,
-                1.6485472120549391,
-                0.0,
-                -0.63936038937065331,
-                -0.82427360602746957,
-                // row 3
-                0.0,
-                0.55872782736336513,
-                0.4333857576453265,
-                0.0,
-                -1.1174556547267303,
-                0.0,
-                0.0,
-                0.55872782736336513,
-                -0.4333857576453265,
-            ],
-        );
+        let want = DMat::from_row_slice(3, 9, &load_vec("testfiles/h2o.bsmat"));
         assert_abs_diff_eq!(got, want, epsilon = 2e-7);
     }
 
     #[test]
     fn test_a_matrix() {
-        let want = DMat::from_row_slice(
-            9,
-            3,
-            &vec![
-                0.0,
-                0.0,
-                0.0,
-                0.55872782736336513,
-                0.29376736196418923,
-                0.24846624860790423,
-                0.14446191921510884,
-                -0.12624318866430007,
-                0.19272663384313321,
-                0.0,
-                0.0,
-                0.0,
-                -2.0677083281253247e-17,
-                -6.0369866375237933e-18,
-                -0.49693249721580846,
-                -0.28892383843021768,
-                0.25248637732860013,
-                -7.1323182117049485e-18,
-                0.0,
-                0.0,
-                0.0,
-                -0.55872782736336513,
-                -0.29376736196418923,
-                0.24846624860790423,
-                0.14446191921510884,
-                -0.12624318866430007,
-                -0.19272663384313321,
-            ],
-        );
+        let want = DMat::from_row_slice(9, 3, &load_vec("testfiles/h2o.amat"));
         let intder = Intder::load("testfiles/intder.in");
         let got = Intder::a_matrix(&intder.sym_b_matrix(&intder.geom));
         assert_abs_diff_eq!(got, want, epsilon = 3e-8);
