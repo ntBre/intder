@@ -20,7 +20,7 @@ pub type DMat = na::DMatrix<f64>;
 pub type DVec = na::DVector<f64>;
 
 #[derive(Debug, PartialEq)]
-pub enum SiIC {
+pub enum Siic {
     Stretch(usize, usize),
     /// central atom is second like normal people would expect
     Bend(usize, usize, usize),
@@ -28,9 +28,9 @@ pub enum SiIC {
     Torsion(usize, usize, usize, usize),
 }
 
-impl SiIC {
+impl Siic {
     pub fn value(&self, geom: &Geom) -> f64 {
-        use SiIC::*;
+        use Siic::*;
         match self {
             Stretch(a, b) => Intder::dist(geom, *a, *b) * ANGBOHR,
             Bend(a, b, c) => Intder::angle(geom, *a, *b, *c),
@@ -66,7 +66,7 @@ impl SiIC {
 #[derive(Debug, PartialEq)]
 pub struct Intder {
     input_options: Vec<usize>,
-    simple_internals: Vec<SiIC>,
+    simple_internals: Vec<Siic>,
     pub symmetry_internals: Vec<Vec<f64>>,
     pub geom: Geom,
     pub disps: Vec<Vec<f64>>,
@@ -120,16 +120,16 @@ impl Intder {
             } else if siic.is_match(&line) {
                 let sp: Vec<&str> = line.split_whitespace().collect();
                 intder.simple_internals.push(match sp[0] {
-                    "STRE" => SiIC::Stretch(
+                    "STRE" => Siic::Stretch(
                         sp[1].parse::<usize>().unwrap() - 1,
                         sp[2].parse::<usize>().unwrap() - 1,
                     ),
-                    "BEND" => SiIC::Bend(
+                    "BEND" => Siic::Bend(
                         sp[1].parse::<usize>().unwrap() - 1,
                         sp[2].parse::<usize>().unwrap() - 1,
                         sp[3].parse::<usize>().unwrap() - 1,
                     ),
-                    "TORS" => SiIC::Torsion(
+                    "TORS" => Siic::Torsion(
                         sp[1].parse::<usize>().unwrap() - 1,
                         sp[2].parse::<usize>().unwrap() - 1,
                         sp[3].parse::<usize>().unwrap() - 1,
@@ -203,7 +203,7 @@ impl Intder {
     /// the same order as self.simple_internals for unit purposes
     pub fn print_simple(&self, vals: &[f64]) {
         for (i, v) in vals.iter().enumerate() {
-            if let SiIC::Bend(_, _, _) = self.simple_internals[i] {
+            if let Siic::Bend(_, _, _) = self.simple_internals[i] {
                 println!("{:5}{:>18.10}", i, v * DEGRAD);
             } else {
                 println!("{:5}{:>18.10}", i, v);
@@ -261,18 +261,18 @@ impl Intder {
         (e_ji.dot(&e_jk)).acos()
     }
 
-    pub fn s_vec(geom: &Geom, ic: &SiIC, len: usize) -> Vec<f64> {
+    pub fn s_vec(geom: &Geom, ic: &Siic, len: usize) -> Vec<f64> {
         let mut tmp = vec![0.0; len];
         // TODO write up the math from McIntosh78 and Molecular Vibrations
         match ic {
-            SiIC::Stretch(a, b) => {
+            Siic::Stretch(a, b) => {
                 let e_12 = Self::unit(geom, *a, *b);
                 for i in 0..3 {
                     tmp[3 * a + i] = -e_12[i % 3];
                     tmp[3 * b + i] = e_12[i % 3];
                 }
             }
-            SiIC::Bend(a, b, c) => {
+            Siic::Bend(a, b, c) => {
                 let phi = ic.value(geom);
                 // NOTE: letting 3 (the number 3, but atom `b`) be the central
                 // atom in line with Mol. Vib. notation
@@ -293,7 +293,7 @@ impl Intder {
                     tmp[3 * c + i] = s_t2[i % 3];
                 }
             }
-            SiIC::Torsion(_a, _b, _c, _d) => {
+            Siic::Torsion(_a, _b, _c, _d) => {
                 todo!();
                 // for i in 0..3 {
                 //     tmp[3 * a + i] = s_t1[i % 3];
@@ -461,9 +461,9 @@ mod tests {
                 3, 3, 3, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 14,
             ],
             simple_internals: vec![
-                SiIC::Stretch(0, 1),
-                SiIC::Stretch(1, 2),
-                SiIC::Bend(0, 1, 2),
+                Siic::Stretch(0, 1),
+                Siic::Stretch(1, 2),
+                Siic::Bend(0, 1, 2),
             ],
             symmetry_internals: vec![
                 vec![S, S, 0.],
