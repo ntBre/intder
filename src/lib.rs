@@ -129,8 +129,8 @@ impl Intder {
         let syic = Regex::new(r"^\s*(\d+\s+)(\d\s+[0-9.-]+\s*)+$").unwrap();
         let zero = Regex::new(r"^\s*0$").unwrap();
         // just a bunch of integers like 3    3    3    0    0    3 ..."
-        let iops = Regex::new(r"^\s*(\d+(\s+|$))+").unwrap();
-        let geom = Regex::new(r"\s*([0-9.-]+(\s+|$)){3}").unwrap();
+        let iops = Regex::new(r"^\s*(\d+(\s+|$))+$").unwrap();
+        let geom = Regex::new(r"\s*([0-9-]+\.[0-9]+(\s+|$)){3}").unwrap();
 
         let mut intder = Intder::new();
         let reader = BufReader::new(f);
