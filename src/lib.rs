@@ -71,7 +71,7 @@ impl Into<DVec> for Geom {
     fn into(self) -> DVec {
         let mut geom = Vec::with_capacity(self.len());
         for c in &self {
-	    geom.extend(&c);
+            geom.extend(&c);
         }
         DVec::from(geom)
     }
@@ -318,15 +318,15 @@ impl Intder {
                     tmp[3 * c + i] = s_t2[i % 3];
                 }
             }
-            SiIC::Tors(a, b, c, d) => {
-		todo!();
+            SiIC::Tors(_a, _b, _c, _d) => {
+                todo!();
                 // for i in 0..3 {
                 //     tmp[3 * a + i] = s_t1[i % 3];
                 //     tmp[3 * b + i] = s_t3[i % 3];
                 //     tmp[3 * c + i] = s_t2[i % 3];
                 //     tmp[3 * d + i] = s_t2[i % 3];
                 // }
-	    }
+            }
         }
         tmp
     }
@@ -675,66 +675,50 @@ mod tests {
         assert_abs_diff_eq!(got, want, epsilon = 3e-8);
     }
 
+    /// load a file where each line is a DVec
+    fn load_geoms(filename: &str) -> Vec<DVec> {
+        let f = std::fs::File::open(filename).unwrap();
+        let lines = BufReader::new(f).lines().flatten();
+        let mut ret = Vec::new();
+        for line in lines {
+            if !line.is_empty() {
+                ret.push(DVec::from(
+                    line.split_whitespace()
+                        .map(|x| x.parse().unwrap())
+                        .collect::<Vec<_>>(),
+                ));
+            }
+        }
+        ret
+    }
+
     #[test]
     fn test_convert_disps() {
-        let intder = Intder {
+        struct Test<'a> {
+            infile: &'a str,
+            disps: Vec<Vec<f64>>,
+            wantfile: &'a str,
+        }
+        let tests = vec![Test {
+            infile: "testfiles/intder.in",
             disps: vec![
                 vec![0.005, 0.0, 0.0],
                 vec![0.0, 0.005, 0.0],
                 vec![0.0, 0.0, 0.005],
                 vec![-0.005, -0.005, -0.01],
             ],
-            ..Intder::load("testfiles/intder.in")
-        };
-        let got = intder.convert_disps();
-        let want = vec![
-            na::dvector![
-                0.0000000000,
-                1.4366694195,
-                0.9874061512,
-                0.0000000000,
-                -0.0000000000,
-                -0.1269683874,
-                0.0000000000,
-                -1.4366694195,
-                0.9874061512
-            ],
-            na::dvector![
-                0.0000000000,
-                1.4341614301,
-                0.9848472035,
-                0.0000000000,
-                -0.0000000000,
-                -0.1218504921,
-                0.0000000000,
-                -1.4341614301,
-                0.9848472035
-            ],
-            na::dvector![
-                0.0000000000,
-                1.4337425639,
-                0.9878589402,
-                0.0000000000,
-                -0.0046953159,
-                -0.1242319281,
-                0.0000000000,
-                -1.4290472480,
-                0.9842169028
-            ],
-            na::dvector![
-                0.0000000000,
-                1.4186597974,
-                0.9822041564,
-                0.0000000000,
-                0.0094006500,
-                -0.1238566934,
-                0.0000000000,
-                -1.4280604475,
-                0.9894964520
-            ],
-        ];
-        for i in 0..got.len() {
-            assert_abs_diff_eq!(got[i], want[i], epsilon = 4e-8);
+            wantfile: "testfiles/h2o.small.07",
+        }];
+        for test in tests {
+            let intder = Intder {
+                disps: test.disps,
+                ..Intder::load(test.infile)
+            };
+            let got = intder.convert_disps();
+            let want = load_geoms(test.wantfile);
+            for i in 0..got.len() {
+                assert_abs_diff_eq!(got[i], want[i], epsilon = 4e-8);
+            }
         }
     }
 }
