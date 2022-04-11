@@ -34,8 +34,8 @@ impl Siic {
         match self {
             Stretch(a, b) => Intder::dist(geom, *a, *b) * ANGBOHR,
             Bend(a, b, c) => Intder::angle(geom, *a, *b, *c),
-	    // the manual shows two ways to do this (p. 18), this is the second
-	    // (cos) way
+            // the manual shows two ways to do this (p. 18), this is the second
+            // (cos) way
             Torsion(a, b, c, d) => {
                 let e_ba = Intder::unit(geom, *b, *a);
                 let e_cb = Intder::unit(geom, *c, *b);
@@ -294,14 +294,43 @@ impl Intder {
                     tmp[3 * c + i] = s_t2[i % 3];
                 }
             }
-            Siic::Torsion(_a, _b, _c, _d) => {
-                todo!();
-                // for i in 0..3 {
-                //     tmp[3 * a + i] = s_t1[i % 3];
-                //     tmp[3 * b + i] = s_t3[i % 3];
-                //     tmp[3 * c + i] = s_t2[i % 3];
-                //     tmp[3 * d + i] = s_t2[i % 3];
-                // }
+            Siic::Torsion(a, b, c, d) => {
+                fn tors(
+                    geom: &Geom,
+                    _1: usize,
+                    _2: usize,
+                    _3: usize,
+                    _4: usize,
+                ) -> (Vec3, Vec3) {
+                    // unit vectors
+                    let e_12 = Intder::unit(geom, _1, _2);
+                    let e_23 = Intder::unit(geom, _2, _3);
+                    let e_43 = Intder::unit(geom, _4, _3);
+                    let e_32 = -e_23;
+                    // vectors
+                    let r_12 = Intder::dist(geom, _1, _2) * ANGBOHR;
+                    let r_23 = Intder::dist(geom, _2, _3) * ANGBOHR;
+                    // angles
+                    let phi_2 = Intder::angle(geom, _1, _2, _3);
+                    let phi_3 = Intder::angle(geom, _2, _3, _4);
+                    // s vectors
+                    let s_t1 =
+                        -(e_12.cross(&e_23)) / (r_12 * phi_2.sin().powi(2));
+                    let s_t2 = (((r_23 - r_12 * phi_2.cos())
+                        * e_12.cross(&e_23))
+                        / (r_23 * r_12 * phi_2.sin().powi(2)))
+                        + (phi_3.cos() * e_43.cross(&e_32))
+                            / (r_23 * phi_3.sin().powi(2));
+                    (s_t1, s_t2)
+                }
+                let (s_t1, s_t2) = tors(geom, *a, *b, *c, *d);
+                let (s_t4, s_t3) = tors(geom, *d, *c, *b, *a);
+                for i in 0..3 {
+                    tmp[3 * a + i] = s_t1[i % 3];
+                    tmp[3 * b + i] = s_t2[i % 3];
+                    tmp[3 * c + i] = s_t3[i % 3];
+                    tmp[3 * d + i] = s_t4[i % 3];
+                }
             }
         }
         tmp
@@ -336,8 +365,14 @@ impl Intder {
     /// Let D = BBᵀ and return A = BᵀD⁻¹
     pub fn a_matrix(b: &DMat) -> DMat {
         let d = b * b.transpose();
-        let chol =
-            na::Cholesky::new(d).expect("Cholesky decomposition of D failed");
+        let chol = match na::Cholesky::new(d) {
+            Some(c) => c,
+            None => {
+                // compute it again to avoid cloning on the happy path
+                println!("{:.8}", b * b.transpose());
+                panic!("cholesky decomposition failed");
+            }
+        };
         b.transpose() * chol.inverse()
     }
 
@@ -403,7 +438,7 @@ impl Intder {
                         (&sic_current - &sic_desired).abs().max()
                     );
                     println!("B*BT MATRIX FOR (SYMMETRY) INTERNAL COORDINATES");
-                    println!("{}", d);
+                    println!("{:.6}", d);
 
                     println!(
                         "DETERMINANT OF B*BT MATRIX={:8.3}",
@@ -573,10 +608,39 @@ mod tests {
 
     #[test]
     fn test_b_matrix() {
-        let intder = Intder::load("testfiles/intder.in");
-        let want = DMat::from_row_slice(3, 9, &load_vec("testfiles/h2o.bmat"));
-        let got = intder.b_matrix(&intder.geom);
-        assert_abs_diff_eq!(got, want, epsilon = 2e-7);
+        struct Test<'a> {
+            infile: &'a str,
+            rows: usize,
+            cols: usize,
+            vecfile: &'a str,
+            eps: f64,
+        }
+        let tests = vec![
+            Test {
+                infile: "testfiles/intder.in",
+                rows: 3,
+                cols: 9,
+                vecfile: "testfiles/h2o.bmat",
+                eps: 2e-7,
+            },
+            Test {
+                infile: "testfiles/c7h2.in",
+                rows: 21,
+                cols: 27,
+                vecfile: "testfiles/c7h2.bmat",
+                eps: 2.2e-7,
+            },
+        ];
+        for test in tests {
+            let intder = Intder::load(test.infile);
+            let want = DMat::from_row_slice(
+                test.rows,
+                test.cols,
+                &load_vec(test.vecfile),
+            );
+            let got = intder.b_matrix(&intder.geom);
+            assert_abs_diff_eq!(got, want, epsilon = test.eps);
+        }
     }
 
     #[test]
@@ -623,10 +687,10 @@ mod tests {
                 infile: "testfiles/h2o.in",
                 wantfile: "testfiles/h2o.small.07",
             },
-            // Test {
-            //     infile: "testfiles/c7h2.in",
-            //     wantfile: "testfiles/c7h2.small.07",
-            // },
+            Test {
+                infile: "testfiles/c7h2.in",
+                wantfile: "testfiles/c7h2.small.07",
+            },
         ];
         for test in tests {
             let intder = Intder::load(test.infile);

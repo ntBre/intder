@@ -2,7 +2,7 @@ BASE = /home/brent/Projects/rust-intder
 TESTFLAGS = --test-threads=1 --nocapture
 
 test:
-	RUST_BACKTRACE=1 cargo test -- ${TESTFLAGS}
+	cargo test -- ${TESTFLAGS} ${ARGS}
 
 run:
 	cargo run ../testfiles/intder.in
