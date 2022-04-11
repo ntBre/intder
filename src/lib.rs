@@ -24,6 +24,7 @@ pub enum SiIC {
     Stretch(usize, usize),
     /// central atom is second like normal people would expect
     Bend(usize, usize, usize),
+    /// angle between planes formed by i, j, k and j, k, l
     Torsion(usize, usize, usize, usize),
 }
 
@@ -31,13 +32,33 @@ impl SiIC {
     pub fn value(&self, geom: &Geom) -> f64 {
         use SiIC::*;
         match self {
-            Stretch(i, j) => (geom[*j] - geom[*i]).magnitude() * ANGBOHR,
-            Bend(i, j, k) => {
-                let ji = geom[*i] - geom[*j];
-                let jk = geom[*k] - geom[*j];
-                (ji.dot(&jk) / (ji.magnitude() * jk.magnitude())).acos()
+            Stretch(a, b) => Intder::dist(geom, *a, *b) * ANGBOHR,
+            Bend(a, b, c) => Intder::angle(geom, *a, *b, *c),
+	    // the manual shows two ways to do this (p. 18), this is the second
+	    // (cos) way
+            Torsion(a, b, c, d) => {
+                let e_ba = Intder::unit(geom, *b, *a);
+                let e_cb = Intder::unit(geom, *c, *b);
+                let e_cd = Intder::unit(geom, *c, *d);
+                let phi_abc = Intder::angle(geom, *a, *b, *c);
+                let phi_bcd = Intder::angle(geom, *b, *c, *d);
+                let tau = (e_ba.cross(&-e_cb)).dot(&e_cb.cross(&e_cd))
+                    / (phi_abc.sin() * phi_bcd.sin());
+                let tau_size = tau.abs() - 1.0;
+                // adjust tau back to 1 if it's barely off. this threshold could
+                // probably be adjusted. I saw deviation of the size 4e-16 but
+                // gave a slightly more generous buffer
+                let tau = if tau_size > 0.0 && tau_size < 1e-14 {
+                    f64::copysign(1.0, tau)
+                } else {
+                    tau
+                };
+                let it = tau.acos();
+                if f64::is_nan(it) {
+                    panic!("NaN found on acos of {}", tau);
+                }
+                it
             }
-            Torsion(i, j, k, l) => 1.0,
         }
     }
 }
@@ -231,6 +252,13 @@ impl Intder {
     /// distance between atoms i and j
     fn dist(geom: &Geom, i: usize, j: usize) -> f64 {
         (geom[j] - geom[i]).magnitude()
+    }
+
+    /// angle in radians between atoms i, j, and k, where j is the central atom
+    fn angle(geom: &Geom, i: usize, j: usize, k: usize) -> f64 {
+        let e_ji = Self::unit(geom, j, i);
+        let e_jk = Self::unit(geom, j, k);
+        (e_ji.dot(&e_jk)).acos()
     }
 
     pub fn s_vec(geom: &Geom, ic: &SiIC, len: usize) -> Vec<f64> {
@@ -500,24 +528,23 @@ mod tests {
                     2.5961248359,
                     2.5945738184,
                     2.5945738184,
-                    2.8272853896,
+                    1.0819561376,
                     3.1415926536,
                     3.1415926536,
                     3.1415926536,
                     3.1415926536,
-                    4.8869219056,
+                    3.1415926536,
                     3.1415926536,
                 ],
             ),
         ];
         for test in tests {
             let intder = Intder::load(test.0);
-	    dbg!(&intder);
             let got = intder.simple_values(&intder.geom);
             assert_abs_diff_eq!(
                 DVec::from(got),
                 DVec::from(test.1),
-                epsilon = 1e-7
+                epsilon = 3e-7
             );
         }
     }
