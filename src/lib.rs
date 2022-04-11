@@ -606,24 +606,25 @@ mod tests {
             .collect::<Vec<_>>()
     }
 
+    struct MatTest<'a> {
+        infile: &'a str,
+        rows: usize,
+        cols: usize,
+        vecfile: &'a str,
+        eps: f64,
+    }
+
     #[test]
     fn test_b_matrix() {
-        struct Test<'a> {
-            infile: &'a str,
-            rows: usize,
-            cols: usize,
-            vecfile: &'a str,
-            eps: f64,
-        }
         let tests = vec![
-            Test {
+            MatTest {
                 infile: "testfiles/intder.in",
                 rows: 3,
                 cols: 9,
                 vecfile: "testfiles/h2o.bmat",
                 eps: 2e-7,
             },
-            Test {
+            MatTest {
                 infile: "testfiles/c7h2.in",
                 rows: 21,
                 cols: 27,
@@ -645,10 +646,23 @@ mod tests {
 
     #[test]
     fn test_sym_b() {
-        let intder = Intder::load("testfiles/intder.in");
-        let got = intder.sym_b_matrix(&intder.geom);
-        let want = DMat::from_row_slice(3, 9, &load_vec("testfiles/h2o.bsmat"));
-        assert_abs_diff_eq!(got, want, epsilon = 2e-7);
+        let tests = vec![MatTest {
+            infile: "testfiles/intder.in",
+            rows: 3,
+            cols: 9,
+            vecfile: "testfiles/h2o.bsmat",
+            eps: 2e-7,
+        }];
+        for test in tests {
+            let intder = Intder::load(test.infile);
+            let got = intder.sym_b_matrix(&intder.geom);
+            let want = DMat::from_row_slice(
+                test.rows,
+                test.cols,
+                &load_vec(test.vecfile),
+            );
+            assert_abs_diff_eq!(got, want, epsilon = test.eps);
+        }
     }
 
     #[test]
@@ -687,10 +701,10 @@ mod tests {
                 infile: "testfiles/h2o.in",
                 wantfile: "testfiles/h2o.small.07",
             },
-            Test {
-                infile: "testfiles/c7h2.in",
-                wantfile: "testfiles/c7h2.small.07",
-            },
+            // Test {
+            //     infile: "testfiles/c7h2.in",
+            //     wantfile: "testfiles/c7h2.small.07",
+            // },
         ];
         for test in tests {
             let intder = Intder::load(test.infile);
