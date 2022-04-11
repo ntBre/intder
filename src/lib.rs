@@ -94,7 +94,8 @@ impl Intder {
 
         let siic = Regex::new(r"STRE|BEND|TORS|OUT|LIN|SPF|RCOM").unwrap();
         // something like "    1   1   1.000000000   2   1.000000000"
-        let syic = Regex::new(r"^\s*(\d+\s+)(\d\s+[0-9.-]+\s*)+$").unwrap();
+        let syic =
+            Regex::new(r"^\s*(\d+\s+)(\d+\s+[0-9-]\.[0-9]+(\s+|$))+").unwrap();
         let zero = Regex::new(r"^\s*0$").unwrap();
         // just a bunch of integers like 3    3    3    0    0    3 ..."
         let iops = Regex::new(r"^\s*(\d+(\s+|$))+$").unwrap();
