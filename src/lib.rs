@@ -76,7 +76,7 @@ impl Siic {
 
 #[derive(Debug, PartialEq)]
 pub struct Intder {
-    input_options: Vec<usize>,
+    pub input_options: Vec<usize>,
     simple_internals: Vec<Siic>,
     pub symmetry_internals: Vec<Vec<f64>>,
     pub geom: Geom,
@@ -401,6 +401,8 @@ impl Intder {
         println!();
     }
 
+    /// convert the displacements in `self.disps` from (symmetry) internal
+    /// coordinates to Cartesian coordinates
     pub fn convert_disps(&self) -> Vec<DVec> {
         if unsafe { VERBOSE } {
             self.print_init();
@@ -484,6 +486,22 @@ impl Intder {
             ret.push(cart_current);
         }
         ret
+    }
+
+    /// convert the force constants in `self.TODO=fcs` from (symmetry) internal
+    /// coordinates to Cartesian coordinates
+    pub fn convert_fcs(&self) {
+	todo!();
+        // if unsafe { VERBOSE } {
+        //     self.print_init();
+        // }
+        // // let sics = DVec::from(self.symmetry_values(&self.geom));
+        // let carts: DVec = self.geom.clone().into();
+
+        // let b_sym = self.sym_b_matrix(&Geom::from(&carts));
+        // // I think this is still BINVRT, but need to follow in gdb
+        // let d = &b_sym * b_sym.transpose();
+        // let a = Intder::a_matrix(&b_sym);
     }
 
     pub fn print_cart<W: Write>(w: &mut W, cart: &DVec) {

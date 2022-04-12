@@ -29,3 +29,14 @@
   |-----------+-----------+-----------+-----------|
   | C7H2 Orig | 1m18.593s | 2m2.780s  | 0m26.215s |
   | C7H2 prof |           | 1m51.760s | 0m16.808s |
+
+* TODO make sure NSIC = 0 works
+  should make it possible to use just simple internals for Cs molecules, for
+  example. this might work if I just loop over symmetry_internals everywhere
+  right now, but I'm not sure
+
+* References
+  - D. F. McIntosh, K. H. Michaelian, and M. R. Peterson. Can. J. Chem. Vol. 56,
+    1978
+  - E. B. Wilson, Jr., J. C. Decius, and P. C. Cross. Molecular
+    Vibrations, 1955.

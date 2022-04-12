@@ -51,10 +51,15 @@ fn main() {
         Some(s) => Intder::load_file(&s),
         None => Intder::load(std::io::stdin()),
     };
-    let new_carts = intder.convert_disps();
-    let mut file07 = File::create("file07").expect("failed to create file07");
-    for cart in new_carts {
-        writeln!(file07, "# GEOMUP #################").unwrap();
-        Intder::print_cart(&mut file07, &cart);
+    if intder.input_options[14] != 0 {
+        let new_carts = intder.convert_disps();
+        let mut file07 =
+            File::create("file07").expect("failed to create file07");
+        for cart in new_carts {
+            writeln!(file07, "# GEOMUP #################").unwrap();
+            Intder::print_cart(&mut file07, &cart);
+        }
+    } else {
+	intder.convert_fcs();
     }
 }
