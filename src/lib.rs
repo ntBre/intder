@@ -33,7 +33,7 @@ impl Siic {
     pub fn value(&self, geom: &Geom) -> f64 {
         use Siic::*;
         match self {
-            Stretch(a, b) => Intder::dist(geom, *a, *b) * ANGBOHR,
+            Stretch(a, b) => Intder::dist(geom, *a, *b),
             Bend(a, b, c) => Intder::angle(geom, *a, *b, *c),
             // the manual shows two ways to do this (p. 18), this is the second
             // (cos) way
@@ -49,7 +49,7 @@ impl Siic {
                 // adjust tau back to 1 if it's barely off. this threshold could
                 // probably be adjusted. I saw deviation of the size 4e-16 but
                 // gave a slightly more generous buffer
-                let tau = if tau_size > 0.0 && tau_size < 1e-14 {
+                let tau = if tau_size > 0.0 && tau_size < 1e-12 {
                     f64::copysign(1.0, tau)
                 } else {
                     tau
@@ -253,7 +253,7 @@ impl Intder {
 
     /// distance between atoms i and j
     fn dist(geom: &Geom, i: usize, j: usize) -> f64 {
-        (geom[j] - geom[i]).magnitude()
+        ANGBOHR * (geom[j] - geom[i]).magnitude()
     }
 
     /// angle in radians between atoms i, j, and k, where j is the central atom
@@ -265,7 +265,6 @@ impl Intder {
 
     pub fn s_vec(geom: &Geom, ic: &Siic, len: usize) -> Vec<f64> {
         let mut tmp = vec![0.0; len];
-        // TODO write up the math from McIntosh78 and Molecular Vibrations
         match ic {
             Siic::Stretch(a, b) => {
                 let e_12 = Self::unit(geom, *a, *b);
@@ -277,8 +276,8 @@ impl Intder {
             Siic::Bend(a, b, c) => {
                 let e_21 = Self::unit(geom, *b, *a);
                 let e_23 = Self::unit(geom, *b, *c);
-                let t_12 = Self::dist(geom, *b, *a) * ANGBOHR;
-                let t_32 = Self::dist(geom, *b, *c) * ANGBOHR;
+                let t_12 = Self::dist(geom, *b, *a);
+                let t_32 = Self::dist(geom, *b, *c);
                 let w = e_21.dot(&e_23);
                 let sp = (1.0 - w * w).sqrt();
                 let c1 = 1.0 / (t_12 * sp);
@@ -290,41 +289,34 @@ impl Intder {
                 }
             }
             Siic::Torsion(a, b, c, d) => {
-                fn tors(
-                    geom: &Geom,
-                    _1: usize,
-                    _2: usize,
-                    _3: usize,
-                    _4: usize,
-                ) -> (Vec3, Vec3) {
-                    // unit vectors
-                    let e_12 = Intder::unit(geom, _1, _2);
-                    let e_23 = Intder::unit(geom, _2, _3);
-                    let e_43 = Intder::unit(geom, _4, _3);
-                    let e_32 = -e_23;
-                    // vectors
-                    let r_12 = Intder::dist(geom, _1, _2) * ANGBOHR;
-                    let r_23 = Intder::dist(geom, _2, _3) * ANGBOHR;
-                    // angles
-                    let phi_2 = Intder::angle(geom, _1, _2, _3);
-                    let phi_3 = Intder::angle(geom, _2, _3, _4);
-                    // s vectors
-                    let s_t1 =
-                        -(e_12.cross(&e_23)) / (r_12 * phi_2.sin().powi(2));
-                    let s_t2 = (((r_23 - r_12 * phi_2.cos())
-                        * e_12.cross(&e_23))
-                        / (r_23 * r_12 * phi_2.sin().powi(2)))
-                        + (phi_3.cos() * e_43.cross(&e_32))
-                            / (r_23 * phi_3.sin().powi(2));
-                    (s_t1, s_t2)
-                }
-                let (s_t1, s_t2) = tors(geom, *a, *b, *c, *d);
-                let (s_t4, s_t3) = tors(geom, *d, *c, *b, *a);
+                let e_21 = Self::unit(geom, *b, *a);
+                let e_32 = Self::unit(geom, *c, *b);
+                let e_43 = Self::unit(geom, *d, *c);
+                let t_21 = Self::dist(geom, *b, *a);
+                let t_32 = Self::dist(geom, *c, *b);
+                let t_43 = Self::dist(geom, *d, *c);
+                let v5 = e_21.cross(&e_32);
+                let v6 = e_43.cross(&e_32);
+                let w2 = e_21.dot(&e_32);
+                let w3 = e_43.dot(&e_32);
+                let cp2 = -w2;
+                let cp3 = -w3;
+                let sp2 = (1.0 - cp2 * cp2).sqrt();
+                let sp3 = (1.0 - cp3 * cp3).sqrt();
+                // terminal atoms
+                let w1 = 1.0 / (t_21 * sp2 * sp2);
+                let w2 = 1.0 / (t_43 * sp3 * sp3);
                 for i in 0..3 {
-                    tmp[3 * a + i] = s_t1[i % 3];
-                    tmp[3 * b + i] = s_t2[i % 3];
-                    tmp[3 * c + i] = s_t3[i % 3];
-                    tmp[3 * d + i] = s_t4[i % 3];
+                    tmp[3 * a + i] = -w1 * v5[i];
+                    tmp[3 * d + i] = -w2 * v6[i];
+                }
+                let w3 = (t_32 - t_21 * cp2) * w1 / t_32;
+                let w4 = cp3 / (t_32 * sp3 * sp3);
+                let w5 = (t_32 - t_43 * cp3) * w2 / t_32;
+                let w6 = cp2 / (t_32 * sp2 * sp2);
+                for i in 0..3 {
+                    tmp[3 * b + i] = w3 * v5[i] + w4 * v6[i];
+                    tmp[3 * c + i] = w5 * v6[i] + w6 * v5[i];
                 }
             }
         }
@@ -761,17 +753,17 @@ mod tests {
 
         // TODO might have to try McIntosh formulas for s vecs
 
-	// I bet I need to use the generalized McIntosh formulas for torsions.
-	// Follow their refs or copy the intder code.
+        // I bet I need to use the generalized McIntosh formulas for torsions.
+        // Follow their refs or copy the intder code.
 
-	// my code doesn't even work for t-HOCO, it's definitely messed up
+        // my code doesn't even work for t-HOCO, it's definitely messed up
         let tests = vec![
             Test {
                 infile: "testfiles/h2o.in",
                 wantfile: "testfiles/h2o.small.07",
             },
-	    // HOCO is a classic 4-atom torsion so it should work with the Mol.
-	    // Vib. formulas if anything will
+            // HOCO is a classic 4-atom torsion so it should work with the Mol.
+            // Vib. formulas if anything will
             Test {
                 infile: "testfiles/thoco.in",
                 wantfile: "testfiles/thoco.07",
