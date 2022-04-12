@@ -1,30 +1,27 @@
-See [[pdf:~/Library/McIntosh78.pdf][McIntosh78]] for details on the construction of B matrix
-- in turn it refers to /Molecular Vibrations/, which has been sitting on the floor
-  behind me the whole time I was beating my head against the fortran version...
+* B Matrix and s vectors
+  See [[pdf:~/Library/McIntosh78.pdf][McIntosh78]] for details on the construction of B matrix
+  - in turn it refers to /Molecular Vibrations/, which has been sitting on the floor
+    behind me the whole time I was beating my head against the fortran version...
 
-also see [[https://github.com/psi4/psi3/blob/master/src/bin/intder/README][nate's readme]] from trying to convert it to C++
+  also see [[https://github.com/psi4/psi3/blob/master/src/bin/intder/README][nate's readme]] from trying to convert it to C++
 
-I think B does only depend on the simple internals
+  I think B does only depend on the simple internals
 
-B relates the simple internals to the Cartesian coordinates
+  B relates the simple internals to the Cartesian coordinates
 
-This was true, but BS is B converted to symmetry-internal coordinates, and that
-is what is actually used in =BINVRT=.
+  This was true, but BS is B converted to symmetry-internal coordinates, and that
+  is what is actually used later
 
-I want to solve for the change in the Cartesian coordinates that gives the final
-symmetry internal coordinate values I want
+  see comments on a_matrix for expression, something like D = BBt and A = BtD-1
 
-I think this means some form of B, maybe BᵀB or its inverse or something, will
-be on the left with a solution vector X, and these two will be equal to the
-final SICs or something.
+  compute A, multiply by the difference between SIC_desired and SIC_current and
+  add that step to the Cartesian coordinates
 
-BX = S
+* Timing
+  fairer comparison to DEBUG=true version since that writes something like
+  intder.out
 
-for X to be the final Cartesians (for water) it will be 9x1, which means B has
-to be Nx9.
-
-
-MACHB also returns the current values of the SICs for the current geometry.
-Where does the geometry get updated? I have the A matrix, which I think is used
-to update it, but I need to do the update, check the values of the SICs and
-decide if a new iteration is needed or not
+  ouch, mine takes longer with 8.8M vs 14.9M lines printed
+  | Molecule | Old       | New+Debug | New     |
+  |----------+-----------+-----------+---------|
+  | C7H2     | 1m18.593s | 2m2.780s  | 26.215s |

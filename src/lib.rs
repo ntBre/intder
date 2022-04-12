@@ -10,9 +10,13 @@ use nalgebra as na;
 use regex::Regex;
 
 /// from <https://physics.nist.gov/cgi-bin/cuu/Value?bohrrada0>
-pub const ANGBOHR: f64 = 0.5291_772_109;
+const ANGBOHR: f64 = 0.5291_772_109;
 const DEGRAD: f64 = 180.0 / std::f64::consts::PI;
-pub const DEBUG: bool = true;
+
+// flags
+pub static mut VERBOSE: bool = false;
+
+// TODO make these input or flag params
 const TOLDISP: f64 = 1e-14;
 const MAX_ITER: usize = 20;
 
@@ -393,7 +397,7 @@ impl Intder {
     }
 
     pub fn convert_disps(&self) -> Vec<DVec> {
-        if DEBUG {
+        if unsafe {VERBOSE} {
             self.print_init();
         }
         let mut ret = Vec::new();
@@ -406,7 +410,7 @@ impl Intder {
             let disp = DVec::from(disp.clone());
             let sic_desired = &sic_current + &disp;
 
-            if DEBUG {
+            if unsafe{VERBOSE} {
                 println!("DISPLACEMENT{:5}\n", i);
                 println!("INTERNAL DISPLACEMENTS\n");
                 for (i, d) in disp.iter().enumerate() {
@@ -428,7 +432,7 @@ impl Intder {
                 let d = &b_sym * b_sym.transpose();
                 let a = Intder::a_matrix(&b_sym);
 
-                if DEBUG {
+                if unsafe{VERBOSE} {
                     println!(
                         "ITER={:5} MAX INTERNAL DEVIATION = {:.4e}",
                         iter,
@@ -462,7 +466,7 @@ impl Intder {
                 }
             }
 
-            if DEBUG {
+            if unsafe{VERBOSE} {
                 println!(
                     "ITER={:5} MAX INTERNAL DEVIATION = {:.4e}\n",
                     iter,
@@ -750,20 +754,6 @@ mod tests {
             infile: &'a str,
             wantfile: &'a str,
         }
-        // I think there's an issue in my iterations. I'm only testing the first
-        // iterations so far. going to have to test more than that.
-
-        // TODO does it converge for another molecule without torsions? - that
-        // will help narrow down if it's a torsion problem or I was just getting
-        // lucky with the ones I picked for water. it does converge for all
-        // water because I did test that, so I suspect it's the torsions.
-
-        // TODO might have to try McIntosh formulas for s vecs
-
-        // I bet I need to use the generalized McIntosh formulas for torsions.
-        // Follow their refs or copy the intder code.
-
-        // my code doesn't even work for t-HOCO, it's definitely messed up
         let tests = vec![
             Test {
                 infile: "testfiles/h2o.in",
