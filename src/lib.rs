@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::{BufRead, BufReader, Write},
+    io::{BufRead, BufReader, Read, Write},
 };
 
 mod geom;
@@ -94,7 +94,7 @@ impl Intder {
         }
     }
 
-    pub fn load(infile: &str) -> Self {
+    pub fn load_file(infile: &str) -> Self {
         let f = match File::open(infile) {
             Ok(f) => f,
             Err(_) => {
@@ -102,7 +102,10 @@ impl Intder {
                 std::process::exit(1);
             }
         };
+        Self::load(f)
+    }
 
+    pub fn load<R: Read>(r: R) -> Self {
         let siic = Regex::new(r"STRE|BEND|TORS|OUT|LIN|SPF|RCOM").unwrap();
         // something like "    1   1   1.000000000   2   1.000000000"
         let syic =
@@ -113,7 +116,7 @@ impl Intder {
         let geom = Regex::new(r"\s*([0-9-]+\.[0-9]+(\s+|$)){3}").unwrap();
 
         let mut intder = Intder::new();
-        let reader = BufReader::new(f);
+        let reader = BufReader::new(r);
         let mut in_disps = false;
         let mut disp_tmp = vec![];
         for line in reader.lines().flatten() {
@@ -505,7 +508,7 @@ mod tests {
 
     #[test]
     fn test_load() {
-        let got = Intder::load("testfiles/intder.in");
+        let got = Intder::load_file("testfiles/intder.in");
         let want = Intder {
             input_options: vec![
                 3, 3, 3, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 14,
@@ -589,7 +592,7 @@ mod tests {
             ),
         ];
         for test in tests {
-            let intder = Intder::load(test.0);
+            let intder = Intder::load_file(test.0);
             let got = intder.simple_values(&intder.geom);
             assert_abs_diff_eq!(
                 DVec::from(got),
@@ -601,7 +604,7 @@ mod tests {
 
     #[test]
     fn test_initial_values_symmetry() {
-        let intder = Intder::load("testfiles/intder.in");
+        let intder = Intder::load_file("testfiles/intder.in");
         let got = intder.symmetry_values(&intder.geom);
         let got = got.as_slice();
         let want = vec![1.3556853647, 1.8221415968, 0.0000000000];
@@ -645,7 +648,7 @@ mod tests {
             },
         ];
         for test in tests {
-            let intder = Intder::load(test.infile);
+            let intder = Intder::load_file(test.infile);
             let want = DMat::from_row_slice(
                 test.rows,
                 test.cols,
@@ -675,7 +678,7 @@ mod tests {
             },
         ];
         for test in tests {
-            let intder = Intder::load(test.infile);
+            let intder = Intder::load_file(test.infile);
             let got = intder.sym_b_matrix(&intder.geom);
             let want = DMat::from_row_slice(
                 test.rows,
@@ -725,7 +728,7 @@ mod tests {
             },
         ];
         for test in tests {
-            let intder = Intder::load(test.infile);
+            let intder = Intder::load_file(test.infile);
             let load = load_vec(test.vecfile);
             let want = DMat::from_row_slice(test.rows, test.cols, &load);
             let got = Intder::a_matrix(&intder.sym_b_matrix(&intder.geom));
@@ -775,7 +778,7 @@ mod tests {
             },
         ];
         for test in tests {
-            let intder = Intder::load(test.infile);
+            let intder = Intder::load_file(test.infile);
             let got = intder.convert_disps();
             let want = load_geoms(test.wantfile);
             for i in 0..got.len() {
