@@ -127,8 +127,13 @@ impl Intder {
                     continue;
                 }
                 let sp: Vec<&str> = line.split_whitespace().collect();
-                disp_tmp[sp[0].parse::<usize>().unwrap() - 1] =
-                    sp[1].parse::<f64>().unwrap();
+                disp_tmp[sp[0].parse::<usize>().unwrap() - 1] = match sp.get(1)
+                {
+                    Some(s) => s,
+                    None => panic!("line '{}' too short", line),
+                }
+                .parse::<f64>()
+                .unwrap();
             } else if siic.is_match(&line) {
                 let sp: Vec<&str> = line.split_whitespace().collect();
                 intder.simple_internals.push(match sp[0] {
@@ -347,16 +352,13 @@ impl Intder {
     /// internal B and converting it
     pub fn sym_b_matrix(&self, geom: &Geom) -> DMat {
         let b = self.b_matrix(geom);
-        let (r, c) = b.shape();
-        let mut bs = DMat::zeros(r, c);
-        for j in 0..3 * geom.len() {
-            for i in 0..self.symmetry_internals.len() {
-                let u_i = DVec::from(self.symmetry_internals[i].clone());
-                let b_j = DVec::from(b.column(j));
-                bs[(i, j)] = u_i.dot(&b_j);
-            }
+        let (r, _) = b.shape();
+        let mut u = Vec::new();
+        for i in 0..self.symmetry_internals.len() {
+            u.extend(&self.symmetry_internals[i].clone());
         }
-        bs
+        let u = DMat::from_row_slice(r, r, &u);
+        u * b
     }
 
     /// Let D = BBᵀ and return A = BᵀD⁻¹
@@ -397,7 +399,7 @@ impl Intder {
     }
 
     pub fn convert_disps(&self) -> Vec<DVec> {
-        if unsafe {VERBOSE} {
+        if unsafe { VERBOSE } {
             self.print_init();
         }
         let mut ret = Vec::new();
@@ -410,7 +412,7 @@ impl Intder {
             let disp = DVec::from(disp.clone());
             let sic_desired = &sic_current + &disp;
 
-            if unsafe{VERBOSE} {
+            if unsafe { VERBOSE } {
                 println!("DISPLACEMENT{:5}\n", i);
                 println!("INTERNAL DISPLACEMENTS\n");
                 for (i, d) in disp.iter().enumerate() {
@@ -432,7 +434,7 @@ impl Intder {
                 let d = &b_sym * b_sym.transpose();
                 let a = Intder::a_matrix(&b_sym);
 
-                if unsafe{VERBOSE} {
+                if unsafe { VERBOSE } {
                     println!(
                         "ITER={:5} MAX INTERNAL DEVIATION = {:.4e}",
                         iter,
@@ -466,7 +468,7 @@ impl Intder {
                 }
             }
 
-            if unsafe{VERBOSE} {
+            if unsafe { VERBOSE } {
                 println!(
                     "ITER={:5} MAX INTERNAL DEVIATION = {:.4e}\n",
                     iter,

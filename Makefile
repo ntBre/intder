@@ -12,3 +12,15 @@ deploy:
 		--target x86_64-unknown-linux-gnu
 	scp -C ${BASE}/target/x86_64-unknown-linux-gnu/release/rust-intder \
 		'woods:Programs/brentder/.'
+
+#############
+# PROFILING #
+#############
+
+profile = RUSTFLAGS='-g' cargo build --release --bin $(1); \
+	valgrind --tool=callgrind --callgrind-out-file=callgrind.out	\
+		--collect-jumps=yes --simulate-cache=yes		\
+		${BASE}/target/release/$(1)
+
+profile.big:
+	$(call profile,big)
