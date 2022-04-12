@@ -9,7 +9,7 @@ use geom::Geom;
 use nalgebra as na;
 use regex::Regex;
 
-/// from https://physics.nist.gov/cgi-bin/cuu/Value?bohrrada0
+/// from <https://physics.nist.gov/cgi-bin/cuu/Value?bohrrada0>
 pub const ANGBOHR: f64 = 0.5291_772_109;
 const DEGRAD: f64 = 180.0 / std::f64::consts::PI;
 pub const DEBUG: bool = true;
@@ -35,30 +35,36 @@ impl Siic {
         match self {
             Stretch(a, b) => Intder::dist(geom, *a, *b),
             Bend(a, b, c) => Intder::angle(geom, *a, *b, *c),
-            // the manual shows two ways to do this (p. 18), this is the second
-            // (cos) way
             Torsion(a, b, c, d) => {
-                let e_ba = Intder::unit(geom, *b, *a);
-                let e_cb = Intder::unit(geom, *c, *b);
-                let e_cd = Intder::unit(geom, *c, *d);
-                let phi_abc = Intder::angle(geom, *a, *b, *c);
-                let phi_bcd = Intder::angle(geom, *b, *c, *d);
-                let tau = (e_ba.cross(&-e_cb)).dot(&e_cb.cross(&e_cd))
-                    / (phi_abc.sin() * phi_bcd.sin());
-                let tau_size = tau.abs() - 1.0;
-                // adjust tau back to 1 if it's barely off. this threshold could
-                // probably be adjusted. I saw deviation of the size 4e-16 but
-                // gave a slightly more generous buffer
-                let tau = if tau_size > 0.0 && tau_size < 1e-12 {
-                    f64::copysign(1.0, tau)
+                let e_21 = Intder::unit(geom, *b, *a);
+                let e_32 = Intder::unit(geom, *c, *b);
+                let e_43 = Intder::unit(geom, *d, *c);
+                let v5 = e_21.cross(&e_32);
+                let v6 = e_43.cross(&e_32);
+                let w2 = e_21.dot(&e_32);
+                let w3 = e_43.dot(&e_32);
+                let cp2 = -w2;
+                let cp3 = -w3;
+                let sp2 = (1.0 - cp2 * cp2).sqrt();
+                let sp3 = (1.0 - cp3 * cp3).sqrt();
+                let w2 = e_21.dot(&v6);
+                let w3 = -v5.dot(&v6);
+                let w = w2 / (sp2 * sp3);
+                let w_size = w.abs() - 1.0;
+                let w = if w_size > 0.0 && w_size < 1e-12 {
+                    f64::copysign(1.0, w)
                 } else {
-                    tau
-                };
-                let it = tau.acos();
-                if f64::is_nan(it) {
-                    panic!("NaN found on acos of {}", tau);
+                    w
                 }
-                it
+                .asin();
+                if w.is_nan() {
+                    panic!("nan calling sin on {}", w_size);
+                }
+                if w3 < 0.0 {
+                    std::f64::consts::PI - w
+                } else {
+                    w
+                }
             }
         }
     }
@@ -674,6 +680,7 @@ mod tests {
         }
     }
 
+    #[allow(dead_code)]
     fn dbg_mat(a: &DMat, b: &DMat, eps: f64) {
         let a = a.as_slice();
         let b = b.as_slice();
@@ -762,24 +769,18 @@ mod tests {
                 infile: "testfiles/h2o.in",
                 wantfile: "testfiles/h2o.small.07",
             },
-            // HOCO is a classic 4-atom torsion so it should work with the Mol.
-            // Vib. formulas if anything will
             Test {
                 infile: "testfiles/thoco.in",
                 wantfile: "testfiles/thoco.07",
             },
-            // this is still failing, progress:
-            // b_mat looks good, bs_mat tested, a_mat looks fine for c3h2
-
-            // Test {
-            //     infile: "testfiles/c7h2.in",
-            //     wantfile: "testfiles/c7h2.small.07",
-            // },
-
-            // Test {
-            //     infile: "testfiles/c3h2.in",
-            //     wantfile: "testfiles/c3h2.07",
-            // },
+            Test {
+                infile: "testfiles/c3h2.in",
+                wantfile: "testfiles/c3h2.07",
+            },
+            Test {
+                infile: "testfiles/c7h2.in",
+                wantfile: "testfiles/c7h2.small.07",
+            },
         ];
         for test in tests {
             let intder = Intder::load(test.infile);
