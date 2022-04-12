@@ -21,7 +21,11 @@
   fairer comparison to DEBUG=true version since that writes something like
   intder.out
 
-  ouch, mine takes longer with 8.8M vs 14.9M lines printed
-  | Molecule | Old       | New+Debug | New     |
-  |----------+-----------+-----------+---------|
-  | C7H2     | 1m18.593s | 2m2.780s  | 26.215s |
+  ouch, mine takes longer with 8.8M vs 14.9M lines printed. lines weren't the
+  whole story though. my lines are wider so file size is 1.4 GB vs 800 MB for
+  mine and the old version, respectively. that explains mine taking longer
+
+  | Molecule  | Old       | New+Debug | New       |
+  |-----------+-----------+-----------+-----------|
+  | C7H2 Orig | 1m18.593s | 2m2.780s  | 0m26.215s |
+  | C7H2 prof |           | 1m51.760s | 0m16.808s |
