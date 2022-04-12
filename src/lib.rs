@@ -275,24 +275,18 @@ impl Intder {
                 }
             }
             Siic::Bend(a, b, c) => {
-                let phi = ic.value(geom);
-                // NOTE: letting 3 (the number 3, but atom `b`) be the central
-                // atom in line with Mol. Vib. notation
-                let e_31 = Self::unit(geom, *b, *a);
-                let e_32 = Self::unit(geom, *b, *c);
-                let r_31 = Self::dist(geom, *b, *a) * ANGBOHR;
-                let r_32 = Self::dist(geom, *b, *c) * ANGBOHR;
-                let pc = phi.cos();
-                let ps = phi.sin();
-                let s_t1 = (pc * e_31 - e_32) / (r_31 * ps);
-                let s_t2 = (pc * e_32 - e_31) / (r_32 * ps);
-                let s_t3 = ((r_31 - r_32 * pc) * e_31
-                    + (r_32 - r_31 * pc) * e_32)
-                    / (r_31 * r_32 * ps);
+                let e_21 = Self::unit(geom, *b, *a);
+                let e_23 = Self::unit(geom, *b, *c);
+                let t_12 = Self::dist(geom, *b, *a) * ANGBOHR;
+                let t_32 = Self::dist(geom, *b, *c) * ANGBOHR;
+                let w = e_21.dot(&e_23);
+                let sp = (1.0 - w * w).sqrt();
+                let c1 = 1.0 / (t_12 * sp);
+                let c2 = 1.0 / (t_32 * sp);
                 for i in 0..3 {
-                    tmp[3 * a + i] = s_t1[i % 3];
-                    tmp[3 * b + i] = s_t3[i % 3];
-                    tmp[3 * c + i] = s_t2[i % 3];
+                    tmp[3 * a + i] = (w * e_21[i] - e_23[i]) * c1;
+                    tmp[3 * c + i] = (w * e_23[i] - e_21[i]) * c2;
+                    tmp[3 * b + i] = -tmp[3 * a + i] - tmp[3 * c + i];
                 }
             }
             Siic::Torsion(a, b, c, d) => {
@@ -685,6 +679,24 @@ mod tests {
                 &load_vec(test.vecfile),
             );
             assert_abs_diff_eq!(got, want, epsilon = test.eps);
+        }
+    }
+
+    fn dbg_mat(a: &DMat, b: &DMat, eps: f64) {
+        let a = a.as_slice();
+        let b = b.as_slice();
+        assert!(a.len() == b.len());
+        println!();
+        for i in 0..a.len() {
+            if (a[i] - b[i]).abs() > eps {
+                println!(
+                    "{:5}{:>15.8}{:>15.8}{:>15.8e}",
+                    i,
+                    a[i],
+                    b[i],
+                    a[i] - b[i]
+                );
+            }
         }
     }
 
