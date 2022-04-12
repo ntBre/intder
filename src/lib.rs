@@ -107,7 +107,7 @@ impl Intder {
         // something like "    1   1   1.000000000   2   1.000000000"
         let syic =
             Regex::new(r"^\s*(\d+\s+)(\d+\s+[0-9-]\.[0-9]+(\s+|$))+").unwrap();
-        let zero = Regex::new(r"^\s*0$").unwrap();
+        let zero = Regex::new(r"^\s*0\s*$").unwrap();
         // just a bunch of integers like 3    3    3    0    0    3 ..."
         let iops = Regex::new(r"^\s*(\d+(\s+|$))+$").unwrap();
         let geom = Regex::new(r"\s*([0-9-]+\.[0-9]+(\s+|$)){3}").unwrap();
