@@ -75,12 +75,23 @@ impl Siic {
 }
 
 #[derive(Debug, PartialEq)]
+pub struct Atom {
+    pub label: String,
+    pub weight: usize,
+}
+
+#[derive(Debug, PartialEq)]
 pub struct Intder {
     pub input_options: Vec<usize>,
     simple_internals: Vec<Siic>,
     pub symmetry_internals: Vec<Vec<f64>>,
     pub geom: Geom,
+    /// SIC displacements to be converted to Cartesian coordinates
     pub disps: Vec<Vec<f64>>,
+    /// Atom labels and weights, for use in force constant conversions
+    pub atoms: Vec<Atom>,
+    /// SIC force constants to be converted to Cartesian coordinates
+    pub fcs: Vec<(usize, usize, usize, usize, f64)>,
 }
 
 impl Intder {
@@ -91,6 +102,8 @@ impl Intder {
             symmetry_internals: Vec::new(),
             geom: Geom::new(),
             disps: Vec::new(),
+            atoms: Vec::new(),
+            fcs: Vec::new(),
         }
     }
 
@@ -105,6 +118,31 @@ impl Intder {
         Self::load(f)
     }
 
+    /// helper function for parsing a single simple internal coordinate line
+    fn parse_simple_internal(sp: Vec<&str>) -> Siic {
+        match sp[0] {
+            "STRE" => Siic::Stretch(
+                sp[1].parse::<usize>().unwrap() - 1,
+                sp[2].parse::<usize>().unwrap() - 1,
+            ),
+            "BEND" => Siic::Bend(
+                sp[1].parse::<usize>().unwrap() - 1,
+                sp[2].parse::<usize>().unwrap() - 1,
+                sp[3].parse::<usize>().unwrap() - 1,
+            ),
+            "TORS" => Siic::Torsion(
+                sp[1].parse::<usize>().unwrap() - 1,
+                sp[2].parse::<usize>().unwrap() - 1,
+                sp[3].parse::<usize>().unwrap() - 1,
+                sp[4].parse::<usize>().unwrap() - 1,
+            ),
+            e => {
+                eprintln!("unknown coordinate type '{}'", e);
+                std::process::exit(1);
+            }
+        }
+    }
+
     pub fn load<R: Read>(r: R) -> Self {
         let siic = Regex::new(r"STRE|BEND|TORS|OUT|LIN|SPF|RCOM").unwrap();
         // something like "    1   1   1.000000000   2   1.000000000"
@@ -114,6 +152,8 @@ impl Intder {
         // just a bunch of integers like 3    3    3    0    0    3 ..."
         let iops = Regex::new(r"^\s*(\d+(\s+|$))+$").unwrap();
         let geom = Regex::new(r"\s*([0-9-]+\.[0-9]+(\s+|$)){3}").unwrap();
+        let atoms = Regex::new(r"[A-Za-z]+\d+").unwrap();
+        let atom = Regex::new(r"([A-Za-z]+)(\d+)").unwrap();
 
         let mut intder = Intder::new();
         let reader = BufReader::new(r);
@@ -138,30 +178,12 @@ impl Intder {
                 .parse::<f64>()
                 .unwrap();
             } else if siic.is_match(&line) {
-                let sp: Vec<&str> = line.split_whitespace().collect();
-                intder.simple_internals.push(match sp[0] {
-                    "STRE" => Siic::Stretch(
-                        sp[1].parse::<usize>().unwrap() - 1,
-                        sp[2].parse::<usize>().unwrap() - 1,
-                    ),
-                    "BEND" => Siic::Bend(
-                        sp[1].parse::<usize>().unwrap() - 1,
-                        sp[2].parse::<usize>().unwrap() - 1,
-                        sp[3].parse::<usize>().unwrap() - 1,
-                    ),
-                    "TORS" => Siic::Torsion(
-                        sp[1].parse::<usize>().unwrap() - 1,
-                        sp[2].parse::<usize>().unwrap() - 1,
-                        sp[3].parse::<usize>().unwrap() - 1,
-                        sp[4].parse::<usize>().unwrap() - 1,
-                    ),
-                    e => {
-                        eprintln!("unknown coordinate type '{}'", e);
-                        std::process::exit(1);
-                    }
-                });
+                intder.simple_internals.push(Self::parse_simple_internal(
+                    line.split_whitespace().collect(),
+                ));
             } else if syic.is_match(&line) {
                 // this has to come after the simple internals
+                assert!(intder.simple_internals.len() > 0);
                 let mut tmp = vec![0.0; intder.simple_internals.len()];
                 let mut sp = line.split_whitespace();
                 sp.next();
@@ -205,6 +227,13 @@ impl Intder {
             } else if line.contains("DISP") {
                 in_disps = true;
                 disp_tmp = vec![0.0; intder.simple_internals.len()];
+            } else if atoms.is_match(&line) {
+                for cap in atom.captures_iter(&line) {
+                    intder.atoms.push(Atom {
+                        label: String::from(&cap[1]),
+                        weight: cap[2].parse().unwrap(),
+                    });
+                }
             }
         }
         intder
@@ -491,17 +520,13 @@ impl Intder {
     /// convert the force constants in `self.TODO=fcs` from (symmetry) internal
     /// coordinates to Cartesian coordinates
     pub fn convert_fcs(&self) {
-	todo!();
-        // if unsafe { VERBOSE } {
-        //     self.print_init();
-        // }
+        if unsafe { VERBOSE } {
+            self.print_init();
+        }
         // // let sics = DVec::from(self.symmetry_values(&self.geom));
-        // let carts: DVec = self.geom.clone().into();
-
-        // let b_sym = self.sym_b_matrix(&Geom::from(&carts));
-        // // I think this is still BINVRT, but need to follow in gdb
-        // let d = &b_sym * b_sym.transpose();
-        // let a = Intder::a_matrix(&b_sym);
+        let b_sym = self.sym_b_matrix(&self.geom);
+        let _d = &b_sym * b_sym.transpose();
+        let _a = Intder::a_matrix(&b_sym);
     }
 
     pub fn print_cart<W: Write>(w: &mut W, cart: &DVec) {
@@ -525,7 +550,7 @@ mod tests {
     const S: f64 = std::f64::consts::SQRT_2 / 2.;
 
     #[test]
-    fn test_load() {
+    fn test_load_pts() {
         let got = Intder::load_file("testfiles/intder.in");
         let want = Intder {
             input_options: vec![
@@ -569,7 +594,56 @@ mod tests {
                 vec![-0.005, -0.015, 0.0],
                 vec![0.0, 0.0, 0.0],
             ],
+            atoms: vec![],
+            fcs: vec![],
         };
+        assert_eq!(got, want);
+    }
+
+    #[test]
+    fn test_load_freqs() {
+        let got = Intder::load_file("testfiles/h2o.freq.in");
+        let want = Intder {
+            input_options: vec![3, 3, 3, 4, 0, 3, 2, 0, 0, 1, 3, 0, 0, 0, 0, 0],
+            simple_internals: vec![
+                Siic::Stretch(0, 1),
+                Siic::Stretch(1, 2),
+                Siic::Bend(0, 1, 2),
+            ],
+            symmetry_internals: vec![
+                vec![S, S, 0.],
+                vec![0., 0., 1.],
+                vec![S, -S, 0.],
+            ],
+            geom: Geom(vec![
+                na::Vector3::new(0.0000000000, 1.4313273344, 0.9860352735),
+                na::Vector3::new(0.0000000000, 0.0000000000, -0.1242266321),
+                na::Vector3::new(0.0000000000, -1.4313273344, 0.9860352735),
+            ]),
+            disps: vec![],
+            atoms: vec![
+                Atom {
+                    label: "H".to_string(),
+                    weight: 1,
+                },
+                Atom {
+                    label: "O".to_string(),
+                    weight: 16,
+                },
+                Atom {
+                    label: "H".to_string(),
+                    weight: 1,
+                },
+            ],
+            fcs: vec![],
+        };
+        assert_eq!(got.input_options, want.input_options);
+        assert_eq!(got.simple_internals, want.simple_internals);
+        assert_eq!(got.symmetry_internals, want.symmetry_internals);
+        assert_eq!(got.geom, want.geom);
+        assert_eq!(got.disps, want.disps);
+        assert_eq!(got.atoms, want.atoms);
+        assert_eq!(got.fcs, want.fcs);
         assert_eq!(got, want);
     }
 
