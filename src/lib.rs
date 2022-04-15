@@ -527,6 +527,17 @@ impl Intder {
         let b_sym = self.sym_b_matrix(&self.geom);
         let _d = &b_sym * b_sym.transpose();
         let _a = Intder::a_matrix(&b_sym);
+
+	// fortran flow is through BINVRT, which I think is our A matrix. Then
+	// it loads the fcs into arrays using spectro indexing formulas in
+	// INPFKM. Then it runs MACHX, MACHY, and LINTR. Then XF2, XF3, and YF2.
+	// Then FCOUT is called to dump the force constants. This is where the
+	// files I need get written, so I should be able to stop here.
+
+	// after that, it goes on to do the NORMAL MODE ANALYSIS IN INTERNAL
+	// COORDINATES with GFMAT
+
+	// then NORMAL MODE ANALYSIS IN CARTESIAN COORDINATES in NORMCO
     }
 
     pub fn print_cart<W: Write>(w: &mut W, cart: &DVec) {
@@ -646,8 +657,6 @@ mod tests {
         assert_eq!(got.fcs, want.fcs);
         assert_eq!(got, want);
     }
-
-    // MACHB:S is initial simple internals
 
     #[test]
     fn test_initial_values_simple() {
