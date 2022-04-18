@@ -1,0 +1,346 @@
+use std::io::{Read, BufReader, BufRead};
+
+use approx::assert_abs_diff_eq;
+
+use rust_intder::*;
+use rust_intder::geom::*;
+use nalgebra as na;
+
+const S: f64 = std::f64::consts::SQRT_2 / 2.;
+
+#[test]
+fn test_load_pts() {
+    let got = Intder::load_file("testfiles/intder.in");
+    let want = Intder {
+        input_options: vec![3, 3, 3, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 14],
+        simple_internals: vec![
+            Siic::Stretch(0, 1),
+            Siic::Stretch(1, 2),
+            Siic::Bend(0, 1, 2),
+        ],
+        symmetry_internals: vec![
+            vec![S, S, 0.],
+            vec![0., 0., 1.],
+            vec![S, -S, 0.],
+        ],
+        geom: Geom(vec![
+            na::Vector3::new(0.000000000000, 1.431390244079, 0.986041163966),
+            na::Vector3::new(0.000000000000, 0.000000000000, -0.124238450265),
+            na::Vector3::new(0.000000000000, -1.431390244079, 0.986041163966),
+        ]),
+        disps: vec![
+            vec![0.005, 0.0, 0.0],
+            vec![0.0, 0.005, 0.0],
+            vec![0.0, 0.0, 0.005],
+            vec![-0.005, -0.005, -0.01],
+            vec![-0.005, -0.005, 0.0],
+            vec![-0.005, -0.005, 0.010],
+            vec![-0.005, -0.010, 0.0],
+            vec![-0.005, -0.015, 0.0],
+            vec![0.0, 0.0, 0.0],
+        ],
+        atoms: vec![],
+        fc2: vec![],
+        fc3: vec![],
+        fc4: vec![],
+    };
+    assert_eq!(got, want);
+}
+
+#[test]
+fn test_load_freqs() {
+    let got = Intder::load_file("testfiles/h2o.freq.in");
+    let want = Intder {
+        input_options: vec![3, 3, 3, 4, 0, 3, 2, 0, 0, 1, 3, 0, 0, 0, 0, 0, 14],
+        simple_internals: vec![
+            Siic::Stretch(0, 1),
+            Siic::Stretch(1, 2),
+            Siic::Bend(0, 1, 2),
+        ],
+        symmetry_internals: vec![
+            vec![S, S, 0.],
+            vec![0., 0., 1.],
+            vec![S, -S, 0.],
+        ],
+        geom: Geom(vec![
+            na::Vector3::new(0.0000000000, 1.4313273344, 0.9860352735),
+            na::Vector3::new(0.0000000000, 0.0000000000, -0.1242266321),
+            na::Vector3::new(0.0000000000, -1.4313273344, 0.9860352735),
+        ]),
+        disps: vec![],
+        atoms: vec![
+            Atom {
+                label: "H".to_string(),
+                weight: 1,
+            },
+            Atom {
+                label: "O".to_string(),
+                weight: 16,
+            },
+            Atom {
+                label: "H".to_string(),
+                weight: 1,
+            },
+        ],
+        #[rustfmt::skip]
+        fc2: vec![
+	    8.360863692425, 0.364250381719, 0.0,
+	    0.0, 0.705590041836, 0.0,
+	    0.0, 0.0, 8.562725561924,
+	],
+        #[rustfmt::skip]
+        fc3: vec![
+            -41.638868371821, -0.611029974345, -0.447356783193,
+            -0.701565547377, 0.0, 0.0,
+            0.0, -41.484904978222, 0.392943158463,
+        ],
+        #[rustfmt::skip]
+        fc4: vec![
+            181.917347386091, -0.292134838642, 0.372522604963,
+            1.034069182728, -0.6558318021, 0.0,
+            0.0, 0.0, 0.0,
+            182.20617803073, -1.233550191665, -0.820459303061,
+            0.0, 0.0, 183.621273961541,
+        ],
+    };
+    assert_eq!(got.input_options, want.input_options);
+    assert_eq!(got.simple_internals, want.simple_internals);
+    assert_eq!(got.symmetry_internals, want.symmetry_internals);
+    assert_eq!(got.geom, want.geom);
+    assert_eq!(got.disps, want.disps);
+    assert_eq!(got.atoms, want.atoms);
+    assert_eq!(got.fc2, want.fc2);
+    assert_eq!(got.fc3, want.fc3);
+    assert_eq!(got.fc4, want.fc4);
+    assert_eq!(got, want);
+}
+
+#[test]
+fn test_initial_values_simple() {
+    let tests = vec![
+        (
+            "testfiles/intder.in",
+            vec![0.9586143145, 0.9586143145, 1.8221415968],
+        ),
+        (
+            "testfiles/c7h2.in",
+            vec![
+                1.4260535407,
+                1.4260535407,
+                1.3992766813,
+                1.3992766813,
+                2.6090029486,
+                2.6090029486,
+                3.6728481977,
+                3.6728481977,
+                2.5991099760,
+                2.5991099760,
+                2.5961248359,
+                2.5961248359,
+                2.5945738184,
+                2.5945738184,
+                1.0819561376,
+                3.1415926536,
+                3.1415926536,
+                3.1415926536,
+                3.1415926536,
+                3.1415926536,
+                3.1415926536,
+            ],
+        ),
+    ];
+    for test in tests {
+        let intder = Intder::load_file(test.0);
+        let got = intder.simple_values(&intder.geom);
+        assert_abs_diff_eq!(
+            DVec::from(got),
+            DVec::from(test.1),
+            epsilon = 3e-7
+        );
+    }
+}
+
+#[test]
+fn test_initial_values_symmetry() {
+    let intder = Intder::load_file("testfiles/intder.in");
+    let got = intder.symmetry_values(&intder.geom);
+    let got = got.as_slice();
+    let want = vec![1.3556853647, 1.8221415968, 0.0000000000];
+    let want = want.as_slice();
+    assert_abs_diff_eq!(got, want, epsilon = 1e-7);
+}
+
+fn load_vec(filename: &str) -> Vec<f64> {
+    let mut f = std::fs::File::open(filename).unwrap();
+    let mut buf = String::new();
+    f.read_to_string(&mut buf).unwrap();
+    buf.split_whitespace()
+        .map(|x| x.parse::<f64>().unwrap())
+        .collect::<Vec<_>>()
+}
+
+struct MatTest<'a> {
+    infile: &'a str,
+    rows: usize,
+    cols: usize,
+    vecfile: &'a str,
+    eps: f64,
+}
+
+#[test]
+fn test_b_matrix() {
+    let tests = vec![
+        MatTest {
+            infile: "testfiles/intder.in",
+            rows: 3,
+            cols: 9,
+            vecfile: "testfiles/h2o.bmat",
+            eps: 2e-7,
+        },
+        MatTest {
+            infile: "testfiles/c7h2.in",
+            rows: 21,
+            cols: 27,
+            vecfile: "testfiles/c7h2.bmat",
+            eps: 2.2e-7,
+        },
+    ];
+    for test in tests {
+        let intder = Intder::load_file(test.infile);
+        let want =
+            DMat::from_row_slice(test.rows, test.cols, &load_vec(test.vecfile));
+        let got = intder.b_matrix(&intder.geom);
+        assert_abs_diff_eq!(got, want, epsilon = test.eps);
+    }
+}
+
+#[test]
+fn test_sym_b() {
+    let tests = vec![
+        MatTest {
+            infile: "testfiles/intder.in",
+            rows: 3,
+            cols: 9,
+            vecfile: "testfiles/h2o.bsmat",
+            eps: 2e-7,
+        },
+        MatTest {
+            infile: "testfiles/c7h2.in",
+            rows: 21,
+            cols: 27,
+            vecfile: "testfiles/c7h2.bsmat",
+            eps: 2.2e-7,
+        },
+    ];
+    for test in tests {
+        let intder = Intder::load_file(test.infile);
+        let got = intder.sym_b_matrix(&intder.geom);
+        let want =
+            DMat::from_row_slice(test.rows, test.cols, &load_vec(test.vecfile));
+        assert_abs_diff_eq!(got, want, epsilon = test.eps);
+    }
+}
+
+#[allow(dead_code)]
+fn dbg_mat(a: &DMat, b: &DMat, eps: f64) {
+    let a = a.as_slice();
+    let b = b.as_slice();
+    assert!(a.len() == b.len());
+    println!();
+    for i in 0..a.len() {
+        if (a[i] - b[i]).abs() > eps {
+            println!(
+                "{:5}{:>15.8}{:>15.8}{:>15.8e}",
+                i,
+                a[i],
+                b[i],
+                a[i] - b[i]
+            );
+        }
+    }
+}
+
+#[test]
+fn test_a_matrix() {
+    let tests = vec![
+        MatTest {
+            infile: "testfiles/intder.in",
+            rows: 9,
+            cols: 3,
+            vecfile: "testfiles/h2o.amat",
+            eps: 3e-8,
+        },
+        // low precision from intder.out
+        MatTest {
+            infile: "testfiles/c3h2.in",
+            rows: 15,
+            cols: 9,
+            vecfile: "testfiles/c3h2.amat",
+            eps: 1e-6,
+        },
+    ];
+    for test in tests {
+        let intder = Intder::load_file(test.infile);
+        let load = load_vec(test.vecfile);
+        let want = DMat::from_row_slice(test.rows, test.cols, &load);
+        let got = Intder::a_matrix(&intder.sym_b_matrix(&intder.geom));
+        assert_abs_diff_eq!(got, want, epsilon = test.eps);
+    }
+}
+
+/// load a file where each line is a DVec
+fn load_geoms(filename: &str) -> Vec<DVec> {
+    let f = std::fs::File::open(filename).unwrap();
+    let lines = BufReader::new(f).lines().flatten();
+    let mut ret = Vec::new();
+    for line in lines {
+        if !line.is_empty() {
+            ret.push(DVec::from(
+                line.split_whitespace()
+                    .map(|x| x.parse().unwrap())
+                    .collect::<Vec<_>>(),
+            ));
+        }
+    }
+    ret
+}
+
+#[test]
+fn test_convert_disps() {
+    struct Test<'a> {
+        infile: &'a str,
+        wantfile: &'a str,
+    }
+    let tests = vec![
+        Test {
+            infile: "testfiles/h2o.in",
+            wantfile: "testfiles/h2o.small.07",
+        },
+        Test {
+            infile: "testfiles/thoco.in",
+            wantfile: "testfiles/thoco.07",
+        },
+        Test {
+            infile: "testfiles/c3h2.in",
+            wantfile: "testfiles/c3h2.07",
+        },
+        Test {
+            infile: "testfiles/c7h2.in",
+            wantfile: "testfiles/c7h2.small.07",
+        },
+    ];
+    for test in tests {
+        let intder = Intder::load_file(test.infile);
+        let got = intder.convert_disps();
+        let want = load_geoms(test.wantfile);
+        for i in 0..got.len() {
+            assert_abs_diff_eq!(got[i], want[i], epsilon = 4e-8);
+        }
+    }
+}
+
+#[test]
+fn test_convert_fcs() {
+    let intder = Intder::load_file("testfiles/h2o.freq.in");
+    intder.convert_fcs();
+}

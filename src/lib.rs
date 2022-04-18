@@ -3,7 +3,7 @@ use std::{
     io::{BufRead, BufReader, Read, Write},
 };
 
-mod geom;
+pub mod geom;
 
 use geom::Geom;
 use nalgebra as na;
@@ -80,18 +80,48 @@ pub struct Atom {
     pub weight: usize,
 }
 
+pub struct Hmats {
+    pub h11: DMat,
+    pub h21: DMat,
+    pub h31: DMat,
+    pub h22: DMat,
+    pub h32: DMat,
+    pub h33: DMat,
+}
+
+impl Hmats {
+    fn new() -> Self {
+        Self {
+            h11: DMat::zeros(3, 3),
+            h21: DMat::zeros(3, 3),
+            h31: DMat::zeros(3, 3),
+            h22: DMat::zeros(3, 3),
+            h32: DMat::zeros(3, 3),
+            h33: DMat::zeros(3, 3),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub struct Intder {
     pub input_options: Vec<usize>,
-    simple_internals: Vec<Siic>,
+    pub simple_internals: Vec<Siic>,
     pub symmetry_internals: Vec<Vec<f64>>,
+    /// cartesian geometry in bohr
     pub geom: Geom,
     /// SIC displacements to be converted to Cartesian coordinates
     pub disps: Vec<Vec<f64>>,
     /// Atom labels and weights, for use in force constant conversions
     pub atoms: Vec<Atom>,
-    /// SIC force constants to be converted to Cartesian coordinates
-    pub fcs: Vec<(usize, usize, usize, usize, f64)>,
+    /// second order SIC force constants to be converted to cartesian
+    /// coordinates
+    pub fc2: Vec<f64>,
+    /// third order SIC force constants to be converted to cartesian
+    /// coordinates
+    pub fc3: Vec<f64>,
+    /// fourth order SIC force constants to be converted to cartesian
+    /// coordinates
+    pub fc4: Vec<f64>,
 }
 
 impl Intder {
@@ -103,7 +133,9 @@ impl Intder {
             geom: Geom::new(),
             disps: Vec::new(),
             atoms: Vec::new(),
-            fcs: Vec::new(),
+            fc2: Vec::new(),
+            fc3: Vec::new(),
+            fc4: Vec::new(),
         }
     }
 
@@ -154,6 +186,7 @@ impl Intder {
         let geom = Regex::new(r"\s*([0-9-]+\.[0-9]+(\s+|$)){3}").unwrap();
         let atoms = Regex::new(r"[A-Za-z]+\d+").unwrap();
         let atom = Regex::new(r"([A-Za-z]+)(\d+)").unwrap();
+        let fcs = Regex::new(r"^\s*(\d+\s+){4}[0-9-]+\.\d+\s*$").unwrap();
 
         let mut intder = Intder::new();
         let reader = BufReader::new(r);
@@ -234,6 +267,27 @@ impl Intder {
                         weight: cap[2].parse().unwrap(),
                     });
                 }
+            } else if fcs.is_match(&line) {
+                let mut sp = line.split_whitespace().collect::<Vec<_>>();
+                let val = sp.pop().unwrap().parse::<f64>().unwrap();
+                let sp = sp
+                    .iter()
+                    .map(|s| s.parse::<usize>().unwrap())
+                    .collect::<Vec<_>>();
+                let (idx, target) = match (sp[2], sp[3]) {
+                    (0, 0) => (intder.fc2_index(sp[0], sp[1]), &mut intder.fc2),
+                    (_, 0) => {
+                        (intder.fc3_index(sp[0], sp[1], sp[2]), &mut intder.fc3)
+                    }
+                    (_, _) => (
+                        intder.fc4_index(sp[0], sp[1], sp[2], sp[3]),
+                        &mut intder.fc4,
+                    ),
+                };
+                if target.len() <= idx {
+                    target.resize(idx + 1, 0.0);
+                }
+                target[idx] = val;
             }
         }
         intder
@@ -380,17 +434,22 @@ impl Intder {
         DMat::from_row_slice(self.simple_internals.len(), geom_len, &b_mat)
     }
 
+    /// return the U matrix, used for converting from simple internals to
+    /// symmetry internals
+    pub fn u_mat(&self) -> DMat {
+        let r = self.symmetry_internals.len();
+        let mut u = Vec::new();
+        for i in 0..r {
+            u.extend(&self.symmetry_internals[i].clone());
+        }
+        DMat::from_row_slice(r, r, &u)
+    }
+
     /// return the symmetry internal coordinate B matrix by computing the simple
     /// internal B and converting it
     pub fn sym_b_matrix(&self, geom: &Geom) -> DMat {
         let b = self.b_matrix(geom);
-        let (r, _) = b.shape();
-        let mut u = Vec::new();
-        for i in 0..self.symmetry_internals.len() {
-            u.extend(&self.symmetry_internals[i].clone());
-        }
-        let u = DMat::from_row_slice(r, r, &u);
-        u * b
+        self.u_mat() * b
     }
 
     /// Let D = BBᵀ and return A = BᵀD⁻¹
@@ -428,6 +487,15 @@ impl Intder {
         self.print_symmetry(&sic_vals);
         println!();
         println!();
+    }
+
+    pub fn print_cart<W: Write>(w: &mut W, cart: &DVec) {
+        for i in 0..cart.len() / 3 {
+            for j in 0..3 {
+                write!(w, "{:20.10}", cart[3 * i + j]).unwrap();
+            }
+            writeln!(w).unwrap();
+        }
     }
 
     /// convert the displacements in `self.disps` from (symmetry) internal
@@ -517,374 +585,207 @@ impl Intder {
         ret
     }
 
-    /// convert the force constants in `self.TODO=fcs` from (symmetry) internal
+    fn fc2_index(&self, i: usize, j: usize) -> usize {
+        let n3n = self.symmetry_internals.len();
+        let mut sp = [i, j];
+        sp.sort();
+        n3n * (sp[0] - 1) + sp[1] - 1
+    }
+
+    fn fc3_index(&self, i: usize, j: usize, k: usize) -> usize {
+        let mut sp = [i, j, k];
+        sp.sort();
+        sp[0] + (sp[1] - 1) * sp[1] / 2 + (sp[2] - 1) * sp[2] * (sp[2] + 1) / 6
+            - 1
+    }
+
+    fn fc4_index(&self, i: usize, j: usize, k: usize, l: usize) -> usize {
+        let mut sp = [i, j, k, l];
+        sp.sort();
+        sp[0]
+            + (sp[1] - 1) * sp[1] / 2
+            + (sp[2] - 1) * sp[2] * (sp[2] + 1) / 6
+            + (sp[3] - 1) * sp[3] * (sp[3] + 1) * (sp[3] + 2) / 24
+            - 1
+    }
+
+    // making block matrices to pack into sr in machx
+    pub fn h_mat(geom: &Geom, s: &Siic) -> Hmats {
+        use Siic::*;
+        let mut h = Hmats::new();
+        match s {
+            // from HIJS1
+            Stretch(i, j) => {
+                let v1 = Self::unit(geom, *i, *j);
+                let t21 = Self::dist(geom, *i, *j);
+                for j in 0..3 {
+                    for i in 0..3 {
+                        h.h11[(i, j)] = -v1[i] * v1[j];
+                    }
+                }
+                for i in 0..3 {
+                    h.h11[(i, i)] += 1.0;
+                }
+                h.h11 /= t21;
+                for j in 0..2 {
+                    for i in j + 1..3 {
+                        h.h11[(j, i)] = h.h11[(i, j)];
+                    }
+                }
+            }
+            // from HIJS2
+            Bend(i, j, k) => {
+                let tmp = Self::s_vec(geom, s, 3 * geom.len());
+                // unpack the s vector
+                let v1 = &tmp[3 * i..3 * i + 3];
+                let v3 = &tmp[3 * k..3 * k + 3];
+                let e21 = Self::unit(geom, *j, *i);
+                let e23 = Self::unit(geom, *j, *k);
+                let t21 = Self::dist(geom, *j, *i);
+                let t23 = Self::dist(geom, *j, *k);
+                let h11a = Self::h_mat(geom, &Stretch(*i, *j)).h11;
+                let h33a = Self::h_mat(geom, &Stretch(*k, *j)).h11;
+                let phi = Self::angle(geom, *i, *j, *k);
+                let sphi = phi.sin();
+                let ctphi = phi.cos() / sphi;
+                let w1 = ctphi;
+                let w2 = 1.0 / t21;
+                let w3 = w1 * w2;
+                let w4 = 1.0 / t23;
+                let w5 = w3 * w4;
+                // TODO are any of these matrix operations?
+                // TODO can any of these loops be combined?
+                for j in 0..3 {
+                    for i in 0..3 {
+                        h.h11[(i, j)] = h11a[(i, j)] * w3
+                            - v1[i] * v1[j] * w1
+                            - (e21[i] * v1[j] + v1[i] * e21[j]) * w2;
+                        h.h33[(i, j)] = h33a[(i, j)] * w5
+                            - v3[i] * v3[j] * w1
+                            - (e23[i] * v3[j] + v3[i] * e23[j]) * w4;
+                    }
+                }
+                for j in 0..2 {
+                    for i in j + 1..3 {
+                        h.h11[(j, i)] = h.h11[(i, j)];
+                        h.h33[(j, i)] = h.h33[(i, j)];
+                    }
+                }
+                let w3 = 1.0 / (t21 * sphi);
+                for j in 0..3 {
+                    let w4 = w2 * e21[j] + w1 * v1[j];
+                    for i in 0..3 {
+                        h.h31[(i, j)] = -h33a[(i, j)] * w3 - v3[i] * w4;
+                        h.h21[(i, j)] = -(h.h11[(i, j)] + h.h31[(i, j)]);
+                        h.h32[(i, j)] = -(h.h31[(i, j)] + h.h33[(i, j)]);
+                    }
+                }
+                for j in 0..3 {
+                    for i in 0..3 {
+                        h.h22[(i, j)] = -(h.h21[(j, i)] + h.h32[(i, j)]);
+                    }
+                }
+            }
+            Torsion(_, _, _, _) => todo!(),
+        }
+        h
+    }
+
+    // TODO figure out what this returns, just copying the fortran for now
+    pub fn machx(&self) {
+        use Siic::*;
+        let nc = 3 * self.geom.len();
+        for s in &self.simple_internals {
+            let _x = DMat::zeros(nc, nc);
+            let mut sr = DMat::zeros(nc, nc);
+            let h = Self::h_mat(&self.geom, &s);
+            println!("H11 = {}", &h.h11);
+            match s {
+                Stretch(a, b) => {
+                    let l1 = 3 * a;
+                    let l2 = 3 * b;
+		    // TODO can you set blocks of matrices with nalgebra?
+                    for j in 0..3 {
+                        for i in 0..3 {
+                            sr[(l1 + i, l1 + j)] = h.h11[(i, j)];
+                            sr[(l2 + i, l2 + j)] = h.h11[(i, j)];
+                            sr[(l1 + i, l2 + j)] = -h.h11[(i, j)];
+                            sr[(l2 + i, l1 + j)] = -h.h11[(i, j)];
+                        }
+                    }
+		    // TODO AHX2
+                }
+                Bend(a, b, c) => {
+                    let l1 = 3 * a;
+                    let l2 = 3 * b;
+		    let l3 = 3 * c;
+                    for j in 0..3 {
+                        for i in 0..3 {
+                            sr[(l1 + i, l1 + j)] = h.h11[(i, j)];
+                            sr[(l2 + i, l1 + j)] = h.h21[(i, j)];
+                            sr[(l3 + i, l1 + j)] = h.h31[(i, j)];
+                            sr[(l1 + i, l2 + j)] = h.h21[(j, i)];
+                            sr[(l2 + i, l2 + j)] = h.h22[(i, j)];
+                            sr[(l3 + i, l2 + j)] = h.h32[(i, j)];
+                            sr[(l1 + i, l3 + j)] = h.h31[(j, i)];
+                            sr[(l2 + i, l3 + j)] = h.h32[(j, i)];
+                            sr[(l3 + i, l3 + j)] = h.h33[(i, j)];
+                        }
+                    }
+		    // TODO AHX3
+                }
+                _ => todo!(),
+            }
+            println!("SR = {:12.8}", sr);
+        }
+        // println!("x = {}", x);
+        // println!("sr = {}", sr);
+    }
+
+    /// convert the force constants in `self.fc[234]` from (symmetry) internal
     /// coordinates to Cartesian coordinates
     pub fn convert_fcs(&self) {
         if unsafe { VERBOSE } {
             self.print_init();
         }
-        // // let sics = DVec::from(self.symmetry_values(&self.geom));
+        // let sics = DVec::from(self.symmetry_values(&self.geom));
         let b_sym = self.sym_b_matrix(&self.geom);
         let _d = &b_sym * b_sym.transpose();
-        let _a = Intder::a_matrix(&b_sym);
+        let a = Intder::a_matrix(&b_sym);
+        println!("a = {:12.8}", a);
+        self.machx();
+        // A looks good
 
-	// fortran flow is through BINVRT, which I think is our A matrix. Then
-	// it loads the fcs into arrays using spectro indexing formulas in
-	// INPFKM. Then it runs MACHX, MACHY, and LINTR. Then XF2, XF3, and YF2.
-	// Then FCOUT is called to dump the force constants. This is where the
-	// files I need get written, so I should be able to stop here.
+        // fortran flow is through BINVRT, which I think is our A matrix. Then
+        // it loads the fcs into arrays using spectro indexing formulas in
+        // INPFKM.
 
-	// after that, it goes on to do the NORMAL MODE ANALYSIS IN INTERNAL
-	// COORDINATES with GFMAT
+        // [x] I handle this in `load`
 
-	// then NORMAL MODE ANALYSIS IN CARTESIAN COORDINATES in NORMCO
-    }
+        // Then it runs
+        // [ ] MACHX - I think UGF and XS are the out params for this
+        //     [ ] HIJS1 - H matrix elements for STRE
+        //     [ ] AHX2 - I think these are doing some kind of math with A and H
+        // [ ] MACHY - Z are work arrays
+        // [ ] LINTR - linear transformation
 
-    pub fn print_cart<W: Write>(w: &mut W, cart: &DVec) {
-        for i in 0..cart.len() / 3 {
-            for j in 0..3 {
-                write!(w, "{:20.10}", cart[3 * i + j]).unwrap();
-            }
-            writeln!(w).unwrap();
-        }
-    }
-}
+        // TODO short break and then figure out MACHX - break at start, break at
+        // end, see what goes in and what comes out
 
-#[cfg(test)]
-mod tests {
-    use std::io::Read;
+        // Then
+        // [ ] XF2
+        // [ ] XF3
+        // [ ] YF2
 
-    use approx::assert_abs_diff_eq;
+        // Then
+        // [ ] FCOUT to dump the force constants
 
-    use super::*;
+        // This is where the files I need get written, so I should be able to
+        // stop here.
 
-    const S: f64 = std::f64::consts::SQRT_2 / 2.;
+        // after that, it goes on to do the NORMAL MODE ANALYSIS IN INTERNAL
+        // COORDINATES with GFMAT
 
-    #[test]
-    fn test_load_pts() {
-        let got = Intder::load_file("testfiles/intder.in");
-        let want = Intder {
-            input_options: vec![
-                3, 3, 3, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 14,
-            ],
-            simple_internals: vec![
-                Siic::Stretch(0, 1),
-                Siic::Stretch(1, 2),
-                Siic::Bend(0, 1, 2),
-            ],
-            symmetry_internals: vec![
-                vec![S, S, 0.],
-                vec![0., 0., 1.],
-                vec![S, -S, 0.],
-            ],
-            geom: Geom(vec![
-                na::Vector3::new(
-                    0.000000000000,
-                    1.431390244079,
-                    0.986041163966,
-                ),
-                na::Vector3::new(
-                    0.000000000000,
-                    0.000000000000,
-                    -0.124238450265,
-                ),
-                na::Vector3::new(
-                    0.000000000000,
-                    -1.431390244079,
-                    0.986041163966,
-                ),
-            ]),
-            disps: vec![
-                vec![0.005, 0.0, 0.0],
-                vec![0.0, 0.005, 0.0],
-                vec![0.0, 0.0, 0.005],
-                vec![-0.005, -0.005, -0.01],
-                vec![-0.005, -0.005, 0.0],
-                vec![-0.005, -0.005, 0.010],
-                vec![-0.005, -0.010, 0.0],
-                vec![-0.005, -0.015, 0.0],
-                vec![0.0, 0.0, 0.0],
-            ],
-            atoms: vec![],
-            fcs: vec![],
-        };
-        assert_eq!(got, want);
-    }
-
-    #[test]
-    fn test_load_freqs() {
-        let got = Intder::load_file("testfiles/h2o.freq.in");
-        let want = Intder {
-            input_options: vec![3, 3, 3, 4, 0, 3, 2, 0, 0, 1, 3, 0, 0, 0, 0, 0],
-            simple_internals: vec![
-                Siic::Stretch(0, 1),
-                Siic::Stretch(1, 2),
-                Siic::Bend(0, 1, 2),
-            ],
-            symmetry_internals: vec![
-                vec![S, S, 0.],
-                vec![0., 0., 1.],
-                vec![S, -S, 0.],
-            ],
-            geom: Geom(vec![
-                na::Vector3::new(0.0000000000, 1.4313273344, 0.9860352735),
-                na::Vector3::new(0.0000000000, 0.0000000000, -0.1242266321),
-                na::Vector3::new(0.0000000000, -1.4313273344, 0.9860352735),
-            ]),
-            disps: vec![],
-            atoms: vec![
-                Atom {
-                    label: "H".to_string(),
-                    weight: 1,
-                },
-                Atom {
-                    label: "O".to_string(),
-                    weight: 16,
-                },
-                Atom {
-                    label: "H".to_string(),
-                    weight: 1,
-                },
-            ],
-            fcs: vec![],
-        };
-        assert_eq!(got.input_options, want.input_options);
-        assert_eq!(got.simple_internals, want.simple_internals);
-        assert_eq!(got.symmetry_internals, want.symmetry_internals);
-        assert_eq!(got.geom, want.geom);
-        assert_eq!(got.disps, want.disps);
-        assert_eq!(got.atoms, want.atoms);
-        assert_eq!(got.fcs, want.fcs);
-        assert_eq!(got, want);
-    }
-
-    #[test]
-    fn test_initial_values_simple() {
-        let tests = vec![
-            (
-                "testfiles/intder.in",
-                vec![0.9586143145, 0.9586143145, 1.8221415968],
-            ),
-            (
-                "testfiles/c7h2.in",
-                vec![
-                    1.4260535407,
-                    1.4260535407,
-                    1.3992766813,
-                    1.3992766813,
-                    2.6090029486,
-                    2.6090029486,
-                    3.6728481977,
-                    3.6728481977,
-                    2.5991099760,
-                    2.5991099760,
-                    2.5961248359,
-                    2.5961248359,
-                    2.5945738184,
-                    2.5945738184,
-                    1.0819561376,
-                    3.1415926536,
-                    3.1415926536,
-                    3.1415926536,
-                    3.1415926536,
-                    3.1415926536,
-                    3.1415926536,
-                ],
-            ),
-        ];
-        for test in tests {
-            let intder = Intder::load_file(test.0);
-            let got = intder.simple_values(&intder.geom);
-            assert_abs_diff_eq!(
-                DVec::from(got),
-                DVec::from(test.1),
-                epsilon = 3e-7
-            );
-        }
-    }
-
-    #[test]
-    fn test_initial_values_symmetry() {
-        let intder = Intder::load_file("testfiles/intder.in");
-        let got = intder.symmetry_values(&intder.geom);
-        let got = got.as_slice();
-        let want = vec![1.3556853647, 1.8221415968, 0.0000000000];
-        let want = want.as_slice();
-        assert_abs_diff_eq!(got, want, epsilon = 1e-7);
-    }
-
-    fn load_vec(filename: &str) -> Vec<f64> {
-        let mut f = std::fs::File::open(filename).unwrap();
-        let mut buf = String::new();
-        f.read_to_string(&mut buf).unwrap();
-        buf.split_whitespace()
-            .map(|x| x.parse::<f64>().unwrap())
-            .collect::<Vec<_>>()
-    }
-
-    struct MatTest<'a> {
-        infile: &'a str,
-        rows: usize,
-        cols: usize,
-        vecfile: &'a str,
-        eps: f64,
-    }
-
-    #[test]
-    fn test_b_matrix() {
-        let tests = vec![
-            MatTest {
-                infile: "testfiles/intder.in",
-                rows: 3,
-                cols: 9,
-                vecfile: "testfiles/h2o.bmat",
-                eps: 2e-7,
-            },
-            MatTest {
-                infile: "testfiles/c7h2.in",
-                rows: 21,
-                cols: 27,
-                vecfile: "testfiles/c7h2.bmat",
-                eps: 2.2e-7,
-            },
-        ];
-        for test in tests {
-            let intder = Intder::load_file(test.infile);
-            let want = DMat::from_row_slice(
-                test.rows,
-                test.cols,
-                &load_vec(test.vecfile),
-            );
-            let got = intder.b_matrix(&intder.geom);
-            assert_abs_diff_eq!(got, want, epsilon = test.eps);
-        }
-    }
-
-    #[test]
-    fn test_sym_b() {
-        let tests = vec![
-            MatTest {
-                infile: "testfiles/intder.in",
-                rows: 3,
-                cols: 9,
-                vecfile: "testfiles/h2o.bsmat",
-                eps: 2e-7,
-            },
-            MatTest {
-                infile: "testfiles/c7h2.in",
-                rows: 21,
-                cols: 27,
-                vecfile: "testfiles/c7h2.bsmat",
-                eps: 2.2e-7,
-            },
-        ];
-        for test in tests {
-            let intder = Intder::load_file(test.infile);
-            let got = intder.sym_b_matrix(&intder.geom);
-            let want = DMat::from_row_slice(
-                test.rows,
-                test.cols,
-                &load_vec(test.vecfile),
-            );
-            assert_abs_diff_eq!(got, want, epsilon = test.eps);
-        }
-    }
-
-    #[allow(dead_code)]
-    fn dbg_mat(a: &DMat, b: &DMat, eps: f64) {
-        let a = a.as_slice();
-        let b = b.as_slice();
-        assert!(a.len() == b.len());
-        println!();
-        for i in 0..a.len() {
-            if (a[i] - b[i]).abs() > eps {
-                println!(
-                    "{:5}{:>15.8}{:>15.8}{:>15.8e}",
-                    i,
-                    a[i],
-                    b[i],
-                    a[i] - b[i]
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn test_a_matrix() {
-        let tests = vec![
-            MatTest {
-                infile: "testfiles/intder.in",
-                rows: 9,
-                cols: 3,
-                vecfile: "testfiles/h2o.amat",
-                eps: 3e-8,
-            },
-            // low precision from intder.out
-            MatTest {
-                infile: "testfiles/c3h2.in",
-                rows: 15,
-                cols: 9,
-                vecfile: "testfiles/c3h2.amat",
-                eps: 1e-6,
-            },
-        ];
-        for test in tests {
-            let intder = Intder::load_file(test.infile);
-            let load = load_vec(test.vecfile);
-            let want = DMat::from_row_slice(test.rows, test.cols, &load);
-            let got = Intder::a_matrix(&intder.sym_b_matrix(&intder.geom));
-            assert_abs_diff_eq!(got, want, epsilon = test.eps);
-        }
-    }
-
-    /// load a file where each line is a DVec
-    fn load_geoms(filename: &str) -> Vec<DVec> {
-        let f = std::fs::File::open(filename).unwrap();
-        let lines = BufReader::new(f).lines().flatten();
-        let mut ret = Vec::new();
-        for line in lines {
-            if !line.is_empty() {
-                ret.push(DVec::from(
-                    line.split_whitespace()
-                        .map(|x| x.parse().unwrap())
-                        .collect::<Vec<_>>(),
-                ));
-            }
-        }
-        ret
-    }
-
-    #[test]
-    fn test_convert_disps() {
-        struct Test<'a> {
-            infile: &'a str,
-            wantfile: &'a str,
-        }
-        let tests = vec![
-            Test {
-                infile: "testfiles/h2o.in",
-                wantfile: "testfiles/h2o.small.07",
-            },
-            Test {
-                infile: "testfiles/thoco.in",
-                wantfile: "testfiles/thoco.07",
-            },
-            Test {
-                infile: "testfiles/c3h2.in",
-                wantfile: "testfiles/c3h2.07",
-            },
-            Test {
-                infile: "testfiles/c7h2.in",
-                wantfile: "testfiles/c7h2.small.07",
-            },
-        ];
-        for test in tests {
-            let intder = Intder::load_file(test.infile);
-            let got = intder.convert_disps();
-            let want = load_geoms(test.wantfile);
-            for i in 0..got.len() {
-                assert_abs_diff_eq!(got[i], want[i], epsilon = 4e-8);
-            }
-        }
+        // then NORMAL MODE ANALYSIS IN CARTESIAN COORDINATES in NORMCO
     }
 }
