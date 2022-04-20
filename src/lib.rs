@@ -652,7 +652,7 @@ impl Intder {
                 let w2 = 1.0 / t21;
                 let w3 = w1 * w2;
                 let w4 = 1.0 / t23;
-                let w5 = w3 * w4;
+                let w5 = w1 * w4;
                 // TODO are any of these matrix operations?
                 // TODO can any of these loops be combined?
                 for j in 0..3 {
@@ -692,19 +692,24 @@ impl Intder {
     }
 
     // TODO figure out what this returns, just copying the fortran for now
-    pub fn machx(&self) {
+    pub fn machx(&self, a_mat: &DMat) {
         use Siic::*;
         let nc = 3 * self.geom.len();
         for s in &self.simple_internals {
-            let _x = DMat::zeros(nc, nc);
+            let mut x = DMat::zeros(nc, nc);
             let mut sr = DMat::zeros(nc, nc);
             let h = Self::h_mat(&self.geom, &s);
             println!("H11 = {}", &h.h11);
+            println!("H21 = {}", &h.h21);
+            println!("H31 = {}", &h.h31);
+            println!("H22 = {}", &h.h22);
+            println!("H32 = {}", &h.h32);
+            println!("H33 = {}", &h.h33);
             match s {
                 Stretch(a, b) => {
                     let l1 = 3 * a;
                     let l2 = 3 * b;
-		    // TODO can you set blocks of matrices with nalgebra?
+                    // TODO can you set blocks of matrices with nalgebra?
                     for j in 0..3 {
                         for i in 0..3 {
                             sr[(l1 + i, l1 + j)] = h.h11[(i, j)];
@@ -713,12 +718,31 @@ impl Intder {
                             sr[(l2 + i, l1 + j)] = -h.h11[(i, j)];
                         }
                     }
-		    // TODO AHX2
+                    // AHX2
+                    for n in 0..self.symmetry_internals.len() {
+                        for m in 0..=n {
+                            for i in 0..3 {
+                                for j in 0..3 {
+                                    let w1 = (a_mat[(l1 + i, m)]
+                                        - a_mat[(l2 + i, m)])
+                                        * (a_mat[(l1 + j, n)]
+                                            - a_mat[(l2 + j, n)]);
+                                    x[(m, n)] += w1 * h.h11[(i, j)];
+                                }
+                            }
+                        }
+                    }
+                    // TODO I think this can go after the i loop above
+                    for n in 0..self.symmetry_internals.len() {
+                        for m in 0..n {
+                            x[(n, m)] = x[(m, n)];
+                        }
+                    }
                 }
                 Bend(a, b, c) => {
                     let l1 = 3 * a;
                     let l2 = 3 * b;
-		    let l3 = 3 * c;
+                    let l3 = 3 * c;
                     for j in 0..3 {
                         for i in 0..3 {
                             sr[(l1 + i, l1 + j)] = h.h11[(i, j)];
@@ -732,14 +756,51 @@ impl Intder {
                             sr[(l3 + i, l3 + j)] = h.h33[(i, j)];
                         }
                     }
-		    // TODO AHX3
+                    // AHX3
+                    for n in 0..self.symmetry_internals.len() {
+                        for m in 0..=n {
+                            for i in 0..3 {
+                                for j in 0..3 {
+                                    let w1 =
+                                        a_mat[(l1 + i, m)] * a_mat[(l1 + j, n)];
+                                    let w2 =
+                                        a_mat[(l2 + i, m)] * a_mat[(l2 + j, n)];
+                                    let w3 =
+                                        a_mat[(l3 + i, m)] * a_mat[(l3 + j, n)];
+                                    x[(m, n)] += w1 * h.h11[(i, j)]
+                                        + w2 * h.h22[(i, j)]
+                                        + w3 * h.h33[(i, j)];
+                                    let w1 = a_mat[(l2 + i, m)]
+                                        * a_mat[(l1 + j, n)]
+                                        + a_mat[(l1 + j, m)]
+                                            * a_mat[(l2 + i, n)];
+                                    let w2 = a_mat[(l3 + i, m)]
+                                        * a_mat[(l1 + j, n)]
+                                        + a_mat[(l1 + j, m)]
+                                            * a_mat[(l3 + i, n)];
+                                    let w3 = a_mat[(l3 + i, m)]
+                                        * a_mat[(l2 + j, n)]
+                                        + a_mat[(l2 + j, m)]
+                                            * a_mat[(l3 + i, n)];
+                                    x[(m, n)] += w1 * h.h21[(i, j)]
+                                        + w2 * h.h31[(i, j)]
+                                        + w3 * h.h32[(i, j)];
+                                }
+                            }
+                        }
+                    }
+                    // TODO move this into above loop
+                    for n in 0..self.symmetry_internals.len() {
+                        for m in 0..=n {
+                            x[(n, m)] = x[(m, n)];
+                        }
+                    }
                 }
                 _ => todo!(),
             }
             println!("SR = {:12.8}", sr);
+            println!("X = {:12.8}", x);
         }
-        // println!("x = {}", x);
-        // println!("sr = {}", sr);
     }
 
     /// convert the force constants in `self.fc[234]` from (symmetry) internal
@@ -753,7 +814,7 @@ impl Intder {
         let _d = &b_sym * b_sym.transpose();
         let a = Intder::a_matrix(&b_sym);
         println!("a = {:12.8}", a);
-        self.machx();
+        self.machx(&a);
         // A looks good
 
         // fortran flow is through BINVRT, which I think is our A matrix. Then
