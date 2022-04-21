@@ -104,6 +104,18 @@ impl Hmats {
     }
 }
 
+pub struct Htens {
+    pub h111: Tensor3,
+}
+
+impl Htens {
+    fn new() -> Self {
+        Self {
+            h111: Tensor3::zeros(3, 3, 3),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub struct Intder {
     pub input_options: Vec<usize>,
@@ -698,7 +710,7 @@ impl Intder {
     /// returns X and SR matrices in symmetry internal coordinates
     pub fn machx(&self, a_mat: &DMat) -> (Vec<DMat>, Vec<DMat>) {
         // TODO you might need the sim and sic versions, both are written to
-        // different files on disk
+        // different parts of the file on disk
         use Siic::*;
         let nc = 3 * self.geom.len();
         let u = self.u_mat();
@@ -845,17 +857,112 @@ impl Intder {
         (xs_sym, srs_sym)
     }
 
-    pub fn h_tensor3(geom: &Geom, s: &Siic) {
+    pub fn h_tensor3(geom: &Geom, s: &Siic) -> Htens {
+        use Siic::*;
+        // TODO can reorder loops to reuse this h_mat call with machx. loop over
+        // sims, for each sim, call h_mat and h_tensor so I can use that h_mat
+        // in h_tensor instead of calling h_mat for each sim in machx and machy
+        // separately
+        let hm = Self::h_mat(geom, s);
+        let mut h = Htens::new();
+        match s {
+            // HIJKS1
+            Stretch(i, j) => {
+                let v1 = Self::unit(geom, *i, *j);
+                let t21 = Self::dist(geom, *i, *j);
+                let w1 = 1.0 / t21;
+                for k in 0..3 {
+                    for j in k..3 {
+                        for i in j..3 {
+                            h.h111[(i, j, k)] = -(v1[i] * hm.h11[(k, j)]
+                                + v1[j] * hm.h11[(k, i)]
+                                + v1[k] * hm.h11[(j, i)])
+                                * w1;
+                        }
+                    }
+                }
+                // FILL3B - copying across the diagonal I guess
+                for m in 0..3 {
+                    for n in 0..m {
+                        for p in 0..n {
+                            h.h111[(n, m, p)] = h.h111[(m, n, p)];
+                            h.h111[(n, p, m)] = h.h111[(m, n, p)];
+                            h.h111[(m, p, n)] = h.h111[(m, n, p)];
+                            h.h111[(p, m, n)] = h.h111[(m, n, p)];
+                            h.h111[(p, n, m)] = h.h111[(m, n, p)];
+                        }
+                        h.h111[(n, m, n)] = h.h111[(m, n, n)];
+                        h.h111[(n, n, m)] = h.h111[(m, n, n)];
+                    }
+                    for p in 0..m {
+                        h.h111[(m, p, m)] = h.h111[(m, m, p)];
+                        h.h111[(p, m, m)] = h.h111[(m, m, p)];
+                    }
+                }
+            }
+            _ => todo!(),
+        }
+        h
     }
 
     pub fn machy(&self, a_mat: &DMat) {
+        use Siic::*;
         let nc = 3 * self.geom.len();
+        let nsx = self.symmetry_internals.len();
         // TODO the dimensions on this will probably decrease. see what is
         // actually written at the end
-        // let mut y = Tensor3::zeros(nc, nc, nc);
-        // let mut sr = Tensor3::zeros(nc, nc, nc);
+        let mut y = Tensor3::zeros(nc, nc, nc);
+        let mut sr = Tensor3::zeros(nc, nc, nc);
         for s in &self.simple_internals {
-            Self::h_tensor3(&self.geom, &s);
+            let h = Self::h_tensor3(&self.geom, &s);
+            match s {
+                Stretch(a, b) => {
+                    let l1 = 3 * a;
+                    let l2 = 3 * b;
+                    // HSRY2
+                    for k in 0..3 {
+                        for j in 0..3 {
+                            for i in 0..3 {
+                                let z = h.h111[(i, j, k)];
+                                sr[(l1 + i, l1 + j, l1 + k)] = z;
+                                sr[(l1 + i, l1 + j, l2 + k)] = -z;
+                                sr[(l1 + i, l2 + j, l1 + k)] = -z;
+                                sr[(l1 + i, l2 + j, l2 + k)] = z;
+                                sr[(l2 + i, l1 + j, l1 + k)] = -z;
+                                sr[(l2 + i, l1 + j, l2 + k)] = z;
+                                sr[(l2 + i, l2 + j, l1 + k)] = z;
+                                sr[(l2 + i, l2 + j, l2 + k)] = -z;
+                            }
+                        }
+                    }
+                    // AHY2
+                    for p in 0..nsx {
+                        for n in 0..=p {
+                            for m in 0..=n {
+                                for i in 0..3 {
+                                    for j in 0..3 {
+                                        for k in 0..3 {
+                                            let w1 = a_mat[(l1 + j, n)]
+                                                * (a_mat[(l1 + k, p)]
+                                                    - a_mat[(l2 + k, p)])
+                                                - a_mat[(l2 + j, n)]
+                                                    * (a_mat[(l1 + k, p)]
+                                                        - a_mat[(l2 + k, p)]);
+                                            let w1 = (a_mat[(l1 + i, m)]
+                                                - a_mat[(l2 + i, m)])
+                                                * w1;
+                                            y[(m, n, p)] +=
+                                                w1 * h.h111[(i, j, k)];
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Bend(_, _, _) => todo!(),
+                Torsion(_, _, _, _) => todo!(),
+            }
         }
     }
 
