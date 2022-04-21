@@ -4,10 +4,12 @@ use std::{
 };
 
 pub mod geom;
+pub mod tensor;
 
 use geom::Geom;
 use nalgebra as na;
 use regex::Regex;
+use tensor::Tensor3;
 
 /// from <https://physics.nist.gov/cgi-bin/cuu/Value?bohrrada0>
 const ANGBOHR: f64 = 0.5291_772_109;
@@ -435,7 +437,9 @@ impl Intder {
     }
 
     /// return the U matrix, used for converting from simple internals to
-    /// symmetry internals
+    /// symmetry internals. dimensions are (number of symmetry internals) x
+    /// (number of simple internals) since each symm. int. is a vector simp.
+    /// int. long
     pub fn u_mat(&self) -> DMat {
         let r = self.symmetry_internals.len();
         let mut u = Vec::new();
@@ -691,20 +695,29 @@ impl Intder {
         h
     }
 
-    // TODO figure out what this returns, just copying the fortran for now
-    pub fn machx(&self, a_mat: &DMat) {
+    /// returns X and SR matrices in symmetry internal coordinates
+    pub fn machx(&self, a_mat: &DMat) -> (Vec<DMat>, Vec<DMat>) {
+        // TODO you might need the sim and sic versions, both are written to
+        // different files on disk
         use Siic::*;
         let nc = 3 * self.geom.len();
+        let u = self.u_mat();
+        let nsym = self.symmetry_internals.len();
+        // simple internal X and SR matrices
+        let mut xs_sim = Vec::new();
+        let mut srs_sim = Vec::new();
+        // let nsim = self.simple_internals.len();
         for s in &self.simple_internals {
-            let mut x = DMat::zeros(nc, nc);
+            // I thought this was nc x nc but actually nc x nsym
+            let mut x = DMat::zeros(nc, nsym);
             let mut sr = DMat::zeros(nc, nc);
             let h = Self::h_mat(&self.geom, &s);
-            println!("H11 = {}", &h.h11);
-            println!("H21 = {}", &h.h21);
-            println!("H31 = {}", &h.h31);
-            println!("H22 = {}", &h.h22);
-            println!("H32 = {}", &h.h32);
-            println!("H33 = {}", &h.h33);
+            // println!("H11 = {}", &h.h11);
+            // println!("H21 = {}", &h.h21);
+            // println!("H31 = {}", &h.h31);
+            // println!("H22 = {}", &h.h22);
+            // println!("H32 = {}", &h.h32);
+            // println!("H33 = {}", &h.h33);
             match s {
                 Stretch(a, b) => {
                     let l1 = 3 * a;
@@ -719,7 +732,7 @@ impl Intder {
                         }
                     }
                     // AHX2
-                    for n in 0..self.symmetry_internals.len() {
+                    for n in 0..nsym {
                         for m in 0..=n {
                             for i in 0..3 {
                                 for j in 0..3 {
@@ -733,7 +746,7 @@ impl Intder {
                         }
                     }
                     // TODO I think this can go after the i loop above
-                    for n in 0..self.symmetry_internals.len() {
+                    for n in 0..nsym {
                         for m in 0..n {
                             x[(n, m)] = x[(m, n)];
                         }
@@ -757,7 +770,7 @@ impl Intder {
                         }
                     }
                     // AHX3
-                    for n in 0..self.symmetry_internals.len() {
+                    for n in 0..nsym {
                         for m in 0..=n {
                             for i in 0..3 {
                                 for j in 0..3 {
@@ -790,7 +803,7 @@ impl Intder {
                         }
                     }
                     // TODO move this into above loop
-                    for n in 0..self.symmetry_internals.len() {
+                    for n in 0..nsym {
                         for m in 0..=n {
                             x[(n, m)] = x[(m, n)];
                         }
@@ -798,8 +811,51 @@ impl Intder {
                 }
                 _ => todo!(),
             }
-            println!("SR = {:12.8}", sr);
-            println!("X = {:12.8}", x);
+            // println!("SR_{} = {:12.8}", i + 1, sr);
+            // println!("X = {:12.8}", x);
+            // println!("U = {:12.8}", u);
+            xs_sim.push(x);
+            srs_sim.push(sr);
+        }
+        // TODO if nsym = 0, just return the sim versions
+        let mut xs_sym = Vec::new();
+        let mut srs_sym = Vec::new();
+        for r in 0..nsym {
+            let mut x_sic = DMat::zeros(nc, nsym);
+            for (i, x) in xs_sim.iter().enumerate() {
+                for n in 0..nsym {
+                    for m in 0..nsym {
+                        x_sic[(m, n)] += u[(r, i)] * x[(m, n)];
+                    }
+                }
+            }
+            xs_sym.push(x_sic);
+        }
+        for r in 0..nsym {
+            let mut sr_sic = DMat::zeros(nc, nc);
+            for (i, sr) in srs_sim.iter().enumerate() {
+                for n in 0..nc {
+                    for m in 0..nc {
+                        sr_sic[(m, n)] += u[(r, i)] * sr[(m, n)];
+                    }
+                }
+            }
+            srs_sym.push(sr_sic);
+        }
+        (xs_sym, srs_sym)
+    }
+
+    pub fn h_tensor3(geom: &Geom, s: &Siic) {
+    }
+
+    pub fn machy(&self, a_mat: &DMat) {
+        let nc = 3 * self.geom.len();
+        // TODO the dimensions on this will probably decrease. see what is
+        // actually written at the end
+        // let mut y = Tensor3::zeros(nc, nc, nc);
+        // let mut sr = Tensor3::zeros(nc, nc, nc);
+        for s in &self.simple_internals {
+            Self::h_tensor3(&self.geom, &s);
         }
     }
 
@@ -813,8 +869,9 @@ impl Intder {
         let b_sym = self.sym_b_matrix(&self.geom);
         let _d = &b_sym * b_sym.transpose();
         let a = Intder::a_matrix(&b_sym);
-        println!("a = {:12.8}", a);
-        self.machx(&a);
+        println!("\na = {:12.8}", a);
+        let (_xs, _srs) = self.machx(&a);
+        self.machy(&a);
         // A looks good
 
         // fortran flow is through BINVRT, which I think is our A matrix. Then
