@@ -1345,40 +1345,32 @@ impl Intder {
         let nc = 3 * self.geom.len();
         let nsx = nc;
         let nsy = self.symmetry_internals.len();
-        // start
-        let mut xs = DMat::zeros(nsy, nsx);
         // flatten fc2 to the same order as fortran
-        let mut v = Vec::new();
-        for i in 0..nsy {
-            for j in 0..nsy {
-                // multiply by a coefficient here if you need to convert units
-                v.push(&self.fc2[self.fc2_index(i + 1, j + 1)]);
-            }
-        }
-        let mut f2 = DMat::zeros(nsx, nsx);
-        let mut kk = 0;
-        for ik in 0..nsy * nsy {
-            kk += 1;
-            let j = (kk - 1) / nsy;
-            let i = kk - nsy * j - 1;
-            for n in 0..nsx {
-                xs[(i, n)] += a[(j, n)] * v[ik];
-            }
-        }
-        // do 1131
-        for n in 0..nsx {
-            for m in 0..nsx {
-                // this is some kind of dot product, or I guess the whole thing
-                // is a matrix multiply really. a * xs, I guess with one of them
-                // transposed
-                let mut xx = 0.0;
-                for i in 0..nsy {
-                    xx += a[(i, m)] * xs[(i, n)];
+        let v = {
+            let mut v = Vec::new();
+            for i in 0..nsy {
+                for j in 0..nsy {
+                    // multiply by a coefficient here if you need to convert
+                    // units
+                    v.push(self.fc2[self.fc2_index(i + 1, j + 1)]);
                 }
-                f2[(m, n)] = xx;
             }
-        }
-        // do 1134
+            DVec::from(v)
+        };
+        let xs = {
+            let mut xs = DMat::zeros(nsy, nsx);
+            let mut kk = 0;
+            for ik in 0..nsy * nsy {
+                kk += 1;
+                let j = (kk - 1) / nsy;
+                let i = kk - nsy * j - 1;
+                for n in 0..nsx {
+                    xs[(i, n)] += a[(j, n)] * v[ik];
+                }
+            }
+            xs
+        };
+        let mut f2 = a.transpose() * xs;
         for m in 1..nsx {
             for n in 0..m {
                 f2[(m, n)] = (f2[(m, n)] + f2[(n, m)]) / 2.0;
