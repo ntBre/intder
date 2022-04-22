@@ -106,12 +106,30 @@ impl Hmats {
 
 pub struct Htens {
     pub h111: Tensor3,
+    pub h112: Tensor3,
+    pub h113: Tensor3,
+    pub h123: Tensor3,
+    pub h221: Tensor3,
+    pub h222: Tensor3,
+    pub h223: Tensor3,
+    pub h331: Tensor3,
+    pub h332: Tensor3,
+    pub h333: Tensor3,
 }
 
 impl Htens {
     fn new() -> Self {
         Self {
             h111: Tensor3::zeros(3, 3, 3),
+            h112: Tensor3::zeros(3, 3, 3),
+            h113: Tensor3::zeros(3, 3, 3),
+            h123: Tensor3::zeros(3, 3, 3),
+            h221: Tensor3::zeros(3, 3, 3),
+            h222: Tensor3::zeros(3, 3, 3),
+            h223: Tensor3::zeros(3, 3, 3),
+            h331: Tensor3::zeros(3, 3, 3),
+            h332: Tensor3::zeros(3, 3, 3),
+            h333: Tensor3::zeros(3, 3, 3),
         }
     }
 }
@@ -857,6 +875,27 @@ impl Intder {
         (xs_sym, srs_sym)
     }
 
+    /// copy values across the 3D diagonals
+    fn fill3b(tens: &mut Tensor3) {
+        for m in 0..3 {
+            for n in 0..m {
+                for p in 0..n {
+                    tens[(n, m, p)] = tens[(m, n, p)];
+                    tens[(n, p, m)] = tens[(m, n, p)];
+                    tens[(m, p, n)] = tens[(m, n, p)];
+                    tens[(p, m, n)] = tens[(m, n, p)];
+                    tens[(p, n, m)] = tens[(m, n, p)];
+                }
+                tens[(n, m, n)] = tens[(m, n, n)];
+                tens[(n, n, m)] = tens[(m, n, n)];
+            }
+            for p in 0..m {
+                tens[(m, p, m)] = tens[(m, m, p)];
+                tens[(p, m, m)] = tens[(m, m, p)];
+            }
+        }
+    }
+
     pub fn h_tensor3(geom: &Geom, s: &Siic) -> Htens {
         use Siic::*;
         // TODO can reorder loops to reuse this h_mat call with machx. loop over
@@ -865,6 +904,7 @@ impl Intder {
         // separately
         let hm = Self::h_mat(geom, s);
         let mut h = Htens::new();
+        // TODO see note on Tensor3 about symmetry
         match s {
             // HIJKS1
             Stretch(i, j) => {
@@ -881,22 +921,128 @@ impl Intder {
                         }
                     }
                 }
-                // FILL3B - copying across the diagonal I guess
-                for m in 0..3 {
-                    for n in 0..m {
-                        for p in 0..n {
-                            h.h111[(n, m, p)] = h.h111[(m, n, p)];
-                            h.h111[(n, p, m)] = h.h111[(m, n, p)];
-                            h.h111[(m, p, n)] = h.h111[(m, n, p)];
-                            h.h111[(p, m, n)] = h.h111[(m, n, p)];
-                            h.h111[(p, n, m)] = h.h111[(m, n, p)];
+                Self::fill3b(&mut h.h111);
+            }
+            // HIJKS2
+            Bend(i, j, k) => {
+                // copied from h_mat Bend
+                let tmp = Self::s_vec(geom, s, 3 * geom.len());
+                let v1 = &tmp[3 * i..3 * i + 3];
+                let v3 = &tmp[3 * k..3 * k + 3];
+                let e21 = Self::unit(geom, *j, *i);
+                let e23 = Self::unit(geom, *j, *k);
+                let t21 = Self::dist(geom, *j, *i);
+                let t23 = Self::dist(geom, *j, *k);
+                let h11a = Self::h_mat(geom, &Stretch(*i, *j)).h11;
+                let h33a = Self::h_mat(geom, &Stretch(*k, *j)).h11;
+                let phi = Self::angle(geom, *i, *j, *k);
+                // end copy
+                let hijs2 = Self::h_mat(geom, s);
+                let h111a = Self::h_tensor3(geom, &Stretch(*i, *j)).h111;
+                let h333a = Self::h_tensor3(geom, &Stretch(*k, *j)).h111;
+                let sphi = phi.sin();
+                let ctphi = phi.cos() / sphi;
+                let w1 = 1.0 / t21;
+                let w2 = 1.0 / t23;
+                let w3 = ctphi * w1;
+                let w4 = ctphi * w2;
+                for k in 0..3 {
+                    let w5 = v1[k] * ctphi + e21[k] * w1;
+                    let w6 = e21[k] * w3;
+                    let w7 = v1[k] * w1;
+                    let w8 = v3[k] * ctphi + e23[k] * w2;
+                    let w9 = e23[k] * w4;
+                    let w10 = v3[k] * w2;
+                    for j in 0..3 {
+                        for i in 0..3 {
+                            h.h221[(i, j, k)] = w5 * hijs2.h11[(i, j)]
+                                + v1[i] * v1[j] * w6
+                                + h11a[(i, j)] * w7;
+                            h.h223[(i, j, k)] = w8 * hijs2.h33[(i, j)]
+                                + v3[i] * v3[j] * w9
+                                + h33a[(i, j)] * w10;
                         }
-                        h.h111[(n, m, n)] = h.h111[(m, n, n)];
-                        h.h111[(n, n, m)] = h.h111[(m, n, n)];
                     }
-                    for p in 0..m {
-                        h.h111[(m, p, m)] = h.h111[(m, m, p)];
-                        h.h111[(p, m, m)] = h.h111[(m, m, p)];
+                }
+
+                for k in 0..3 {
+                    for j in k..3 {
+                        for i in j..3 {
+                            h.h111[(i, j, k)] = -(h.h221[(i, j, k)]
+                                + h.h221[(j, k, i)]
+                                + h.h221[(i, k, j)])
+                                + v1[i] * v1[j] * v1[k]
+                                + h111a[(i, j, k)] * w3;
+                            h.h333[(i, j, k)] = -(h.h223[(i, j, k)]
+                                + h.h223[(j, k, i)]
+                                + h.h223[(i, k, j)])
+                                + v3[i] * v3[j] * v3[k]
+                                + h333a[(i, j, k)] * w4;
+                        }
+                    }
+                }
+                Self::fill3b(&mut h.h111);
+                Self::fill3b(&mut h.h333);
+
+                for i in 0..3 {
+                    let w3 = v1[i] * ctphi + e21[i] * w1;
+                    let w4 = v3[i] * ctphi + e23[i] * w2;
+                    for j in 0..3 {
+                        for k in 0..3 {
+                            h.h221[(i, j, k)] = w3 * hijs2.h31[(k, j)];
+                            h.h223[(i, j, k)] = w4 * hijs2.h31[(j, k)];
+                        }
+                    }
+                }
+
+                let w3 = 1.0 / (sphi * sphi);
+                for k in 0..3 {
+                    for j in 0..3 {
+                        for i in 0..3 {
+                            h.h113[(i, j, k)] = v3[k]
+                                * (v1[i] * v1[j] - h11a[(i, j)] * w1)
+                                * w3
+                                - h.h221[(i, j, k)]
+                                - h.h221[(j, i, k)];
+                            h.h331[(i, j, k)] = v1[k]
+                                * (v3[i] * v3[j] - h33a[(i, j)] * w2)
+                                * w3
+                                - h.h223[(i, j, k)]
+                                - h.h223[(j, i, k)];
+                        }
+                    }
+                }
+
+                for k in 0..3 {
+                    for j in 0..3 {
+                        for i in 0..3 {
+                            h.h123[(i, j, k)] =
+                                -(h.h331[(j, k, i)] + h.h113[(i, j, k)]);
+                            h.h112[(i, j, k)] =
+                                -(h.h111[(i, j, k)] + h.h113[(i, j, k)]);
+                            h.h332[(i, j, k)] =
+                                -(h.h333[(i, j, k)] + h.h331[(i, j, k)]);
+                        }
+                    }
+                }
+
+                for k in 0..3 {
+                    for j in 0..3 {
+                        for i in 0..3 {
+                            h.h221[(j, k, i)] =
+                                -(h.h123[(i, j, k)] + h.h112[(i, k, j)]);
+                            h.h223[(j, k, i)] =
+                                -(h.h332[(i, j, k)] + h.h123[(j, k, i)]);
+                        }
+                    }
+                }
+
+                for k in 0..3 {
+                    for j in 0..3 {
+                        for i in 0..3 {
+                            h.h222[(i, j, k)] =
+                                -(h.h223[(j, k, i)] + h.h221[(j, k, i)]);
+                        }
                     }
                 }
             }
@@ -960,9 +1106,159 @@ impl Intder {
                         }
                     }
                 }
-                Bend(_, _, _) => todo!(),
+                Bend(a, b, c) => {
+                    let l1 = 3 * a;
+                    let l2 = 3 * b;
+                    let l3 = 3 * c;
+                    // HSRY3
+                    for k in 0..3 {
+                        for j in 0..3 {
+                            for i in 0..3 {
+                                sr[(l1 + i, l1 + j, l1 + k)] =
+                                    h.h111[(i, j, k)];
+                                sr[(l1 + i, l1 + j, l2 + k)] =
+                                    h.h112[(i, j, k)];
+                                sr[(l1 + i, l1 + j, l3 + k)] =
+                                    h.h113[(i, j, k)];
+                                sr[(l1 + i, l2 + j, l1 + k)] =
+                                    h.h112[(i, k, j)];
+                                sr[(l1 + i, l2 + j, l2 + k)] =
+                                    h.h221[(j, k, i)];
+                                sr[(l1 + i, l2 + j, l3 + k)] =
+                                    h.h123[(i, j, k)];
+                                sr[(l2 + i, l2 + j, l1 + k)] =
+                                    h.h221[(i, j, k)];
+                                sr[(l2 + i, l2 + j, l2 + k)] =
+                                    h.h222[(i, j, k)];
+                                sr[(l2 + i, l2 + j, l3 + k)] =
+                                    h.h223[(i, j, k)];
+                                sr[(l2 + i, l1 + j, l1 + k)] =
+                                    h.h112[(j, k, i)];
+                                sr[(l2 + i, l1 + j, l2 + k)] =
+                                    h.h221[(i, k, j)];
+                                sr[(l2 + i, l1 + j, l3 + k)] =
+                                    h.h123[(j, i, k)];
+                                sr[(l1 + i, l3 + j, l1 + k)] =
+                                    h.h113[(i, k, j)];
+                                sr[(l1 + i, l3 + j, l2 + k)] =
+                                    h.h123[(i, k, j)];
+                                sr[(l1 + i, l3 + j, l3 + k)] =
+                                    h.h331[(j, k, i)];
+                                sr[(l2 + i, l3 + j, l1 + k)] =
+                                    h.h123[(k, i, j)];
+                                sr[(l2 + i, l3 + j, l2 + k)] =
+                                    h.h223[(i, k, j)];
+                                sr[(l2 + i, l3 + j, l3 + k)] =
+                                    h.h332[(j, k, i)];
+                                sr[(l3 + i, l1 + j, l1 + k)] =
+                                    h.h113[(j, k, i)];
+                                sr[(l3 + i, l1 + j, l2 + k)] =
+                                    h.h123[(j, k, i)];
+                                sr[(l3 + i, l1 + j, l3 + k)] =
+                                    h.h331[(i, k, j)];
+                                sr[(l3 + i, l2 + j, l1 + k)] =
+                                    h.h123[(k, j, i)];
+                                sr[(l3 + i, l2 + j, l2 + k)] =
+                                    h.h223[(j, k, i)];
+                                sr[(l3 + i, l2 + j, l3 + k)] =
+                                    h.h332[(i, k, j)];
+                                sr[(l3 + i, l3 + j, l1 + k)] =
+                                    h.h331[(i, j, k)];
+                                sr[(l3 + i, l3 + j, l2 + k)] =
+                                    h.h332[(i, j, k)];
+                                sr[(l3 + i, l3 + j, l3 + k)] =
+                                    h.h333[(i, j, k)];
+                            }
+                        }
+                    }
+                    // AHY3
+                    for p in 0..nsx {
+                        for n in 0..=p {
+                            for m in 0..=n {
+                                for i in 0..3 {
+                                    for j in 0..3 {
+                                        let v1 = a_mat[(l1 + i, m)]
+                                            * a_mat[(l1 + j, n)];
+                                        let v2 = a_mat[(l2 + i, m)]
+                                            * a_mat[(l2 + j, n)];
+                                        let v3 = a_mat[(l3 + i, m)]
+                                            * a_mat[(l3 + j, n)];
+                                        let v4 = a_mat[(l1 + i, m)]
+                                            * a_mat[(l1 + j, p)];
+                                        let v5 = a_mat[(l1 + i, n)]
+                                            * a_mat[(l1 + j, p)];
+                                        let v6 = a_mat[(l2 + i, m)]
+                                            * a_mat[(l2 + j, p)];
+                                        let v7 = a_mat[(l2 + i, n)]
+                                            * a_mat[(l2 + j, p)];
+                                        let v8 = a_mat[(l3 + i, m)]
+                                            * a_mat[(l3 + j, p)];
+                                        let v9 = a_mat[(l3 + i, n)]
+                                            * a_mat[(l3 + j, p)];
+                                        let v10 = a_mat[(l1 + i, m)]
+                                            * a_mat[(l2 + j, n)];
+                                        let v11 = a_mat[(l1 + i, m)]
+                                            * a_mat[(l2 + j, p)];
+                                        let v12 = a_mat[(l1 + i, n)]
+                                            * a_mat[(l2 + j, m)];
+                                        let v13 = a_mat[(l1 + i, n)]
+                                            * a_mat[(l2 + j, p)];
+                                        let v14 = a_mat[(l1 + i, p)]
+                                            * a_mat[(l2 + j, m)];
+                                        let v15 = a_mat[(l1 + i, p)]
+                                            * a_mat[(l2 + j, n)];
+                                        for k in 0..3 {
+                                            let w1 = v1 * a_mat[(l1 + k, p)];
+                                            let w2 = v2 * a_mat[(l2 + k, p)];
+                                            let w3 = v3 * a_mat[(l3 + k, p)];
+                                            y[(m, n, p)] = y[(m, n, p)]
+                                                + w1 * h.h111[(i, j, k)]
+                                                + w2 * h.h222[(i, j, k)]
+                                                + w3 * h.h333[(i, j, k)];
+                                            let w1 = v1 * a_mat[(l2 + k, p)]
+                                                + v4 * a_mat[(l2 + k, n)]
+                                                + v5 * a_mat[(l2 + k, m)];
+                                            let w2 = v1 * a_mat[(l3 + k, p)]
+                                                + v4 * a_mat[(l3 + k, n)]
+                                                + v5 * a_mat[(l3 + k, m)];
+                                            let w3 = v3 * a_mat[(l2 + k, p)]
+                                                + v8 * a_mat[(l2 + k, n)]
+                                                + v9 * a_mat[(l2 + k, m)];
+                                            let w4 = v3 * a_mat[(l1 + k, p)]
+                                                + v8 * a_mat[(l1 + k, n)]
+                                                + v9 * a_mat[(l1 + k, m)];
+                                            let w5 = v2 * a_mat[(l1 + k, p)]
+                                                + v6 * a_mat[(l1 + k, n)]
+                                                + v7 * a_mat[(l1 + k, m)];
+                                            let w6 = v2 * a_mat[(l3 + k, p)]
+                                                + v6 * a_mat[(l3 + k, n)]
+                                                + v7 * a_mat[(l3 + k, m)];
+                                            y[(m, n, p)] = y[(m, n, p)]
+                                                + w1 * h.h112[(i, j, k)]
+                                                + w2 * h.h113[(i, j, k)]
+                                                + w3 * h.h332[(i, j, k)];
+                                            y[(m, n, p)] = y[(m, n, p)]
+                                                + w4 * h.h331[(i, j, k)]
+                                                + w5 * h.h221[(i, j, k)]
+                                                + w6 * h.h223[(i, j, k)];
+                                            let w1 = a_mat[(l3 + k, p)]
+                                                * (v10 + v12)
+                                                + a_mat[(l3 + k, n)]
+                                                    * (v11 + v14)
+                                                + a_mat[(l3 + k, m)]
+                                                    * (v13 + v15);
+                                            y[(m, n, p)] = y[(m, n, p)]
+                                                + w1 * h.h123[(i, j, k)];
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
                 Torsion(_, _, _, _) => todo!(),
             }
+            // fill3a on y
         }
     }
 

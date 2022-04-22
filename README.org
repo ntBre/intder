@@ -40,3 +40,6 @@
     1978
   - E. B. Wilson, Jr., J. C. Decius, and P. C. Cross. Molecular
     Vibrations, 1955.
+  - W. D. Allen and A. G. Csaszar. J. Chem. Phys. 98, 1993.
+  - A. L. L. East, W. D. Allen, and S. J. Klippenstein. J. Chem. Phys. 102, 1995
+
