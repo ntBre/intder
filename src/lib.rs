@@ -14,6 +14,10 @@ use tensor::Tensor3;
 /// from <https://physics.nist.gov/cgi-bin/cuu/Value?bohrrada0>
 const ANGBOHR: f64 = 0.5291_772_109;
 const DEGRAD: f64 = 180.0 / std::f64::consts::PI;
+/// constants from the fortran version
+const HART: f64 = 4.3597482;
+// const BOHR: f64 = 0.529177249;
+// const DEBYE: f64 = 2.54176548;
 
 // flags
 pub static mut VERBOSE: bool = false;
@@ -733,6 +737,10 @@ impl Intder {
         let nc = 3 * self.geom.len();
         let u = self.u_mat();
         let nsym = self.symmetry_internals.len();
+        if nsym == 0 {
+            eprintln!("using only simple internals is unimplemented");
+            todo!();
+        }
         // simple internal X and SR matrices
         let mut xs_sim = Vec::new();
         let mut srs_sim = Vec::new();
@@ -839,7 +847,7 @@ impl Intder {
                         }
                     }
                 }
-                _ => todo!(),
+                Torsion(_, _, _, _) => todo!(),
             }
             // println!("SR_{} = {:12.8}", i + 1, sr);
             // println!("X = {:12.8}", x);
@@ -892,6 +900,26 @@ impl Intder {
             for p in 0..m {
                 tens[(m, p, m)] = tens[(m, m, p)];
                 tens[(p, m, m)] = tens[(m, m, p)];
+            }
+        }
+    }
+
+    fn fill3a(tens: &mut Tensor3, nsx: usize) {
+        for p in 0..nsx {
+            for n in 0..p {
+                for m in 0..n {
+                    tens[(n, m, p)] = tens[(m, n, p)];
+                    tens[(n, p, m)] = tens[(m, n, p)];
+                    tens[(m, p, n)] = tens[(m, n, p)];
+                    tens[(p, m, n)] = tens[(m, n, p)];
+                    tens[(p, n, m)] = tens[(m, n, p)];
+                }
+                tens[(n, p, n)] = tens[(n, n, p)];
+                tens[(p, n, n)] = tens[(n, n, p)];
+            }
+            for m in 0..p {
+                tens[(p, m, p)] = tens[(m, p, p)];
+                tens[(p, p, m)] = tens[(m, p, p)];
             }
         }
     }
@@ -1046,20 +1074,26 @@ impl Intder {
                     }
                 }
             }
-            _ => todo!(),
+            Torsion(_, _, _, _) => todo!(),
         }
         h
     }
 
-    pub fn machy(&self, a_mat: &DMat) {
+    /// returns the Y and SR matrices in symmetry internal coordinates
+    pub fn machy(&self, a_mat: &DMat) -> (Vec<Tensor3>, Vec<Tensor3>) {
         use Siic::*;
         let nc = 3 * self.geom.len();
         let nsx = self.symmetry_internals.len();
-        // TODO the dimensions on this will probably decrease. see what is
-        // actually written at the end
-        let mut y = Tensor3::zeros(nc, nc, nc);
-        let mut sr = Tensor3::zeros(nc, nc, nc);
+        if nsx == 0 {
+            eprintln!("using only simple internals is unimplemented");
+            todo!();
+        }
+        let u = self.u_mat();
+        let mut ys_sim = Vec::new();
+        let mut srs_sim = Vec::new();
         for s in &self.simple_internals {
+            let mut y = Tensor3::zeros(nc, nc, nc);
+            let mut sr = Tensor3::zeros(nc, nc, nc);
             let h = Self::h_tensor3(&self.geom, &s);
             match s {
                 Stretch(a, b) => {
@@ -1258,55 +1292,150 @@ impl Intder {
                 }
                 Torsion(_, _, _, _) => todo!(),
             }
-            // fill3a on y
+            Self::fill3a(&mut y, nsx);
+            ys_sim.push(y);
+            srs_sim.push(sr);
         }
+
+        // convert Y to symmetry internals
+        let ys_sym = {
+            let mut ys_sym = Vec::new();
+            for r in 0..nsx {
+                let mut y_sic = Tensor3::zeros(nc, nc, nc);
+                for (i, y) in ys_sim.iter().enumerate() {
+                    let w1 = u[(r, i)];
+                    for p in 0..nsx {
+                        for n in 0..=p {
+                            for m in 0..=n {
+                                y_sic[(m, n, p)] += w1 * y[(m, n, p)];
+                            }
+                        }
+                    }
+                }
+                Self::fill3a(&mut y_sic, nsx);
+                ys_sym.push(y_sic);
+            }
+            ys_sym
+        };
+
+        // convert SR to symmetry internals
+        let srs_sym = {
+            let mut ret = Vec::new();
+            for r in 0..nsx {
+                let mut sr_sic = Tensor3::zeros(nc, nc, nc);
+                for (i, sr) in srs_sim.iter().enumerate() {
+                    let w1 = u[(r, i)];
+                    for p in 0..nc {
+                        for n in 0..=p {
+                            for m in 0..=n {
+                                sr_sic[(m, n, p)] += w1 * sr[(m, n, p)];
+                            }
+                        }
+                    }
+                }
+                Self::fill3a(&mut sr_sic, nc);
+                ret.push(sr_sic);
+            }
+            ret
+        };
+        (ys_sym, srs_sym)
+    }
+
+    /// what they call A here is actually the SIC B matrix. for now this returns
+    /// fc2 in the units expected by spectro (mdyn / Å²)(?)
+    pub fn lintr(&self, a: &DMat) -> DMat {
+        // these got set and then immediately set back to 1.0...
+        // let cf1 = HART / ANGBOHR;
+        // let cf2 = cf1 / ANGBOHR;
+        // let cf3 = cf2 / ANGBOHR;
+        // let cf4 = cf3 / ANGBOHR;
+        let cf1 = 1.0;
+        let _cf2 = 1.0;
+        let _cf3 = 1.0;
+        let _cf4 = 1.0;
+
+        // TODO figure out where this comes from, hard-code for now
+        let nmm = 3000;
+        let nsx = 3 * self.geom.len();
+        let nsy = self.symmetry_internals.len();
+        let nnc = nsy * nsy;
+        let mut nm = nmm;
+        let nr = nnc / nmm;
+        let nl = nnc - nmm * nr;
+        // start
+        let mut xs = DMat::zeros(nsy, nsx);
+        if nr != 0 {
+            eprintln!("nr != 0, please tell Brent <bwestbr2@go.olemiss.edu>!");
+        }
+        // flatten fc2 to the same order as fortran
+        let mut v = Vec::new();
+        for i in 0..nsy {
+            for j in 0..nsy {
+                v.push(cf1 * &self.fc2[self.fc2_index(i + 1, j + 1)]);
+            }
+        }
+        let mut f2 = DMat::zeros(nsx, nsx);
+        // pretty sure nr is always 0 so this only runs once
+        let mut kk = 0;
+        for ii in 0..nr + 1 {
+            if ii == nr {
+                nm = nl;
+            }
+            for ik in 0..nm {
+                kk += 1;
+                // these are probably off by one
+                let j = (kk - 1) / nsy;
+                let i = kk - nsy * j - 1;
+                for n in 0..nsx {
+                    // assert!(ik < 9);
+                    // assert!(i < 3);
+                    // assert!(n < 9);
+                    // assert!(j < 3);
+                    xs[(i, n)] += a[(j, n)] * v[ik];
+                }
+            }
+        }
+        // do 1131
+        for n in 0..nsx {
+            for m in 0..nsx {
+                // this is some kind of dot product, or I guess the whole thing
+                // is a matrix multiply really. a * xs, I guess with one of them
+                // transposed
+                let mut xx = 0.0;
+                for i in 0..nsy {
+                    xx += a[(i, m)] * xs[(i, n)];
+                }
+                f2[(m, n)] = xx;
+            }
+        }
+        // do 1134
+        for m in 1..nsx {
+            for n in 0..m {
+                f2[(m, n)] = (f2[(m, n)] + f2[(n, m)]) / 2.0;
+                f2[(n, m)] = f2[(m, n)];
+            }
+        }
+        f2 * ANGBOHR * ANGBOHR / HART
     }
 
     /// convert the force constants in `self.fc[234]` from (symmetry) internal
-    /// coordinates to Cartesian coordinates
-    pub fn convert_fcs(&self) {
+    /// coordinates to Cartesian coordinates. returns (fc2, fc3, fc4) in the
+    /// order printed in the fort.{15,30,40} files for spectro. TODO - for now
+    /// it just returns (fc2)
+    pub fn convert_fcs(&self) -> DMat {
         if unsafe { VERBOSE } {
             self.print_init();
         }
         // let sics = DVec::from(self.symmetry_values(&self.geom));
         let b_sym = self.sym_b_matrix(&self.geom);
+        // println!("\nBS = {:12.8}", b_sym);
         let _d = &b_sym * b_sym.transpose();
         let a = Intder::a_matrix(&b_sym);
-        println!("\na = {:12.8}", a);
+        // println!("\na = {:12.8}", a);
         let (_xs, _srs) = self.machx(&a);
-        self.machy(&a);
-        // A looks good
-
-        // fortran flow is through BINVRT, which I think is our A matrix. Then
-        // it loads the fcs into arrays using spectro indexing formulas in
-        // INPFKM.
-
-        // [x] I handle this in `load`
-
-        // Then it runs
-        // [ ] MACHX - I think UGF and XS are the out params for this
-        //     [ ] HIJS1 - H matrix elements for STRE
-        //     [ ] AHX2 - I think these are doing some kind of math with A and H
-        // [ ] MACHY - Z are work arrays
-        // [ ] LINTR - linear transformation
-
-        // TODO short break and then figure out MACHX - break at start, break at
-        // end, see what goes in and what comes out
-
-        // Then
-        // [ ] XF2
-        // [ ] XF3
-        // [ ] YF2
-
-        // Then
-        // [ ] FCOUT to dump the force constants
-
-        // This is where the files I need get written, so I should be able to
-        // stop here.
-
-        // after that, it goes on to do the NORMAL MODE ANALYSIS IN INTERNAL
-        // COORDINATES with GFMAT
-
-        // then NORMAL MODE ANALYSIS IN CARTESIAN COORDINATES in NORMCO
+        let (_ys, _srsy) = self.machy(&a);
+        let f2 = self.lintr(&b_sym);
+        // println!("{:20.10}", f2);
+	f2
     }
 }

@@ -1,21 +1,61 @@
-* B Matrix and s vectors
-  See [[pdf:~/Library/McIntosh78.pdf][McIntosh78]] for details on the construction of B matrix
-  - in turn it refers to /Molecular Vibrations/, which has been sitting on the floor
-    behind me the whole time I was beating my head against the fortran version...
+* Geometry conversion
+** B Matrix and s vectors
+   See [[pdf:~/Library/McIntosh78.pdf][McIntosh78]] for details on the construction of B matrix
+   - in turn it refers to /Molecular Vibrations/, which has been sitting on the floor
+     behind me the whole time I was beating my head against the fortran version...
 
-  also see [[https://github.com/psi4/psi3/blob/master/src/bin/intder/README][nate's readme]] from trying to convert it to C++
+   also see [[https://github.com/psi4/psi3/blob/master/src/bin/intder/README][nate's readme]] from trying to convert it to C++
 
-  I think B does only depend on the simple internals
+   I think B does only depend on the simple internals
 
-  B relates the simple internals to the Cartesian coordinates
+   B relates the simple internals to the Cartesian coordinates
 
-  This was true, but BS is B converted to symmetry-internal coordinates, and that
-  is what is actually used later
+   This was true, but BS is B converted to symmetry-internal coordinates, and that
+   is what is actually used later
 
-  see comments on a_matrix for expression, something like D = BBt and A = BtD-1
+   see comments on a_matrix for expression, something like D = BBt and A = BtD-1
 
-  compute A, multiply by the difference between SIC_desired and SIC_current and
-  add that step to the Cartesian coordinates
+   compute A, multiply by the difference between SIC_desired and SIC_current and
+   add that step to the Cartesian coordinates
+
+* Force constant conversion
+** Fortran code
+*** INPFKM - load internal coordinate force constants from file
+    - I handle this in =Intder::load=
+*** Assemble B matrix
+*** BINVRT - get A matrix, just like geometry conversion
+*** MACHX
+**** Stretch
+     - HIJS1
+     - AHX2
+**** Bend
+     - HIJS2
+     - AHX3
+*** MACHY
+**** Stretch
+     - HIJKS1
+     - HSRY2
+     - AHY2
+**** Bend
+     - HIJKS2
+     - HSRY3
+     - AHY3
+*** LINTR - I expect this to perform the transformations using the matrices from MACHX/Y
+*** *can actually stop here* - fc2,3,4 are finished in =LINTR=
+*** XF2
+*** XF3
+*** YF2
+*** FCOUT
+*** this is where the files are written, then it does the vibrational analysis
+**** GFMAT - normal mode analysis in internal coordinates
+**** NORMCO - normal mode analysis in cartesian coordinates
+
+* Adding more coordinate types
+  So far I have only implemented STRE, BEND, and TORS. The steps for adding more
+  are as follows:
+  1. Add a new =Siic= variant
+  2. Add a new case to =parse_simple_internal=
+  3. Follow the compiler to all the places you need to handle the new =Siic=
 
 * Timing
   fairer comparison to DEBUG=true version since that writes something like

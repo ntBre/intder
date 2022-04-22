@@ -342,5 +342,7 @@ fn test_convert_disps() {
 #[test]
 fn test_convert_fcs() {
     let intder = Intder::load_file("testfiles/h2o.freq.in");
-    intder.convert_fcs();
+    let got = intder.convert_fcs();
+    let want = DMat::from_row_slice(9, 9, &load_vec("testfiles/fort.15"));
+    assert_abs_diff_eq!(got, want, epsilon = 1e-7);
 }
