@@ -1341,9 +1341,7 @@ impl Intder {
         (ys_sym, srs_sym)
     }
 
-    /// what they call A here is actually the SIC B matrix. for now this returns
-    /// fc2 in the units expected by spectro (mdyn / Å²)(?)
-    pub fn lintr(&self, a: &DMat) -> DMat {
+    fn lintr_fc2(&self, a: &DMat) -> DMat {
         // these got set and then immediately set back to 1.0...
         // let cf1 = HART / ANGBOHR;
         // let cf2 = cf1 / ANGBOHR;
@@ -1354,9 +1352,12 @@ impl Intder {
         let _cf3 = 1.0;
         let _cf4 = 1.0;
 
-        // TODO figure out where this comes from, hard-code for now
-        let nmm = 3000;
-        let nsx = 3 * self.geom.len();
+        let nc = 3 * self.geom.len();
+        let nnn = nc * nc * nc;
+        // TODO this is some kind of buffer, don't need it
+        const NCHUNK: usize = 1000;
+        let nmm = (3 * NCHUNK).max(2 * nnn);
+        let nsx = nc;
         let nsy = self.symmetry_internals.len();
         let nnc = nsy * nsy;
         let mut nm = nmm;
@@ -1418,6 +1419,12 @@ impl Intder {
         f2 * ANGBOHR * ANGBOHR / HART
     }
 
+    /// what they call A here is actually the SIC B matrix. for now this returns
+    /// fc2 in the units expected by spectro (mdyn / Å²)(?)
+    pub fn lintr(&self, a: &DMat) -> DMat {
+        self.lintr_fc2(a)
+    }
+
     /// convert the force constants in `self.fc[234]` from (symmetry) internal
     /// coordinates to Cartesian coordinates. returns (fc2, fc3, fc4) in the
     /// order printed in the fort.{15,30,40} files for spectro. TODO - for now
@@ -1436,6 +1443,6 @@ impl Intder {
         let (_ys, _srsy) = self.machy(&a);
         let f2 = self.lintr(&b_sym);
         // println!("{:20.10}", f2);
-	f2
+        f2
     }
 }
