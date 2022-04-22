@@ -1342,58 +1342,27 @@ impl Intder {
     }
 
     fn lintr_fc2(&self, a: &DMat) -> DMat {
-        // these got set and then immediately set back to 1.0...
-        // let cf1 = HART / ANGBOHR;
-        // let cf2 = cf1 / ANGBOHR;
-        // let cf3 = cf2 / ANGBOHR;
-        // let cf4 = cf3 / ANGBOHR;
-        let cf1 = 1.0;
-        let _cf2 = 1.0;
-        let _cf3 = 1.0;
-        let _cf4 = 1.0;
-
         let nc = 3 * self.geom.len();
-        let nnn = nc * nc * nc;
-        // TODO this is some kind of buffer, don't need it
-        const NCHUNK: usize = 1000;
-        let nmm = (3 * NCHUNK).max(2 * nnn);
         let nsx = nc;
         let nsy = self.symmetry_internals.len();
-        let nnc = nsy * nsy;
-        let mut nm = nmm;
-        let nr = nnc / nmm;
-        let nl = nnc - nmm * nr;
         // start
         let mut xs = DMat::zeros(nsy, nsx);
-        if nr != 0 {
-            eprintln!("nr != 0, please tell Brent <bwestbr2@go.olemiss.edu>!");
-        }
         // flatten fc2 to the same order as fortran
         let mut v = Vec::new();
         for i in 0..nsy {
             for j in 0..nsy {
-                v.push(cf1 * &self.fc2[self.fc2_index(i + 1, j + 1)]);
+                // multiply by a coefficient here if you need to convert units
+                v.push(&self.fc2[self.fc2_index(i + 1, j + 1)]);
             }
         }
         let mut f2 = DMat::zeros(nsx, nsx);
-        // pretty sure nr is always 0 so this only runs once
         let mut kk = 0;
-        for ii in 0..nr + 1 {
-            if ii == nr {
-                nm = nl;
-            }
-            for ik in 0..nm {
-                kk += 1;
-                // these are probably off by one
-                let j = (kk - 1) / nsy;
-                let i = kk - nsy * j - 1;
-                for n in 0..nsx {
-                    // assert!(ik < 9);
-                    // assert!(i < 3);
-                    // assert!(n < 9);
-                    // assert!(j < 3);
-                    xs[(i, n)] += a[(j, n)] * v[ik];
-                }
+        for ik in 0..nsy * nsy {
+            kk += 1;
+            let j = (kk - 1) / nsy;
+            let i = kk - nsy * j - 1;
+            for n in 0..nsx {
+                xs[(i, n)] += a[(j, n)] * v[ik];
             }
         }
         // do 1131
