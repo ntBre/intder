@@ -1342,8 +1342,7 @@ impl Intder {
     }
 
     fn lintr_fc2(&self, a: &DMat) -> DMat {
-        let nc = 3 * self.geom.len();
-        let nsx = nc;
+        let nsx = 3 * self.geom.len();
         let nsy = self.symmetry_internals.len();
         // flatten fc2 to the same order as fortran
         let v = {
@@ -1380,9 +1379,172 @@ impl Intder {
         f2 * ANGBOHR * ANGBOHR / HART
     }
 
+    fn lintr_fc3(&self, a: &DMat) {
+        let nsx = 3 * self.geom.len();
+        let nsy = self.symmetry_internals.len();
+        let v = &self.fc3;
+        let mut i = 0;
+        let mut j = 0;
+        let mut k = 0;
+        let mut f3 = Tensor3::zeros(nsx, nsx, nsx);
+        for vik in v {
+            if i != j {
+                if j != k {
+                    for p in 0..nsx {
+                        f3[(i, j, p)] = vik * a[(k, p)] + f3[(i, j, p)];
+                        f3[(i, k, p)] = vik * a[(j, p)] + f3[(i, k, p)];
+                        f3[(j, k, p)] = vik * a[(i, p)] + f3[(j, k, p)];
+                    }
+                } else {
+                    for p in 0..nsx {
+                        f3[(i, j, p)] = vik * a[(j, p)] + f3[(i, j, p)];
+                        f3[(j, j, p)] = vik * a[(i, p)] + f3[(j, j, p)];
+                    }
+                }
+            } else {
+                if j != k {
+                    for p in 0..nsx {
+                        f3[(i, i, p)] = vik * a[(k, p)] + f3[(i, i, p)];
+                        f3[(i, k, p)] = vik * a[(i, p)] + f3[(i, k, p)];
+                    }
+                } else {
+                    for p in 0..nsx {
+                        f3[(i, i, p)] = vik * a[(i, p)] + f3[(i, i, p)];
+                    }
+                }
+            }
+            if k < j {
+                k += 1;
+            } else if j < i {
+                j += 1;
+                k = 0;
+            } else {
+                i += 1;
+                j = 0;
+                k = 0;
+            }
+        }
+        // end of 1138 loop, looking good so far
+
+        // TODO can I just make a new f3 here? There is 1 untouched number left
+        // in there...
+        let f3_disk = f3.clone();
+        for p in 0..nsx {
+            for n in 0..=p {
+                for i in 0..nsy {
+                    f3[(i, n, p)] = 0.0;
+                }
+            }
+        }
+        // flatten f3_disk into the vector the fortran uses
+        let v = {
+            let mut v = Vec::new();
+            for i in 0..nsy {
+                for j in 0..=i {
+                    for p in 0..nsx {
+                        v.push(f3_disk[(i, j, p)]);
+                    }
+                }
+            }
+            v
+        };
+        let mut i = 0;
+        let mut j = 0;
+        let mut p = 0;
+        for vik in v {
+            if i != j {
+                for n in 0..=p {
+                    f3[(i, n, p)] = vik * a[(j, n)] + f3[(i, n, p)];
+                    f3[(j, n, p)] = vik * a[(i, n)] + f3[(j, n, p)];
+                }
+            } else {
+                for n in 0..=p {
+                    f3[(i, n, p)] = vik * a[(i, n)] + f3[(i, n, p)];
+                }
+            }
+            if p < nsx - 1 {
+                p += 1;
+            } else if j < i {
+                j += 1;
+                p = 0;
+            } else {
+                i += 1;
+                j = 0;
+                p = 0;
+            }
+        }
+        // end of 1146 loop, looking good again
+
+        let f3_disk2 = f3.clone();
+        for p in 0..nsx {
+            for n in 0..=p {
+                for m in 0..=n {
+                    f3[(m, n, p)] = 0.0
+                }
+            }
+        }
+        // flatten f3_disk2 into the vector the fortran uses
+        let v = {
+            let mut v = Vec::new();
+            for p in 0..nsx {
+                for n in 0..=p {
+                    for i in 0..nsy {
+                        v.push(f3_disk2[(i, n, p)]);
+                    }
+                }
+            }
+            v
+        };
+        let mut i = 0;
+        let mut n = 0;
+        let mut p = 0;
+        for vik in v {
+            for m in 0..=n {
+                f3[(m, n, p)] += vik * a[(i, m)];
+            }
+            if i < nsy - 1 {
+                i += 1;
+            } else if n < p {
+                n += 1;
+                i = 0;
+            } else {
+                p += 1;
+                n = 0;
+                i = 0;
+            }
+        }
+        // end of 1152 loop, still looking good
+
+        Self::fill3a(&mut f3, nsx);
+	f3.print();
+
+	// TODO follow F3 out of LINTR before it gets to FCOUT - some other
+	// transformations are happening, probably bringing back the pieces
+	// written to disk
+
+        // const CF3: f64 = ANGBOHR * ANGBOHR * ANGBOHR / HART;
+        // let mut f3_units = Tensor3::zeros(nsx, nsx, nsx);
+        // let mut _c = 0;
+        // for p in 0..nsx {
+        //     for n in 0..nsx {
+        //         for m in 0..nsx {
+        //             // if c > 0 && c % 3 == 0 {
+        //             //     println!();
+        //             // }
+        //             // print!("{:12.6}", CF3 * f3[(m, n, p)]);
+        //             // c += 1;
+        //             f3_units[(m, n, p)] = CF3 * f3[(m, n, p)];
+        //         }
+        //     }
+        // }
+        // f3_units.print();
+        // dbg!(c);
+    }
+
     /// what they call A here is actually the SIC B matrix. for now this returns
     /// fc2 in the units expected by spectro (mdyn / Å²)(?)
     pub fn lintr(&self, a: &DMat) -> DMat {
+        self.lintr_fc3(a);
         self.lintr_fc2(a)
     }
 
