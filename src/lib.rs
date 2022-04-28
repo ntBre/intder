@@ -1300,21 +1300,34 @@ impl Intder {
         (ys_sym, srs_sym)
     }
 
+    /// flatten fc2 so it can be accessed as the Fortran code expects
+    fn flatten_fc2(&self, nsy: usize) -> DVec {
+        let mut v = Vec::new();
+        for i in 0..nsy {
+            for j in 0..nsy {
+                // multiply by a coefficient here if you need to convert
+                // units
+                v.push(self.fc2[self.fc2_index(i + 1, j + 1)]);
+            }
+        }
+        DVec::from(v)
+    }
+
+    /// represent fc2 as a symmetric matrix
+    fn mat_fc2(&self, nsy: usize) -> DMat {
+        let mut v = DMat::from_row_slice(nsy, nsy, &self.fc2);
+        for row in 0..nsy {
+            for col in row..nsy {
+                v[(col, row)] = v[(row, col)];
+            }
+        }
+        v
+    }
+
     fn lintr_fc2(&self, a: &DMat) -> DMat {
         let nsx = 3 * self.geom.len();
         let nsy = self.symmetry_internals.len();
-        // flatten fc2 to the same order as fortran
-        let v = {
-            let mut v = Vec::new();
-            for i in 0..nsy {
-                for j in 0..nsy {
-                    // multiply by a coefficient here if you need to convert
-                    // units
-                    v.push(self.fc2[self.fc2_index(i + 1, j + 1)]);
-                }
-            }
-            DVec::from(v)
-        };
+        let v = self.flatten_fc2(nsy);
         let xs = {
             let mut xs = DMat::zeros(nsy, nsx);
             let mut kk = 0;
@@ -1478,35 +1491,70 @@ impl Intder {
         f3
     }
 
-    fn xf2(&self, f3: &Tensor3) {
-	todo!();
+    fn xf2(&self, f3_raw: &Tensor3, bs: &DMat, xrs: &Vec<DMat>) -> Tensor3 {
+        let ns = self.symmetry_internals.len();
+        let nc = 3 * self.geom.len();
+        let v = self.mat_fc2(ns);
+        let xs = v * bs;
+        let mut f3 = f3_raw.clone();
+        for (r, xr) in xrs.iter().enumerate() {
+            for k in 0..nc {
+                for j in 0..=k {
+                    for i in 0..=j {
+                        let w = xr[(i, j)] * xs[(r, k)]
+                            + xr[(i, k)] * xs[(r, j)]
+                            + xr[(j, k)] * xs[(r, i)];
+                        f3[(i, j, k)] += w;
+                    }
+                }
+            }
+        }
+        f3.fill3a(nc);
+        f3
     }
 
-    /// what they call A here is actually the SIC B matrix. for now this returns
-    /// fc2 in the units expected by spectro (mdyn / Å²)(?)
-    pub fn lintr(&self, a: &DMat) -> DMat {
+    /// Perform the linear transformation of the force constants and convert the
+    /// units to those desired by SPECTRO. what they call A here is actually the
+    /// SIC B matrix.
+    pub fn lintr(
+        &self,
+        a: &DMat,
+        bs: &DMat,
+        xr: &Vec<DMat>,
+    ) -> (DMat, Vec<f64>) {
         let f2 = self.lintr_fc2(a);
-        let f3_raw = self.lintr_fc3(a);
-	self.xf2(&f3_raw);
-        f2
+        let f3 = self.xf2(&self.lintr_fc3(a), bs, xr);
+
+        // convert f3 to the proper units and return it as a Vec in the order
+        // desired by spectro
+        let nsx = 3 * self.geom.len();
+        const CF3: f64 = ANGBOHR * ANGBOHR * ANGBOHR / HART;
+        let mut f3_out = Vec::new();
+        for m in 0..nsx {
+            for n in 0..=m {
+                for p in 0..=n {
+                    f3_out.push(CF3 * f3[(m, n, p)]);
+                }
+            }
+        }
+        (f2, f3_out)
     }
 
     /// convert the force constants in `self.fc[234]` from (symmetry) internal
     /// coordinates to Cartesian coordinates. returns (fc2, fc3, fc4) in the
     /// order printed in the fort.{15,30,40} files for spectro. TODO - for now
     /// it just returns (fc2)
-    pub fn convert_fcs(&self) -> DMat {
+    pub fn convert_fcs(&self) -> (DMat, Vec<f64>) {
         if unsafe { VERBOSE } {
             self.print_init();
         }
         // let sics = DVec::from(self.symmetry_values(&self.geom));
         let b_sym = self.sym_b_matrix(&self.geom);
-        // println!("\nBS = {:12.8}", b_sym);
         let a = Intder::a_matrix(&b_sym);
-        // println!("\na = {:12.8}", a);
-        let (_xs, _srs) = self.machx(&a);
-        let (_ys, _srsy) = self.machy(&a);
-        let f2 = self.lintr(&b_sym);
-        f2
+        let (_xs, srs) = self.machx(&a);
+        // let (_ys, _srsy) = self.machy(&a);
+        let (f2, f3) = self.lintr(&b_sym, &b_sym, &srs);
+
+        (f2, f3)
     }
 }

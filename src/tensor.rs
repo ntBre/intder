@@ -5,7 +5,7 @@ use std::{
 };
 
 #[derive(Clone)]
-pub struct Tensor3(pub Vec<Vec<Vec<f64>>>);
+pub struct Tensor3(Vec<Vec<Vec<f64>>>);
 
 // TODO could probably replace these fields with vectors and fc3 index formula
 // if they're always symmetric. Then I don't have to do all the symmetry stuff
