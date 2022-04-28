@@ -1,10 +1,11 @@
-use std::io::{Read, BufReader, BufRead};
+use std::io::{BufRead, BufReader, Read};
 
 use approx::assert_abs_diff_eq;
 
-use rust_intder::*;
-use rust_intder::geom::*;
 use nalgebra as na;
+use rust_intder::geom::*;
+use rust_intder::tensor::Tensor3;
+use rust_intder::*;
 
 const S: f64 = std::f64::consts::SQRT_2 / 2.;
 
@@ -337,6 +338,15 @@ fn test_convert_disps() {
             assert_abs_diff_eq!(got[i], want[i], epsilon = 4e-8);
         }
     }
+}
+
+#[test]
+fn test_lintr_fc3() {
+    let intder = Intder::load_file("testfiles/h2o.freq.in");
+    let b_sym = intder.sym_b_matrix(&intder.geom);
+    let got = intder.lintr_fc3(&b_sym);
+    let want = Tensor3::load("testfiles/h2o.lintr.f3");
+    assert!(got.equal(&want, 1e-6));
 }
 
 #[test]

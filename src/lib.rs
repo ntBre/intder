@@ -883,47 +883,6 @@ impl Intder {
         (xs_sym, srs_sym)
     }
 
-    /// copy values across the 3D diagonals
-    fn fill3b(tens: &mut Tensor3) {
-        for m in 0..3 {
-            for n in 0..m {
-                for p in 0..n {
-                    tens[(n, m, p)] = tens[(m, n, p)];
-                    tens[(n, p, m)] = tens[(m, n, p)];
-                    tens[(m, p, n)] = tens[(m, n, p)];
-                    tens[(p, m, n)] = tens[(m, n, p)];
-                    tens[(p, n, m)] = tens[(m, n, p)];
-                }
-                tens[(n, m, n)] = tens[(m, n, n)];
-                tens[(n, n, m)] = tens[(m, n, n)];
-            }
-            for p in 0..m {
-                tens[(m, p, m)] = tens[(m, m, p)];
-                tens[(p, m, m)] = tens[(m, m, p)];
-            }
-        }
-    }
-
-    fn fill3a(tens: &mut Tensor3, nsx: usize) {
-        for p in 0..nsx {
-            for n in 0..p {
-                for m in 0..n {
-                    tens[(n, m, p)] = tens[(m, n, p)];
-                    tens[(n, p, m)] = tens[(m, n, p)];
-                    tens[(m, p, n)] = tens[(m, n, p)];
-                    tens[(p, m, n)] = tens[(m, n, p)];
-                    tens[(p, n, m)] = tens[(m, n, p)];
-                }
-                tens[(n, p, n)] = tens[(n, n, p)];
-                tens[(p, n, n)] = tens[(n, n, p)];
-            }
-            for m in 0..p {
-                tens[(p, m, p)] = tens[(m, p, p)];
-                tens[(p, p, m)] = tens[(m, p, p)];
-            }
-        }
-    }
-
     pub fn h_tensor3(geom: &Geom, s: &Siic) -> Htens {
         use Siic::*;
         // TODO can reorder loops to reuse this h_mat call with machx. loop over
@@ -949,7 +908,7 @@ impl Intder {
                         }
                     }
                 }
-                Self::fill3b(&mut h.h111);
+                h.h111.fill3b();
             }
             // HIJKS2
             Bend(i, j, k) => {
@@ -1009,8 +968,8 @@ impl Intder {
                         }
                     }
                 }
-                Self::fill3b(&mut h.h111);
-                Self::fill3b(&mut h.h333);
+                h.h111.fill3b();
+                h.h333.fill3b();
 
                 for i in 0..3 {
                     let w3 = v1[i] * ctphi + e21[i] * w1;
@@ -1292,7 +1251,7 @@ impl Intder {
                 }
                 Torsion(_, _, _, _) => todo!(),
             }
-            Self::fill3a(&mut y, nsx);
+            y.fill3a(nsx);
             ys_sim.push(y);
             srs_sim.push(sr);
         }
@@ -1312,7 +1271,7 @@ impl Intder {
                         }
                     }
                 }
-                Self::fill3a(&mut y_sic, nsx);
+                y_sic.fill3a(nsx);
                 ys_sym.push(y_sic);
             }
             ys_sym
@@ -1333,7 +1292,7 @@ impl Intder {
                         }
                     }
                 }
-                Self::fill3a(&mut sr_sic, nc);
+                sr_sic.fill3a(nc);
                 ret.push(sr_sic);
             }
             ret
@@ -1379,7 +1338,7 @@ impl Intder {
         f2 * ANGBOHR * ANGBOHR / HART
     }
 
-    fn lintr_fc3(&self, a: &DMat) {
+    pub fn lintr_fc3(&self, a: &DMat) -> Tensor3 {
         let nsx = 3 * self.geom.len();
         let nsy = self.symmetry_internals.len();
         let v = &self.fc3;
@@ -1515,37 +1474,17 @@ impl Intder {
         }
         // end of 1152 loop, still looking good
 
-        Self::fill3a(&mut f3, nsx);
-	f3.print();
-
-	// TODO follow F3 out of LINTR before it gets to FCOUT - some other
-	// transformations are happening, probably bringing back the pieces
-	// written to disk
-
-        // const CF3: f64 = ANGBOHR * ANGBOHR * ANGBOHR / HART;
-        // let mut f3_units = Tensor3::zeros(nsx, nsx, nsx);
-        // let mut _c = 0;
-        // for p in 0..nsx {
-        //     for n in 0..nsx {
-        //         for m in 0..nsx {
-        //             // if c > 0 && c % 3 == 0 {
-        //             //     println!();
-        //             // }
-        //             // print!("{:12.6}", CF3 * f3[(m, n, p)]);
-        //             // c += 1;
-        //             f3_units[(m, n, p)] = CF3 * f3[(m, n, p)];
-        //         }
-        //     }
-        // }
-        // f3_units.print();
-        // dbg!(c);
+        f3.fill3a(nsx);
+        f3
     }
 
     /// what they call A here is actually the SIC B matrix. for now this returns
     /// fc2 in the units expected by spectro (mdyn / Å²)(?)
     pub fn lintr(&self, a: &DMat) -> DMat {
-        self.lintr_fc3(a);
-        self.lintr_fc2(a)
+        let f2 = self.lintr_fc2(a);
+        let f3_raw = self.lintr_fc3(a);
+
+        f2
     }
 
     /// convert the force constants in `self.fc[234]` from (symmetry) internal
@@ -1559,13 +1498,11 @@ impl Intder {
         // let sics = DVec::from(self.symmetry_values(&self.geom));
         let b_sym = self.sym_b_matrix(&self.geom);
         // println!("\nBS = {:12.8}", b_sym);
-        let _d = &b_sym * b_sym.transpose();
         let a = Intder::a_matrix(&b_sym);
         // println!("\na = {:12.8}", a);
         let (_xs, _srs) = self.machx(&a);
         let (_ys, _srsy) = self.machy(&a);
         let f2 = self.lintr(&b_sym);
-        // println!("{:20.10}", f2);
         f2
     }
 }

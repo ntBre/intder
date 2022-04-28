@@ -83,3 +83,29 @@
   - W. D. Allen and A. G. Csaszar. J. Chem. Phys. 98, 1993.
   - A. L. L. East, W. D. Allen, and S. J. Klippenstein. J. Chem. Phys. 102, 1995
 
+
+* Extra code
+** fcout for f3 I think
+   #+begin_src rust
+     // TODO follow F3 out of LINTR before it gets to FCOUT - some other
+     // transformations are happening, probably bringing back the pieces
+     // written to disk
+
+     const CF3: f64 = ANGBOHR * ANGBOHR * ANGBOHR / HART;
+     let mut f3_units = Tensor3::zeros(nsx, nsx, nsx);
+     let mut _c = 0;
+     for p in 0..nsx {
+	 for n in 0..nsx {
+	     for m in 0..nsx {
+		 // if c > 0 && c % 3 == 0 {
+		 //     println!();
+		 // }
+		 // print!("{:12.6}", CF3 * f3[(m, n, p)]);
+		 // c += 1;
+		 f3_units[(m, n, p)] = CF3 * f3[(m, n, p)];
+	     }
+	 }
+     }
+     f3_units.print();
+     dbg!(c);
+   #+end_src
