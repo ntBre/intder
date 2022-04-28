@@ -9,7 +9,7 @@ pub mod tensor;
 use geom::Geom;
 use nalgebra as na;
 use regex::Regex;
-use tensor::Tensor3;
+use tensor::{Tensor3, Tensor4};
 
 /// from <https://physics.nist.gov/cgi-bin/cuu/Value?bohrrada0>
 const ANGBOHR: f64 = 0.5291_772_109;
@@ -1491,6 +1491,105 @@ impl Intder {
         f3
     }
 
+    pub fn lintr_fc4(&self, a: &DMat) -> () {
+        let nsx = 3 * self.geom.len();
+        let nsy = self.symmetry_internals.len();
+        let v = &self.fc4;
+        let mut i = 0;
+        let mut j = 0;
+        let mut k = 0;
+        let mut l = 0;
+        let mut f4 = Tensor4::zeros(nsx, nsx, nsx, nsx);
+        for vik in v {
+            if i != j {
+                if j != k {
+                    if k != l {
+                        for q in 0..nsx {
+                            f4[(i, j, k, q)] += vik * a[(l, q)];
+                            f4[(i, j, l, q)] += vik * a[(k, q)];
+                            f4[(i, k, l, q)] += vik * a[(j, q)];
+                            f4[(j, k, l, q)] += vik * a[(i, q)];
+                        }
+                    } else {
+                        for q in 0..nsx {
+                            f4[(i, j, k, q)] += vik * a[(k, q)];
+                            f4[(i, k, k, q)] += vik * a[(j, q)];
+                            f4[(j, k, k, q)] += vik * a[(i, q)];
+                        }
+                    }
+                } else {
+                    if k != l {
+                        for q in 0..nsx {
+                            f4[(i, j, j, q)] += vik * a[(l, q)];
+                            f4[(i, j, l, q)] += vik * a[(j, q)];
+                            f4[(j, j, l, q)] += vik * a[(i, q)];
+                        }
+                    } else {
+                        for q in 0..nsx {
+                            f4[(i, j, j, q)] += vik * a[(j, q)];
+                            f4[(j, j, j, q)] += vik * a[(i, q)];
+                        }
+                    }
+                }
+            } else {
+                if j != k {
+                    if k != l {
+                        for q in 0..nsx {
+                            f4[(i, i, k, q)] += vik * a[(l, q)];
+                            f4[(i, i, l, q)] += vik * a[(k, q)];
+                            f4[(i, k, l, q)] += vik * a[(i, q)];
+                        }
+                    } else {
+                        for q in 0..nsx {
+                            f4[(i, i, k, q)] += vik * a[(k, q)];
+                            f4[(i, k, k, q)] += vik * a[(i, q)];
+                        }
+                    }
+                } else {
+                    if k != l {
+                        for q in 0..nsx {
+                            f4[(i, i, i, q)] += vik * a[(l, q)];
+                            f4[(i, i, l, q)] += vik * a[(i, q)];
+                        }
+                    } else {
+                        for q in 0..nsx {
+                            f4[(i, i, i, q)] += vik * a[(i, q)];
+                        }
+                    }
+                }
+            }
+            if l < k {
+                l += 1;
+            } else if k < j {
+                k += 1;
+                l = 0;
+            } else if j < i {
+                j += 1;
+                k = 0;
+                l = 0;
+            } else {
+                i += 1;
+                j = 0;
+                k = 0;
+                l = 0;
+            }
+        }
+	// end 179 loop, not looking good so far
+
+	let f4_disk = f4.clone();
+	for q in 0..nsx {
+	    for p in 0..=q {
+		for i in 0..nsy {
+		    for j in 0..=i {
+			f4[(i, j, p, q)] = 0.0;
+		    }
+		}
+	    }
+	}
+
+	// TODO resume here
+    }
+
     fn xf2(&self, f3_raw: &Tensor3, bs: &DMat, xrs: &Vec<DMat>) -> Tensor3 {
         let ns = self.symmetry_internals.len();
         let nc = 3 * self.geom.len();
@@ -1524,6 +1623,7 @@ impl Intder {
     ) -> (DMat, Vec<f64>) {
         let f2 = self.lintr_fc2(a);
         let f3 = self.xf2(&self.lintr_fc3(a), bs, xr);
+        self.lintr_fc4(a);
 
         // convert f3 to the proper units and return it as a Vec in the order
         // desired by spectro

@@ -129,3 +129,69 @@ impl IndexMut<(usize, usize, usize)> for Tensor3 {
         &mut self.0[index.0][index.1][index.2]
     }
 }
+
+#[derive(Clone)]
+pub struct Tensor4(Vec<Vec<Vec<Vec<f64>>>>);
+
+// TODO could probably replace these fields with vectors and fc3 index formula
+// if they're always symmetric. Then I don't have to do all the symmetry stuff
+// myself, I can just sort the indices when I access them
+impl Tensor4 {
+    /// return a new i x j x k x l tensor
+    pub fn zeros(i: usize, j: usize, k: usize, l: usize) -> Self {
+        Self(vec![vec![vec![vec![0.0; l]; k]; j]; i])
+    }
+
+    pub fn print(&self) {
+        println!();
+        for (i, tens) in self.0.iter().enumerate() {
+	    println!("I = {i:5}");
+	    Tensor3(tens.clone()).print();
+        }
+    }
+
+    /// panics if any of the latter three dimensions is empty
+    pub fn shape(&self) -> (usize, usize, usize, usize) {
+        (
+            self.0.len(),
+            self.0[0].len(),
+            self.0[0][0].len(),
+            self.0[0][0][0].len(),
+        )
+    }
+
+    pub fn equal(&self, other: &Self, eps: f64) -> bool {
+        if self.shape() != other.shape() {
+            return false;
+        }
+        for (i, tens) in self.0.iter().enumerate() {
+            for (j, mat) in tens.iter().enumerate() {
+                for (k, row) in mat.iter().enumerate() {
+                    for (l, col) in row.iter().enumerate() {
+                        if f64::abs(col - other[(i, j, k, l)]) > eps {
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+        true
+    }
+}
+
+impl Index<(usize, usize, usize, usize)> for Tensor4 {
+    type Output = f64;
+
+    fn index(&self, index: (usize, usize, usize, usize)) -> &Self::Output {
+        &self.0[index.0][index.1][index.2][index.3]
+    }
+}
+
+impl IndexMut<(usize, usize, usize, usize)> for Tensor4 {
+    fn index_mut(
+        &mut self,
+        index: (usize, usize, usize, usize),
+    ) -> &mut Self::Output {
+        &mut self.0[index.0][index.1][index.2][index.3]
+    }
+}
