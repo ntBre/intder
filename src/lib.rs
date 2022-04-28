@@ -1478,12 +1478,16 @@ impl Intder {
         f3
     }
 
+    fn xf2(&self, f3: &Tensor3) {
+	todo!();
+    }
+
     /// what they call A here is actually the SIC B matrix. for now this returns
     /// fc2 in the units expected by spectro (mdyn / Å²)(?)
     pub fn lintr(&self, a: &DMat) -> DMat {
         let f2 = self.lintr_fc2(a);
         let f3_raw = self.lintr_fc3(a);
-
+	self.xf2(&f3_raw);
         f2
     }
 
