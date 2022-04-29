@@ -1574,7 +1574,7 @@ impl Intder {
                 l = 0;
             }
         }
-        // end 179 loop, not looking good so far
+        // end 179 loop, looking good so far
 
         let f4_disk = f4.clone();
         for q in 0..nsx {
@@ -1586,8 +1586,182 @@ impl Intder {
                 }
             }
         }
+        // flatten f4_disk into the vector the fortran uses
+        let v = {
+            let mut v = Vec::new();
+            for i in 0..nsy {
+                for j in 0..=i {
+                    for k in 0..=j {
+                        for q in 0..nsx {
+                            v.push(f4_disk[(i, j, k, q)]);
+                        }
+                    }
+                }
+            }
+            v
+        };
 
-        // TODO resume here
+        let mut i = 0;
+        let mut j = 0;
+        let mut k = 0;
+        let mut q = 0;
+        // loop starting at line 444
+        for vik in v {
+            if i != j {
+                if j != k {
+                    for p in 0..=q {
+                        f4[(i, j, p, q)] += vik * a[(k, p)];
+                        f4[(i, k, p, q)] += vik * a[(j, p)];
+                        f4[(j, k, p, q)] += vik * a[(i, p)];
+                    }
+                } else {
+                    for p in 0..=q {
+                        f4[(i, j, p, q)] += vik * a[(j, p)];
+                        f4[(j, j, p, q)] += vik * a[(i, p)];
+                    }
+                }
+            } else {
+                if j != k {
+                    for p in 0..=q {
+                        f4[(i, i, p, q)] += vik * a[(k, p)];
+                        f4[(i, k, p, q)] += vik * a[(i, p)];
+                    }
+                } else {
+                    for p in 0..=q {
+                        f4[(i, i, p, q)] += vik * a[(i, p)];
+                    }
+                }
+            }
+            if q < nsx - 1 {
+                q += 1;
+            } else if k < j {
+                k += 1;
+                q = 0;
+            } else if j < i {
+                j += 1;
+                k = 0;
+                q = 0;
+            } else {
+                i += 1;
+                j = 0;
+                k = 0;
+                q = 0;
+            }
+        }
+        // end 200 loop
+
+        let f4_disk2 = f4.clone();
+        for q in 0..nsx {
+            for p in 0..=q {
+                for n in 0..=p {
+                    for i in 0..nsy {
+                        f4[(i, n, p, q)] = 0.0;
+                    }
+                }
+            }
+        }
+        // flatten f4_disk2 into the vector the fortran uses
+        let v = {
+            let mut v = Vec::new();
+            for i in 0..nsy {
+                for j in 0..=i {
+                    for q in 0..nsx {
+                        for p in 0..=q {
+                            v.push(f4_disk2[(i, j, p, q)]);
+                        }
+                    }
+                }
+            }
+            v
+        };
+
+        let mut p = 0;
+        let mut q = 0;
+        let mut i = 0;
+        let mut j = 0;
+        // start of loop at 514
+        for vik in v {
+            if i != j {
+                for n in 0..=p {
+                    f4[(i, n, p, q)] += vik * a[(j, n)];
+                    f4[(j, n, p, q)] += vik * a[(i, n)];
+                }
+            } else {
+                for n in 0..=p {
+                    f4[(i, n, p, q)] += vik * a[(i, n)];
+                }
+            }
+            if p < q {
+                p += 1;
+            } else if q < nsx - 1 {
+                q += 1;
+                p = 0;
+            } else if j < i {
+                j += 1;
+                p = 0;
+                q = 0;
+            } else {
+                i += 1;
+                j = 0;
+                p = 0;
+                q = 0;
+            }
+        }
+        // end of 214 loop, looking good
+
+        let v = {
+            let mut v = Vec::new();
+            for q in 0..nsx {
+                for p in 0..=q {
+                    for n in 0..=p {
+                        for i in 0..nsy {
+                            v.push(f4[(i, n, p, q)]);
+                        }
+                    }
+                }
+            }
+            v
+        };
+
+        for q in 0..nsx {
+            for p in 0..=q {
+                for n in 0..=p {
+                    for m in 0..=n {
+                        f4[(m, n, p, q)] = 0.0;
+                    }
+                }
+            }
+        }
+
+        let mut n = 0;
+        let mut p = 0;
+        let mut q = 0;
+        let mut i = 0;
+        // begin 224 loop
+        for vik in v {
+	    for m in 0..=n {
+		f4[(m , n, p, q)] += vik * a[(i, m)];
+	    }
+            if i < nsy - 1 {
+                i += 1;
+            } else if n < p {
+                n += 1;
+                i = 0;
+            } else if p < q {
+                p += 1;
+                n = 0;
+                i = 0;
+            } else {
+                q += 1;
+                p = 0;
+                n = 0;
+                i = 0;
+            }
+        }
+	// end 224 loop
+	f4.print();
+
+	// TODO FILL4A
     }
 
     fn xf2(&self, f3_raw: &Tensor3, bs: &DMat, xrs: &Vec<DMat>) -> Tensor3 {
