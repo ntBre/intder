@@ -1363,25 +1363,25 @@ impl Intder {
             if i != j {
                 if j != k {
                     for p in 0..nsx {
-                        f3[(i, j, p)] = vik * a[(k, p)] + f3[(i, j, p)];
-                        f3[(i, k, p)] = vik * a[(j, p)] + f3[(i, k, p)];
-                        f3[(j, k, p)] = vik * a[(i, p)] + f3[(j, k, p)];
+                        f3[(i, j, p)] += vik * a[(k, p)];
+                        f3[(i, k, p)] += vik * a[(j, p)];
+                        f3[(j, k, p)] += vik * a[(i, p)];
                     }
                 } else {
                     for p in 0..nsx {
-                        f3[(i, j, p)] = vik * a[(j, p)] + f3[(i, j, p)];
-                        f3[(j, j, p)] = vik * a[(i, p)] + f3[(j, j, p)];
+                        f3[(i, j, p)] += vik * a[(j, p)];
+                        f3[(j, j, p)] += vik * a[(i, p)];
                     }
                 }
             } else {
                 if j != k {
                     for p in 0..nsx {
-                        f3[(i, i, p)] = vik * a[(k, p)] + f3[(i, i, p)];
-                        f3[(i, k, p)] = vik * a[(i, p)] + f3[(i, k, p)];
+                        f3[(i, i, p)] += vik * a[(k, p)];
+                        f3[(i, k, p)] += vik * a[(i, p)];
                     }
                 } else {
                     for p in 0..nsx {
-                        f3[(i, i, p)] = vik * a[(i, p)] + f3[(i, i, p)];
+                        f3[(i, i, p)] += vik * a[(i, p)];
                     }
                 }
             }
@@ -1426,12 +1426,12 @@ impl Intder {
         for vik in v {
             if i != j {
                 for n in 0..=p {
-                    f3[(i, n, p)] = vik * a[(j, n)] + f3[(i, n, p)];
-                    f3[(j, n, p)] = vik * a[(i, n)] + f3[(j, n, p)];
+                    f3[(i, n, p)] += vik * a[(j, n)];
+                    f3[(j, n, p)] += vik * a[(i, n)];
                 }
             } else {
                 for n in 0..=p {
-                    f3[(i, n, p)] = vik * a[(i, n)] + f3[(i, n, p)];
+                    f3[(i, n, p)] += vik * a[(i, n)];
                 }
             }
             if p < nsx - 1 {
@@ -1574,20 +1574,20 @@ impl Intder {
                 l = 0;
             }
         }
-	// end 179 loop, not looking good so far
+        // end 179 loop, not looking good so far
 
-	let f4_disk = f4.clone();
-	for q in 0..nsx {
-	    for p in 0..=q {
-		for i in 0..nsy {
-		    for j in 0..=i {
-			f4[(i, j, p, q)] = 0.0;
-		    }
-		}
-	    }
-	}
+        let f4_disk = f4.clone();
+        for q in 0..nsx {
+            for p in 0..=q {
+                for i in 0..nsy {
+                    for j in 0..=i {
+                        f4[(i, j, p, q)] = 0.0;
+                    }
+                }
+            }
+        }
 
-	// TODO resume here
+        // TODO resume here
     }
 
     fn xf2(&self, f3_raw: &Tensor3, bs: &DMat, xrs: &Vec<DMat>) -> Tensor3 {
