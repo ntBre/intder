@@ -1491,7 +1491,7 @@ impl Intder {
         f3
     }
 
-    pub fn lintr_fc4(&self, a: &DMat) -> () {
+    pub fn lintr_fc4(&self, a: &DMat) -> Tensor4 {
         let nsx = 3 * self.geom.len();
         let nsy = self.symmetry_internals.len();
         let v = &self.fc4;
@@ -1739,9 +1739,9 @@ impl Intder {
         let mut i = 0;
         // begin 224 loop
         for vik in v {
-	    for m in 0..=n {
-		f4[(m , n, p, q)] += vik * a[(i, m)];
-	    }
+            for m in 0..=n {
+                f4[(m, n, p, q)] += vik * a[(i, m)];
+            }
             if i < nsy - 1 {
                 i += 1;
             } else if n < p {
@@ -1758,10 +1758,10 @@ impl Intder {
                 i = 0;
             }
         }
-	// end 224 loop
-	f4.print();
+        // end 224 loop
 
-	// TODO FILL4A
+        f4.fill4a(nsx);
+        f4
     }
 
     fn xf2(&self, f3_raw: &Tensor3, bs: &DMat, xrs: &Vec<DMat>) -> Tensor3 {
