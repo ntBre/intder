@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::Write;
 
-use rust_intder::{Intder, VERBOSE};
+use intder::{Intder, VERBOSE};
 
 fn parse_args<I: Iterator<Item = String>>(args: &mut I) -> Option<String> {
     let mut hold = Vec::new();
@@ -22,7 +22,7 @@ fn parse_args<I: Iterator<Item = String>>(args: &mut I) -> Option<String> {
 fn test_parse_args() {
     assert_eq!(
         parse_args(
-            &mut vec!["rust-intder", "-v", "intder.in"]
+            &mut vec!["intder", "-v", "intder.in"]
                 .into_iter()
                 .map(|s| s.to_string())
         ),
@@ -31,7 +31,7 @@ fn test_parse_args() {
 
     assert_eq!(
         parse_args(
-            &mut vec!["rust-intder", "intder.in"]
+            &mut vec!["intder", "intder.in"]
                 .into_iter()
                 .map(|s| s.to_string())
         ),
@@ -39,7 +39,7 @@ fn test_parse_args() {
     );
 
     assert_eq!(
-        parse_args(&mut vec!["rust-intder"].into_iter().map(|s| s.to_string())),
+        parse_args(&mut vec!["intder"].into_iter().map(|s| s.to_string())),
         None,
     );
 }

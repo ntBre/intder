@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::Write;
 
-use rust_intder::Intder;
+use intder::Intder;
 
 fn main() {
     let intder = Intder::load_file("testfiles/c3h2.full");
