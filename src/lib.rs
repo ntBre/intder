@@ -1,13 +1,14 @@
 use std::{
-    fmt::Display,
     fs::File,
     io::{BufRead, BufReader, Read, Write},
 };
 
 pub mod geom;
+pub mod hmat;
 pub mod tensor;
 
 use geom::Geom;
+use hmat::Hmat;
 use nalgebra as na;
 use regex::Regex;
 use tensor::tensor3::Tensor3;
@@ -45,12 +46,12 @@ impl Siic {
     pub fn value(&self, geom: &Geom) -> f64 {
         use Siic::*;
         match self {
-            Stretch(a, b) => Intder::dist(geom, *a, *b),
-            Bend(a, b, c) => Intder::angle(geom, *a, *b, *c),
+            Stretch(a, b) => geom.dist(*a, *b),
+            Bend(a, b, c) => geom.angle(*a, *b, *c),
             Torsion(a, b, c, d) => {
-                let e_21 = Intder::unit(geom, *b, *a);
-                let e_32 = Intder::unit(geom, *c, *b);
-                let e_43 = Intder::unit(geom, *d, *c);
+                let e_21 = geom.unit(*b, *a);
+                let e_32 = geom.unit(*c, *b);
+                let e_43 = geom.unit(*d, *c);
                 let v5 = e_21.cross(&e_32);
                 let v6 = e_43.cross(&e_32);
                 let w2 = e_21.dot(&e_32);
@@ -88,52 +89,6 @@ pub struct Atom {
     pub weight: usize,
 }
 
-pub struct Hmats {
-    pub h11: DMat,
-    pub h21: DMat,
-    pub h31: DMat,
-    pub h22: DMat,
-    pub h32: DMat,
-    pub h33: DMat,
-    pub h41: DMat,
-    pub h42: DMat,
-    pub h43: DMat,
-    pub h44: DMat,
-}
-
-impl Hmats {
-    fn new() -> Self {
-        Self {
-            h11: DMat::zeros(3, 3),
-            h21: DMat::zeros(3, 3),
-            h31: DMat::zeros(3, 3),
-            h22: DMat::zeros(3, 3),
-            h32: DMat::zeros(3, 3),
-            h33: DMat::zeros(3, 3),
-            h41: DMat::zeros(3, 3),
-            h42: DMat::zeros(3, 3),
-            h43: DMat::zeros(3, 3),
-            h44: DMat::zeros(3, 3),
-        }
-    }
-}
-
-impl Display for Hmats {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "H11 =\n{:.6}", self.h11)?;
-        writeln!(f, "H21 =\n{:.6}", self.h21)?;
-        writeln!(f, "H31 =\n{:.6}", self.h31)?;
-        writeln!(f, "H22 =\n{:.6}", self.h22)?;
-        writeln!(f, "H32 =\n{:.6}", self.h32)?;
-        writeln!(f, "H33 =\n{:.6}", self.h33)?;
-        writeln!(f, "H41 =\n{:.6}", self.h41)?;
-        writeln!(f, "H42 =\n{:.6}", self.h42)?;
-        writeln!(f, "H43 =\n{:.6}", self.h43)?;
-        writeln!(f, "H44 =\n{:.6}", self.h44)?;
-        Ok(())
-    }
-}
-
 pub struct Htens {
     pub h111: Tensor3,
     pub h112: Tensor3,
@@ -148,7 +103,7 @@ pub struct Htens {
 }
 
 impl Htens {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             h111: Tensor3::zeros(3, 3, 3),
             h112: Tensor3::zeros(3, 3, 3),
@@ -418,89 +373,11 @@ impl Intder {
         ret
     }
 
-    /// return the unit vector from atom i to atom j
-    fn unit(geom: &Geom, i: usize, j: usize) -> Vec3 {
-        let diff = geom[j] - geom[i];
-        diff / diff.magnitude()
-    }
-
-    /// distance between atoms i and j
-    fn dist(geom: &Geom, i: usize, j: usize) -> f64 {
-        ANGBOHR * (geom[j] - geom[i]).magnitude()
-    }
-
-    /// angle in radians between atoms i, j, and k, where j is the central atom
-    fn angle(geom: &Geom, i: usize, j: usize, k: usize) -> f64 {
-        let e_ji = Self::unit(geom, j, i);
-        let e_jk = Self::unit(geom, j, k);
-        (e_ji.dot(&e_jk)).acos()
-    }
-
-    pub fn s_vec(geom: &Geom, ic: &Siic) -> Vec<f64> {
-        let mut tmp = vec![0.0; 3 * geom.len()];
-        match ic {
-            Siic::Stretch(a, b) => {
-                let e_12 = Self::unit(geom, *a, *b);
-                for i in 0..3 {
-                    tmp[3 * a + i] = -e_12[i % 3];
-                    tmp[3 * b + i] = e_12[i % 3];
-                }
-            }
-            Siic::Bend(a, b, c) => {
-                let e_21 = Self::unit(geom, *b, *a);
-                let e_23 = Self::unit(geom, *b, *c);
-                let t_12 = Self::dist(geom, *b, *a);
-                let t_32 = Self::dist(geom, *b, *c);
-                let w = e_21.dot(&e_23);
-                let sp = (1.0 - w * w).sqrt();
-                let c1 = 1.0 / (t_12 * sp);
-                let c2 = 1.0 / (t_32 * sp);
-                for i in 0..3 {
-                    tmp[3 * a + i] = (w * e_21[i] - e_23[i]) * c1;
-                    tmp[3 * c + i] = (w * e_23[i] - e_21[i]) * c2;
-                    tmp[3 * b + i] = -tmp[3 * a + i] - tmp[3 * c + i];
-                }
-            }
-            Siic::Torsion(a, b, c, d) => {
-                let e_21 = Self::unit(geom, *b, *a);
-                let e_32 = Self::unit(geom, *c, *b);
-                let e_43 = Self::unit(geom, *d, *c);
-                let t_21 = Self::dist(geom, *b, *a);
-                let t_32 = Self::dist(geom, *c, *b);
-                let t_43 = Self::dist(geom, *d, *c);
-                let v5 = e_21.cross(&e_32);
-                let v6 = e_43.cross(&e_32);
-                let w2 = e_21.dot(&e_32);
-                let w3 = e_43.dot(&e_32);
-                let cp2 = -w2;
-                let cp3 = -w3;
-                let sp2 = (1.0 - cp2 * cp2).sqrt();
-                let sp3 = (1.0 - cp3 * cp3).sqrt();
-                // terminal atoms
-                let w1 = 1.0 / (t_21 * sp2 * sp2);
-                let w2 = 1.0 / (t_43 * sp3 * sp3);
-                for i in 0..3 {
-                    tmp[3 * a + i] = -w1 * v5[i];
-                    tmp[3 * d + i] = -w2 * v6[i];
-                }
-                let w3 = (t_32 - t_21 * cp2) * w1 / t_32;
-                let w4 = cp3 / (t_32 * sp3 * sp3);
-                let w5 = (t_32 - t_43 * cp3) * w2 / t_32;
-                let w6 = cp2 / (t_32 * sp2 * sp2);
-                for i in 0..3 {
-                    tmp[3 * b + i] = w3 * v5[i] + w4 * v6[i];
-                    tmp[3 * c + i] = w5 * v6[i] + w6 * v5[i];
-                }
-            }
-        }
-        tmp
-    }
-
     /// return the B matrix in simple internal coordinates
     pub fn b_matrix(&self, geom: &Geom) -> DMat {
         let mut b_mat = Vec::new();
         for ic in &self.simple_internals {
-            b_mat.extend(Self::s_vec(geom, ic));
+            b_mat.extend(geom.s_vec(ic));
         }
         DMat::from_row_slice(
             self.simple_internals.len(),
@@ -686,216 +563,12 @@ impl Intder {
             - 1
     }
 
-    // making block matrices to pack into sr in machx
-    pub fn h_mat(geom: &Geom, s: &Siic) -> Hmats {
-        use Siic::*;
-        let mut h = Hmats::new();
-        match s {
-            // from HIJS1
-            Stretch(i, j) => {
-                let v1 = Self::unit(geom, *i, *j);
-                let t21 = Self::dist(geom, *i, *j);
-                for j in 0..3 {
-                    for i in 0..3 {
-                        h.h11[(i, j)] = -v1[i] * v1[j];
-                    }
-                }
-                for i in 0..3 {
-                    h.h11[(i, i)] += 1.0;
-                }
-                h.h11 /= t21;
-                for j in 0..2 {
-                    for i in j + 1..3 {
-                        h.h11[(j, i)] = h.h11[(i, j)];
-                    }
-                }
-            }
-            // from HIJS2
-            Bend(i, j, k) => {
-                let tmp = Self::s_vec(geom, s);
-                // unpack the s vector
-                let v1 = &tmp[3 * i..3 * i + 3];
-                let v3 = &tmp[3 * k..3 * k + 3];
-                let e21 = Self::unit(geom, *j, *i);
-                let e23 = Self::unit(geom, *j, *k);
-                let t21 = Self::dist(geom, *j, *i);
-                let t23 = Self::dist(geom, *j, *k);
-                let h11a = Self::h_mat(geom, &Stretch(*i, *j)).h11;
-                let h33a = Self::h_mat(geom, &Stretch(*k, *j)).h11;
-                let phi = Self::angle(geom, *i, *j, *k);
-                let sphi = phi.sin();
-                let ctphi = phi.cos() / sphi;
-                let w1 = ctphi;
-                let w2 = 1.0 / t21;
-                let w3 = w1 * w2;
-                let w4 = 1.0 / t23;
-                let w5 = w1 * w4;
-                // TODO are any of these matrix operations?
-                // TODO can any of these loops be combined?
-                for j in 0..3 {
-                    for i in 0..3 {
-                        h.h11[(i, j)] = h11a[(i, j)] * w3
-                            - v1[i] * v1[j] * w1
-                            - (e21[i] * v1[j] + v1[i] * e21[j]) * w2;
-                        h.h33[(i, j)] = h33a[(i, j)] * w5
-                            - v3[i] * v3[j] * w1
-                            - (e23[i] * v3[j] + v3[i] * e23[j]) * w4;
-                    }
-                }
-                for j in 0..2 {
-                    for i in j + 1..3 {
-                        h.h11[(j, i)] = h.h11[(i, j)];
-                        h.h33[(j, i)] = h.h33[(i, j)];
-                    }
-                }
-                let w3 = 1.0 / (t21 * sphi);
-                for j in 0..3 {
-                    let w4 = w2 * e21[j] + w1 * v1[j];
-                    for i in 0..3 {
-                        h.h31[(i, j)] = -h33a[(i, j)] * w3 - v3[i] * w4;
-                        h.h21[(i, j)] = -(h.h11[(i, j)] + h.h31[(i, j)]);
-                        h.h32[(i, j)] = -(h.h31[(i, j)] + h.h33[(i, j)]);
-                    }
-                }
-                for j in 0..3 {
-                    for i in 0..3 {
-                        h.h22[(i, j)] = -(h.h21[(j, i)] + h.h32[(i, j)]);
-                    }
-                }
-            }
-            // from HIJS6
-            Torsion(i, j, k, l) => {
-                // unpack the s vector. mine are in the opposite order of the
-                // fortran
-                let tmp = Self::s_vec(geom, s);
-                let v1 = &tmp[3 * i..3 * i + 3];
-                let v4 = &tmp[3 * l..3 * l + 3];
-                // unit and non-unit vectors
-                let e21 = Self::unit(geom, *j, *i);
-                let e23 = Self::unit(geom, *j, *k);
-                let e34 = Self::unit(geom, *k, *l);
-                let t21 = Self::dist(geom, *j, *i);
-                let t23 = Self::dist(geom, *j, *k);
-                let t34 = Self::dist(geom, *k, *l);
-                // angles
-                let p2 = Self::angle(geom, *i, *j, *k);
-                let tmp = Self::s_vec(geom, &Bend(*i, *j, *k));
-                let bp21 = &tmp[3 * i..3 * i + 3];
-                let bp22 = &tmp[3 * j..3 * j + 3];
-                let bp23 = &tmp[3 * k..3 * k + 3];
-
-                let p3 = Self::angle(geom, *j, *k, *l);
-                let tmp = Self::s_vec(geom, &Bend(*j, *k, *l));
-                let bp32 = &tmp[3 * j..3 * j + 3];
-                let bp34 = &tmp[3 * l..3 * l + 3];
-                // matrices
-                h.h11 = Self::mat1(&e23);
-                h.h31 = Self::mat1(&e21);
-                h.h44 = Self::mat1(&e23);
-                h.h42 = Self::mat1(&e34);
-
-                let xx = p2.sin();
-                let xy = p3.sin();
-                let xx = t21 * xx * xx;
-                let xy = t34 * xy * xy;
-                let w1 = 1.0 / (t21 * xx);
-                let w2 = 1.0 / (t23 * xx);
-                let w3 = 1.0 / (t34 * xy);
-                let w4 = 1.0 / (t23 * xy);
-                for j in 0..3 {
-                    for i in 0..3 {
-                        h.h11[(i, j)] = -h.h11[(i, j)] * w1;
-                        h.h31[(i, j)] = h.h31[(i, j)] * w2;
-                        h.h44[(i, j)] = h.h44[(i, j)] * w3;
-                        h.h42[(i, j)] = -h.h42[(i, j)] * w4;
-                    }
-                }
-
-                // these are cotans
-                let xx = p2.cos() / p2.sin();
-                let xy = p3.cos() / p3.sin();
-                for i in 0..3 {
-                    let w1 = 2.0 * (e21[i] / t21 + bp21[i] * xx);
-                    let w2 = e23[i] / t23 + 2.0 * bp23[i] * xx;
-                    let w3 = 2.0 * (e34[i] / t34 + bp34[i] * xy);
-                    let w4 = e23[i] / t23 - 2.0 * bp32[i] * xy;
-                    for j in 0..3 {
-                        h.h11[(i, j)] = h.h11[(i, j)] - w1 * v1[j];
-                        h.h31[(i, j)] = h.h31[(i, j)] - w2 * v1[j];
-                        h.h44[(i, j)] = h.h44[(i, j)] - w3 * v4[j];
-                        h.h42[(j, i)] = h.h42[(j, i)] + w4 * v4[j];
-                    }
-                }
-
-                for j in 0..3 {
-                    for i in 0..3 {
-                        h.h41[(i, j)] = 0.0;
-                        h.h21[(i, j)] = -(h.h11[(i, j)] + h.h31[(i, j)]);
-                        h.h43[(i, j)] = -(h.h44[(i, j)] + h.h42[(i, j)]);
-                    }
-                }
-
-                let x1 = t21 / t23;
-                let y1 = t34 / t23;
-                let x2 = p2.cos();
-                let y2 = p2.sin();
-                let x3 = p3.cos();
-                let y3 = p3.sin();
-                let c1 = x1 * x2 - 1.0;
-                let c2 = -x3 * y1;
-                let c3 = -x2 / t23;
-                let c4 = -x1 * y2;
-                let c5 = x1 * x2 / t23;
-                let c6 = y1 * y3;
-                let c7 = -y1 * x3 / t23;
-                for i in 0..3 {
-                    let w1 = c3 * e21[i] + c4 * bp22[i] + c5 * e23[i];
-                    let w2 = c6 * bp32[i] + c7 * e23[i];
-                    for j in 0..3 {
-                        h.h22[(i, j)] = c1 * h.h21[(i, j)]
-                            + c2 * h.h42[(j, i)]
-                            + w1 * v1[j]
-                            + w2 * v4[j];
-                    }
-                }
-
-                for j in 0..3 {
-                    for i in 0..3 {
-                        h.h32[(i, j)] =
-                            -(h.h21[(j, i)] + h.h22[(i, j)] + h.h42[(i, j)]);
-                    }
-                }
-
-                for j in 0..3 {
-                    for i in 0..3 {
-                        h.h33[(i, j)] =
-                            -(h.h31[(i, j)] + h.h32[(i, j)] + h.h43[(j, i)]);
-                    }
-                }
-            }
-        }
-        h
-    }
-
-    fn mat1(v: &Vec3) -> DMat {
-        let mut em = DMat::zeros(3, 3);
-        em[(1, 0)] = -v[2];
-        em[(2, 0)] = v[1];
-        em[(2, 1)] = -v[0];
-        em[(0, 1)] = -em[(1, 0)];
-        em[(0, 2)] = -em[(2, 0)];
-        em[(1, 2)] = -em[(2, 1)];
-        em
-    }
-
     /// returns X and SR matrices in symmetry internal coordinates
     pub fn machx(&self, a_mat: &DMat) -> (Vec<DMat>, Vec<DMat>) {
-        // TODO you might need the sim and sic versions, both are written to
-        // different parts of the file on disk
         use Siic::*;
-        let nc = 3 * self.geom.len();
+        let nc = self.ncart();
+        let nsym = self.nsym();
         let u = self.u_mat();
-        let nsym = self.symmetry_internals.len();
         if nsym == 0 {
             eprintln!("using only simple internals is unimplemented");
             todo!();
@@ -908,13 +581,7 @@ impl Intder {
             // I thought this was nc x nc but actually nc x nsym
             let mut x = DMat::zeros(nc, nsym);
             let mut sr = DMat::zeros(nc, nc);
-            let h = Self::h_mat(&self.geom, &s);
-            // println!("H11 = {}", &h.h11);
-            // println!("H21 = {}", &h.h21);
-            // println!("H31 = {}", &h.h31);
-            // println!("H22 = {}", &h.h22);
-            // println!("H32 = {}", &h.h32);
-            // println!("H33 = {}", &h.h33);
+            let h = Hmat::new(&self.geom, &s);
             match s {
                 Stretch(a, b) => {
                     let l1 = 3 * a;
@@ -1006,7 +673,92 @@ impl Intder {
                         }
                     }
                 }
-                Torsion(_, _, _, _) => todo!(),
+                Torsion(a, b, c, d) => {
+                    let l1 = 3 * a;
+                    let l2 = 3 * b;
+                    let l3 = 3 * c;
+                    let l4 = 3 * d;
+                    for j in 0..3 {
+                        for i in 0..3 {
+                            sr[(l1 + i, l1 + j)] = h.h11[(i, j)];
+                            sr[(l2 + i, l1 + j)] = h.h21[(i, j)];
+                            sr[(l3 + i, l1 + j)] = h.h31[(i, j)];
+                            sr[(l4 + i, l1 + j)] = h.h41[(i, j)];
+                            sr[(l1 + i, l2 + j)] = h.h21[(j, i)];
+                            sr[(l2 + i, l2 + j)] = h.h22[(i, j)];
+                            sr[(l3 + i, l2 + j)] = h.h32[(i, j)];
+                            sr[(l4 + i, l2 + j)] = h.h42[(i, j)];
+                            sr[(l1 + i, l3 + j)] = h.h31[(j, i)];
+                            sr[(l2 + i, l3 + j)] = h.h32[(j, i)];
+                            sr[(l3 + i, l3 + j)] = h.h33[(i, j)];
+                            sr[(l4 + i, l3 + j)] = h.h43[(i, j)];
+                            sr[(l1 + i, l4 + j)] = h.h41[(j, i)];
+                            sr[(l2 + i, l4 + j)] = h.h42[(j, i)];
+                            sr[(l3 + i, l4 + j)] = h.h43[(j, i)];
+                            sr[(l4 + i, l4 + j)] = h.h44[(i, j)];
+                        }
+                    }
+                    // AHX4
+                    for n in 0..nsym {
+                        for m in 0..=n {
+                            for i in 0..3 {
+                                for j in 0..3 {
+                                    let w1 =
+                                        a_mat[(l1 + i, m)] * a_mat[(l1 + j, n)];
+                                    let w2 =
+                                        a_mat[(l2 + i, m)] * a_mat[(l2 + j, n)];
+                                    let w3 =
+                                        a_mat[(l3 + i, m)] * a_mat[(l3 + j, n)];
+                                    let w4 =
+                                        a_mat[(l4 + i, m)] * a_mat[(l4 + j, n)];
+                                    x[(m, n)] = x[(m, n)]
+                                        + w1 * h.h11[(i, j)]
+                                        + w2 * h.h22[(i, j)]
+                                        + w3 * h.h33[(i, j)]
+                                        + w4 * h.h44[(i, j)];
+                                    let w1 = a_mat[(l2 + i, m)]
+                                        * a_mat[(l1 + j, n)]
+                                        + a_mat[(l1 + j, m)]
+                                            * a_mat[(l2 + i, n)];
+                                    let w2 = a_mat[(l3 + i, m)]
+                                        * a_mat[(l1 + j, n)]
+                                        + a_mat[(l1 + j, m)]
+                                            * a_mat[(l3 + i, n)];
+                                    let w3 = a_mat[(l4 + i, m)]
+                                        * a_mat[(l1 + j, n)]
+                                        + a_mat[(l1 + j, m)]
+                                            * a_mat[(l4 + i, n)];
+                                    x[(m, n)] = x[(m, n)]
+                                        + w1 * h.h21[(i, j)]
+                                        + w2 * h.h31[(i, j)]
+                                        + w3 * h.h41[(i, j)];
+                                    let w1 = a_mat[(l3 + i, m)]
+                                        * a_mat[(l2 + j, n)]
+                                        + a_mat[(l2 + j, m)]
+                                            * a_mat[(l3 + i, n)];
+                                    let w2 = a_mat[(l4 + i, m)]
+                                        * a_mat[(l2 + j, n)]
+                                        + a_mat[(l2 + j, m)]
+                                            * a_mat[(l4 + i, n)];
+                                    let w3 = a_mat[(l4 + i, m)]
+                                        * a_mat[(l3 + j, n)]
+                                        + a_mat[(l3 + j, m)]
+                                            * a_mat[(l4 + i, n)];
+                                    x[(m, n)] = x[(m, n)]
+                                        + w1 * h.h32[(i, j)]
+                                        + w2 * h.h42[(i, j)]
+                                        + w3 * h.h43[(i, j)];
+                                }
+                            }
+                        }
+                    }
+                    // TODO move this out of the loop, share for all Siic types
+                    for n in 0..nsym {
+                        for m in 0..n {
+                            x[(n, m)] = x[(m, n)];
+                        }
+                    }
+                }
             }
             // println!("SR_{} = {:12.8}", i + 1, sr);
             // println!("X = {:12.8}", x);
@@ -1048,14 +800,14 @@ impl Intder {
         // sims, for each sim, call h_mat and h_tensor so I can use that h_mat
         // in h_tensor instead of calling h_mat for each sim in machx and machy
         // separately
-        let hm = Self::h_mat(geom, s);
+        let hm = Hmat::new(geom, s);
         let mut h = Htens::new();
         // TODO see note on Tensor3 about symmetry
         match s {
             // HIJKS1
             Stretch(j, i) => {
-                let v1 = Self::unit(geom, *i, *j);
-                let t21 = Self::dist(geom, *i, *j);
+                let v1 = geom.unit(*i, *j);
+                let t21 = geom.dist(*i, *j);
                 let w1 = 1.0 / t21;
                 for k in 0..3 {
                     for j in k..3 {
@@ -1072,18 +824,18 @@ impl Intder {
             // HIJKS2
             Bend(i, j, k) => {
                 // copied from h_mat Bend
-                let tmp = Self::s_vec(geom, s);
+                let tmp = geom.s_vec(s);
                 let v1 = &tmp[3 * i..3 * i + 3];
                 let v3 = &tmp[3 * k..3 * k + 3];
-                let e21 = Self::unit(geom, *j, *i);
-                let e23 = Self::unit(geom, *j, *k);
-                let t21 = Self::dist(geom, *j, *i);
-                let t23 = Self::dist(geom, *j, *k);
-                let h11a = Self::h_mat(geom, &Stretch(*i, *j)).h11;
-                let h33a = Self::h_mat(geom, &Stretch(*k, *j)).h11;
-                let phi = Self::angle(geom, *i, *j, *k);
+                let e21 = geom.unit(*j, *i);
+                let e23 = geom.unit(*j, *k);
+                let t21 = geom.dist(*j, *i);
+                let t23 = geom.dist(*j, *k);
+                let h11a = Hmat::new(geom, &Stretch(*i, *j)).h11;
+                let h33a = Hmat::new(geom, &Stretch(*k, *j)).h11;
+                let phi = geom.angle(*i, *j, *k);
                 // end copy
-                let hijs2 = Self::h_mat(geom, s);
+                let hijs2 = Hmat::new(geom, s);
                 let h111a = Self::h_tensor3(geom, &Stretch(*i, *j)).h111;
                 let h333a = Self::h_tensor3(geom, &Stretch(*k, *j)).h111;
                 let sphi = phi.sin();
@@ -1192,7 +944,10 @@ impl Intder {
                     }
                 }
             }
-            Torsion(_, _, _, _) => todo!(),
+            #[allow(unused)]
+            Torsion(i, j, k, l) => {
+                todo!()
+            }
         }
         h
     }
