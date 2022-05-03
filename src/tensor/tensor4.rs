@@ -1,7 +1,6 @@
 use std::ops::{Index, IndexMut, Sub};
 
-pub mod tensor3;
-use tensor3::Tensor3;
+use crate::tensor::Tensor3;
 
 #[derive(Clone)]
 pub struct Tensor4(Vec<Vec<Vec<Vec<f64>>>>);
