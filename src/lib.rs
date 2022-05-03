@@ -9,7 +9,8 @@ pub mod tensor;
 use geom::Geom;
 use nalgebra as na;
 use regex::Regex;
-use tensor::{Tensor3, Tensor4};
+use tensor::tensor3::Tensor3;
+use tensor::Tensor4;
 
 /// from <https://physics.nist.gov/cgi-bin/cuu/Value?bohrrada0>
 const ANGBOHR: f64 = 0.5291_772_109;
@@ -327,6 +328,16 @@ impl Intder {
             }
         }
         intder
+    }
+
+    /// return the number of symmetry internal coordinates
+    pub fn nsym(&self) -> usize {
+        self.symmetry_internals.len()
+    }
+
+    /// return the number of cartesian coordinates
+    pub fn ncart(&self) -> usize {
+        3 * self.geom.len()
     }
 
     pub fn print_geom(&self) {
@@ -1824,16 +1835,78 @@ impl Intder {
         (f3, f4)
     }
 
-    fn xf3(
-        &self,
-	f3: &Tensor3,
-        mut f4: Tensor4,
-        bs: &DMat,
-        xrs: &Vec<DMat>,
-    ) -> () {
-	for (r, xr) in xrs.iter().enumerate() {
-	    println!("{:.6}", xr);
-	}
+    fn xf3(&self, mut f4: Tensor4, bs: &DMat, xrs: &Vec<DMat>) -> Tensor4 {
+        let ns = self.symmetry_internals.len();
+        let nc = 3 * self.geom.len();
+        // might need to turn this into a Tensor3 and call FILL3B on it, but
+        // we'll see
+        let yr = &self.fc3;
+        for (r, xr) in xrs.iter().enumerate() {
+            let mut xt = DMat::zeros(ns, nc);
+            for l in 0..nc {
+                for n in 0..ns {
+                    for p in 0..ns {
+                        if let Some(x) =
+                            yr.get(self.fc3_index(r + 1, n + 1, p + 1))
+                        {
+                            xt[(n, l)] += x * bs[(p, l)]
+                        }
+                        // else that element of fc3 was zero so the addition
+                        // would be zero as well
+                    }
+                }
+            }
+            let mut xs = DMat::zeros(nc, nc);
+            for l in 0..nc {
+                for k in 0..nc {
+                    for n in 0..ns {
+                        // I think this is xt.transpose() * bs
+                        xs[(k, l)] += xt[(n, l)] * bs[(n, k)];
+                    }
+                }
+            }
+            for l in 0..nc {
+                for k in 0..=l {
+                    for j in 0..=k {
+                        for i in 0..=j {
+                            let w = xr[(i, j)] * xs[(k, l)]
+                                + xr[(i, k)] * xs[(j, l)]
+                                + xr[(j, k)] * xs[(i, l)]
+                                + xr[(k, l)] * xs[(i, j)]
+                                + xr[(j, l)] * xs[(i, k)]
+                                + xr[(i, l)] * xs[(j, k)];
+                            f4[(i, j, k, l)] += w;
+                        }
+                    }
+                }
+            }
+        }
+        f4.fill4a(nc);
+        f4
+    }
+
+    fn yf2(&self, mut f4: Tensor4, bs: &DMat, yrs: &Vec<Tensor3>) -> Tensor4 {
+        let nc = self.ncart();
+        let ns = self.nsym();
+        let xs = self.mat_fc2(ns);
+        let xr = xs * bs;
+        for (r, yr) in yrs.iter().enumerate() {
+            for l in 0..nc {
+                for k in 0..=l {
+                    for j in 0..=k {
+                        for i in 0..=j {
+                            let w = yr[(i, j, k)] * xr[(r, l)]
+                                + yr[(i, j, l)] * xr[(r, k)]
+                                + yr[(i, k, l)] * xr[(r, j)]
+                                + yr[(j, k, l)] * xr[(r, i)];
+                            f4[(i, j, k, l)] += w;
+                        }
+                    }
+                }
+            }
+        }
+        f4.fill4a(nc);
+        f4
     }
 
     /// Perform the linear transformation of the force constants and convert the
@@ -1844,20 +1917,16 @@ impl Intder {
         a: &DMat,
         bs: &DMat,
         xr: &Vec<DMat>,
-    ) -> (DMat, Vec<f64>) {
+        yr: &Vec<Tensor3>,
+    ) -> (DMat, Vec<f64>, Vec<f64>) {
         let f2 = self.lintr_fc2(a);
         let (f3, f4) = self.xf2(self.lintr_fc3(a), self.lintr_fc4(a), bs, xr);
-	self.xf3(&f3, f4, bs, xr);
-	// f4 looking good so far
-
-        // DONE fc4 part of XF2
-        // TODO XF3
-        // TODO YF2
-        // TODO MACHF4
+        let f4 = self.xf3(f4, bs, xr);
+        let f4 = self.yf2(f4, bs, yr);
 
         // convert f3 to the proper units and return it as a Vec in the order
         // desired by spectro
-        let nsx = 3 * self.geom.len();
+        let nsx = self.ncart();
         const CF3: f64 = ANGBOHR * ANGBOHR * ANGBOHR / HART;
         let mut f3_out = Vec::new();
         for m in 0..nsx {
@@ -1867,14 +1936,28 @@ impl Intder {
                 }
             }
         }
-        (f2, f3_out)
+
+        // convert f4 to the proper units and return it as a Vec in the order
+        // desired by spectro
+        const CF4: f64 = ANGBOHR * ANGBOHR * ANGBOHR * ANGBOHR / HART;
+        let mut f4_out = Vec::new();
+        for m in 0..nsx {
+            for n in 0..=m {
+                for p in 0..=n {
+                    for q in 0..=p {
+                        f4_out.push(CF4 * f4[(m, n, p, q)]);
+                    }
+                }
+            }
+        }
+        (f2, f3_out, f4_out)
     }
 
     /// convert the force constants in `self.fc[234]` from (symmetry) internal
     /// coordinates to Cartesian coordinates. returns (fc2, fc3, fc4) in the
     /// order printed in the fort.{15,30,40} files for spectro. TODO - for now
     /// it just returns (fc2)
-    pub fn convert_fcs(&self) -> (DMat, Vec<f64>) {
+    pub fn convert_fcs(&self) -> (DMat, Vec<f64>, Vec<f64>) {
         if unsafe { VERBOSE } {
             self.print_init();
         }
@@ -1882,9 +1965,9 @@ impl Intder {
         let b_sym = self.sym_b_matrix(&self.geom);
         let a = Intder::a_matrix(&b_sym);
         let (_xs, srs) = self.machx(&a);
-        // let (_ys, _srsy) = self.machy(&a);
-        let (f2, f3) = self.lintr(&b_sym, &b_sym, &srs);
+        let (_ys, srsy) = self.machy(&a);
+        let (f2, f3, f4) = self.lintr(&b_sym, &b_sym, &srs, &srsy);
 
-        (f2, f3)
+        (f2, f3, f4)
     }
 }

@@ -2,10 +2,10 @@ use std::io::{BufRead, BufReader, Read};
 
 use approx::assert_abs_diff_eq;
 
-use nalgebra as na;
 use intder::geom::*;
-use intder::tensor::Tensor3;
+use intder::tensor::tensor3::Tensor3;
 use intder::*;
+use nalgebra as na;
 
 const S: f64 = std::f64::consts::SQRT_2 / 2.;
 
@@ -352,7 +352,7 @@ fn test_lintr_fc3() {
 #[test]
 fn test_convert_fcs() {
     let intder = Intder::load_file("testfiles/h2o.freq.in");
-    let (fc2, fc3) = intder.convert_fcs();
+    let (fc2, fc3, fc4) = intder.convert_fcs();
     let want_fc2 = DMat::from_row_slice(9, 9, &load_vec("testfiles/fort.15"));
     assert_abs_diff_eq!(fc2, want_fc2, epsilon = 1e-7);
 
@@ -361,5 +361,12 @@ fn test_convert_fcs() {
         DMat::from_row_slice(165, 1, &fc3),
         want_fc3,
         epsilon = 4e-7
+    );
+
+    let want_fc4 = DMat::from_row_slice(495, 1, &load_vec("testfiles/fort.40"));
+    assert_abs_diff_eq!(
+        DMat::from_row_slice(495, 1, &fc4),
+        want_fc4,
+        epsilon = 2e-6
     );
 }
