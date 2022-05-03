@@ -894,7 +894,7 @@ impl Intder {
         // TODO see note on Tensor3 about symmetry
         match s {
             // HIJKS1
-            Stretch(i, j) => {
+            Stretch(j, i) => {
                 let v1 = Self::unit(geom, *i, *j);
                 let t21 = Self::dist(geom, *i, *j);
                 let w1 = 1.0 / t21;
