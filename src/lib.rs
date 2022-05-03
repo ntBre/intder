@@ -19,10 +19,8 @@ use crate::htens::Htens;
 
 /// from <https://physics.nist.gov/cgi-bin/cuu/Value?bohrrada0>
 const ANGBOHR: f64 = 0.5291_772_109;
-const DEGRAD: f64 = 180.0 / std::f64::consts::PI;
 /// constants from the fortran version
 const HART: f64 = 4.3597482;
-// const BOHR: f64 = 0.529177249;
 // const DEBYE: f64 = 2.54176548;
 
 // flags
@@ -307,7 +305,7 @@ impl Intder {
     pub fn print_simple(&self, vals: &[f64]) {
         for (i, v) in vals.iter().enumerate() {
             if let Siic::Bend(_, _, _) = self.simple_internals[i] {
-                println!("{:5}{:>18.10}", i, v * DEGRAD);
+                println!("{:5}{:>18.10}", i, v.to_degrees());
             } else {
                 println!("{:5}{:>18.10}", i, v);
             }
@@ -770,8 +768,8 @@ impl Intder {
     /// returns the Y and SR matrices in symmetry internal coordinates
     pub fn machy(&self, a_mat: &DMat) -> (Vec<Tensor3>, Vec<Tensor3>) {
         use Siic::*;
-        let nc = 3 * self.geom.len();
-        let nsx = self.symmetry_internals.len();
+        let nc = self.ncart();
+        let nsx = self.nsym();
         if nsx == 0 {
             eprintln!("using only simple internals is unimplemented");
             todo!();
@@ -1081,8 +1079,8 @@ impl Intder {
     }
 
     pub fn lintr_fc3(&self, a: &DMat) -> Tensor3 {
-        let nsx = 3 * self.geom.len();
-        let nsy = self.symmetry_internals.len();
+        let nsx = self.ncart();
+        let nsy = self.nsym();
         let v = &self.fc3;
         let mut i = 0;
         let mut j = 0;
@@ -1221,8 +1219,8 @@ impl Intder {
     }
 
     pub fn lintr_fc4(&self, a: &DMat) -> Tensor4 {
-        let nsx = 3 * self.geom.len();
-        let nsy = self.symmetry_internals.len();
+        let nsx = self.ncart();
+        let nsy = self.nsym();
         let v = &self.fc4;
         let mut i = 0;
         let mut j = 0;
@@ -1554,8 +1552,8 @@ impl Intder {
     }
 
     fn xf3(&self, mut f4: Tensor4, bs: &DMat, xrs: &Vec<DMat>) -> Tensor4 {
-        let ns = self.symmetry_internals.len();
-        let nc = 3 * self.geom.len();
+        let ns = self.nsym();
+        let nc = self.ncart();
         // might need to turn this into a Tensor3 and call FILL3B on it, but
         // we'll see
         let yr = &self.fc3;
