@@ -351,22 +351,47 @@ fn test_lintr_fc3() {
 
 #[test]
 fn test_convert_fcs() {
-    let intder = Intder::load_file("testfiles/h2o.freq.in");
-    let (fc2, fc3, fc4) = intder.convert_fcs();
-    let want_fc2 = DMat::from_row_slice(9, 9, &load_vec("testfiles/fort.15"));
-    assert_abs_diff_eq!(fc2, want_fc2, epsilon = 1e-7);
+    struct Test {
+        infile: String,
+        fcs: (String, String, String),
+        sizes: (usize, usize, usize),
+        eps: (f64, f64, f64),
+    }
+    let tests = vec![Test {
+        infile: "testfiles/h2o.freq.in".to_string(),
+        fcs: (
+            "testfiles/h2o.15".to_string(),
+            "testfiles/h2o.30".to_string(),
+            "testfiles/h2o.40".to_string(),
+        ),
+        sizes: (9, 165, 495),
+        eps: (1e-7, 4e-7, 2e-6),
+    }];
+    for test in tests {
+        let intder = Intder::load_file(&test.infile);
+        let (fc2, fc3, fc4) = intder.convert_fcs();
 
-    let want_fc3 = DMat::from_row_slice(165, 1, &load_vec("testfiles/fort.30"));
-    assert_abs_diff_eq!(
-        DMat::from_row_slice(165, 1, &fc3),
-        want_fc3,
-        epsilon = 4e-7
-    );
+        let want_fc2 = DMat::from_row_slice(
+            test.sizes.0,
+            test.sizes.0,
+            &load_vec(&test.fcs.0),
+        );
+        assert_abs_diff_eq!(fc2, want_fc2, epsilon = test.eps.0);
 
-    let want_fc4 = DMat::from_row_slice(495, 1, &load_vec("testfiles/fort.40"));
-    assert_abs_diff_eq!(
-        DMat::from_row_slice(495, 1, &fc4),
-        want_fc4,
-        epsilon = 2e-6
-    );
+        let want_fc3 =
+            DMat::from_row_slice(test.sizes.1, 1, &load_vec(&test.fcs.1));
+        assert_abs_diff_eq!(
+            DMat::from_row_slice(test.sizes.1, 1, &fc3),
+            want_fc3,
+            epsilon = test.eps.1
+        );
+
+        let want_fc4 =
+            DMat::from_row_slice(test.sizes.2, 1, &load_vec(&test.fcs.2));
+        assert_abs_diff_eq!(
+            DMat::from_row_slice(test.sizes.2, 1, &fc4),
+            want_fc4,
+            epsilon = test.eps.2
+        );
+    }
 }
