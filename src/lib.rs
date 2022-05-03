@@ -5,6 +5,7 @@ use std::{
 
 pub mod geom;
 pub mod hmat;
+pub mod htens;
 pub mod tensor;
 
 use geom::Geom;
@@ -13,6 +14,8 @@ use nalgebra as na;
 use regex::Regex;
 use tensor::tensor3::Tensor3;
 use tensor::Tensor4;
+
+use crate::htens::Htens;
 
 /// from <https://physics.nist.gov/cgi-bin/cuu/Value?bohrrada0>
 const ANGBOHR: f64 = 0.5291_772_109;
@@ -87,36 +90,6 @@ impl Siic {
 pub struct Atom {
     pub label: String,
     pub weight: usize,
-}
-
-pub struct Htens {
-    pub h111: Tensor3,
-    pub h112: Tensor3,
-    pub h113: Tensor3,
-    pub h123: Tensor3,
-    pub h221: Tensor3,
-    pub h222: Tensor3,
-    pub h223: Tensor3,
-    pub h331: Tensor3,
-    pub h332: Tensor3,
-    pub h333: Tensor3,
-}
-
-impl Htens {
-    pub fn new() -> Self {
-        Self {
-            h111: Tensor3::zeros(3, 3, 3),
-            h112: Tensor3::zeros(3, 3, 3),
-            h113: Tensor3::zeros(3, 3, 3),
-            h123: Tensor3::zeros(3, 3, 3),
-            h221: Tensor3::zeros(3, 3, 3),
-            h222: Tensor3::zeros(3, 3, 3),
-            h223: Tensor3::zeros(3, 3, 3),
-            h331: Tensor3::zeros(3, 3, 3),
-            h332: Tensor3::zeros(3, 3, 3),
-            h333: Tensor3::zeros(3, 3, 3),
-        }
-    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -794,164 +767,6 @@ impl Intder {
         (xs_sym, srs_sym)
     }
 
-    pub fn h_tensor3(geom: &Geom, s: &Siic) -> Htens {
-        use Siic::*;
-        // TODO can reorder loops to reuse this h_mat call with machx. loop over
-        // sims, for each sim, call h_mat and h_tensor so I can use that h_mat
-        // in h_tensor instead of calling h_mat for each sim in machx and machy
-        // separately
-        let hm = Hmat::new(geom, s);
-        let mut h = Htens::new();
-        // TODO see note on Tensor3 about symmetry
-        match s {
-            // HIJKS1
-            Stretch(j, i) => {
-                let v1 = geom.unit(*i, *j);
-                let t21 = geom.dist(*i, *j);
-                let w1 = 1.0 / t21;
-                for k in 0..3 {
-                    for j in k..3 {
-                        for i in j..3 {
-                            h.h111[(i, j, k)] = -(v1[i] * hm.h11[(k, j)]
-                                + v1[j] * hm.h11[(k, i)]
-                                + v1[k] * hm.h11[(j, i)])
-                                * w1;
-                        }
-                    }
-                }
-                h.h111.fill3b();
-            }
-            // HIJKS2
-            Bend(i, j, k) => {
-                // copied from h_mat Bend
-                let tmp = geom.s_vec(s);
-                let v1 = &tmp[3 * i..3 * i + 3];
-                let v3 = &tmp[3 * k..3 * k + 3];
-                let e21 = geom.unit(*j, *i);
-                let e23 = geom.unit(*j, *k);
-                let t21 = geom.dist(*j, *i);
-                let t23 = geom.dist(*j, *k);
-                let h11a = Hmat::new(geom, &Stretch(*i, *j)).h11;
-                let h33a = Hmat::new(geom, &Stretch(*k, *j)).h11;
-                let phi = geom.angle(*i, *j, *k);
-                // end copy
-                let hijs2 = Hmat::new(geom, s);
-                let h111a = Self::h_tensor3(geom, &Stretch(*i, *j)).h111;
-                let h333a = Self::h_tensor3(geom, &Stretch(*k, *j)).h111;
-                let sphi = phi.sin();
-                let ctphi = phi.cos() / sphi;
-                let w1 = 1.0 / t21;
-                let w2 = 1.0 / t23;
-                let w3 = ctphi * w1;
-                let w4 = ctphi * w2;
-                for k in 0..3 {
-                    let w5 = v1[k] * ctphi + e21[k] * w1;
-                    let w6 = e21[k] * w3;
-                    let w7 = v1[k] * w1;
-                    let w8 = v3[k] * ctphi + e23[k] * w2;
-                    let w9 = e23[k] * w4;
-                    let w10 = v3[k] * w2;
-                    for j in 0..3 {
-                        for i in 0..3 {
-                            h.h221[(i, j, k)] = w5 * hijs2.h11[(i, j)]
-                                + v1[i] * v1[j] * w6
-                                + h11a[(i, j)] * w7;
-                            h.h223[(i, j, k)] = w8 * hijs2.h33[(i, j)]
-                                + v3[i] * v3[j] * w9
-                                + h33a[(i, j)] * w10;
-                        }
-                    }
-                }
-
-                for k in 0..3 {
-                    for j in k..3 {
-                        for i in j..3 {
-                            h.h111[(i, j, k)] = -(h.h221[(i, j, k)]
-                                + h.h221[(j, k, i)]
-                                + h.h221[(i, k, j)])
-                                + v1[i] * v1[j] * v1[k]
-                                + h111a[(i, j, k)] * w3;
-                            h.h333[(i, j, k)] = -(h.h223[(i, j, k)]
-                                + h.h223[(j, k, i)]
-                                + h.h223[(i, k, j)])
-                                + v3[i] * v3[j] * v3[k]
-                                + h333a[(i, j, k)] * w4;
-                        }
-                    }
-                }
-                h.h111.fill3b();
-                h.h333.fill3b();
-
-                for i in 0..3 {
-                    let w3 = v1[i] * ctphi + e21[i] * w1;
-                    let w4 = v3[i] * ctphi + e23[i] * w2;
-                    for j in 0..3 {
-                        for k in 0..3 {
-                            h.h221[(i, j, k)] = w3 * hijs2.h31[(k, j)];
-                            h.h223[(i, j, k)] = w4 * hijs2.h31[(j, k)];
-                        }
-                    }
-                }
-
-                let w3 = 1.0 / (sphi * sphi);
-                for k in 0..3 {
-                    for j in 0..3 {
-                        for i in 0..3 {
-                            h.h113[(i, j, k)] = v3[k]
-                                * (v1[i] * v1[j] - h11a[(i, j)] * w1)
-                                * w3
-                                - h.h221[(i, j, k)]
-                                - h.h221[(j, i, k)];
-                            h.h331[(i, j, k)] = v1[k]
-                                * (v3[i] * v3[j] - h33a[(i, j)] * w2)
-                                * w3
-                                - h.h223[(i, j, k)]
-                                - h.h223[(j, i, k)];
-                        }
-                    }
-                }
-
-                for k in 0..3 {
-                    for j in 0..3 {
-                        for i in 0..3 {
-                            h.h123[(i, j, k)] =
-                                -(h.h331[(j, k, i)] + h.h113[(i, j, k)]);
-                            h.h112[(i, j, k)] =
-                                -(h.h111[(i, j, k)] + h.h113[(i, j, k)]);
-                            h.h332[(i, j, k)] =
-                                -(h.h333[(i, j, k)] + h.h331[(i, j, k)]);
-                        }
-                    }
-                }
-
-                for k in 0..3 {
-                    for j in 0..3 {
-                        for i in 0..3 {
-                            h.h221[(j, k, i)] =
-                                -(h.h123[(i, j, k)] + h.h112[(i, k, j)]);
-                            h.h223[(j, k, i)] =
-                                -(h.h332[(i, j, k)] + h.h123[(j, k, i)]);
-                        }
-                    }
-                }
-
-                for k in 0..3 {
-                    for j in 0..3 {
-                        for i in 0..3 {
-                            h.h222[(i, j, k)] =
-                                -(h.h223[(j, k, i)] + h.h221[(j, k, i)]);
-                        }
-                    }
-                }
-            }
-            #[allow(unused)]
-            Torsion(i, j, k, l) => {
-                todo!()
-            }
-        }
-        h
-    }
-
     /// returns the Y and SR matrices in symmetry internal coordinates
     pub fn machy(&self, a_mat: &DMat) -> (Vec<Tensor3>, Vec<Tensor3>) {
         use Siic::*;
@@ -967,7 +782,7 @@ impl Intder {
         for s in &self.simple_internals {
             let mut y = Tensor3::zeros(nc, nc, nc);
             let mut sr = Tensor3::zeros(nc, nc, nc);
-            let h = Self::h_tensor3(&self.geom, &s);
+            let h = Htens::new(&self.geom, &s);
             match s {
                 Stretch(a, b) => {
                     let l1 = 3 * a;
