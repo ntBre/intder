@@ -1764,12 +1764,17 @@ impl Intder {
         f4
     }
 
-    fn xf2(&self, f3_raw: &Tensor3, bs: &DMat, xrs: &Vec<DMat>) -> Tensor3 {
+    fn xf2(
+        &self,
+        mut f3: Tensor3,
+        mut f4: Tensor4,
+        bs: &DMat,
+        xrs: &Vec<DMat>,
+    ) -> (Tensor3, Tensor4) {
         let ns = self.symmetry_internals.len();
         let nc = 3 * self.geom.len();
         let v = self.mat_fc2(ns);
         let xs = v * bs;
-        let mut f3 = f3_raw.clone();
         for (r, xr) in xrs.iter().enumerate() {
             for k in 0..nc {
                 for j in 0..=k {
@@ -1783,7 +1788,52 @@ impl Intder {
             }
         }
         f3.fill3a(nc);
-        f3
+
+        // begin F4 part
+
+        // this should never be used as zeros. it will be set on the first
+        // iteration when r == s == 0
+        let mut xt = DMat::zeros(nc, nc);
+        let v = self.mat_fc2(ns);
+        for r in 0..ns {
+            let mut xr = DMat::zeros(nc, nc);
+            for (s, xs) in xrs.iter().enumerate() {
+                if r == s {
+                    xt = xs.clone();
+                }
+                for j in 0..nc {
+                    for i in 0..nc {
+                        xr[(i, j)] += v[(r, s)] * xs[(i, j)];
+                    }
+                }
+            }
+            for l in 0..nc {
+                for k in 0..=l {
+                    for j in 0..=k {
+                        for i in 0..=j {
+                            let w = xt[(i, j)] * xr[(k, l)]
+                                + xt[(i, k)] * xr[(j, l)]
+                                + xt[(i, l)] * xr[(j, k)];
+                            f4[(i, j, k, l)] += w;
+                        }
+                    }
+                }
+            }
+        }
+        f4.fill4a(nc);
+        (f3, f4)
+    }
+
+    fn xf3(
+        &self,
+	f3: &Tensor3,
+        mut f4: Tensor4,
+        bs: &DMat,
+        xrs: &Vec<DMat>,
+    ) -> () {
+	for (r, xr) in xrs.iter().enumerate() {
+	    println!("{:.6}", xr);
+	}
     }
 
     /// Perform the linear transformation of the force constants and convert the
@@ -1796,8 +1846,14 @@ impl Intder {
         xr: &Vec<DMat>,
     ) -> (DMat, Vec<f64>) {
         let f2 = self.lintr_fc2(a);
-        let f3 = self.xf2(&self.lintr_fc3(a), bs, xr);
-        self.lintr_fc4(a);
+        let (f3, f4) = self.xf2(self.lintr_fc3(a), self.lintr_fc4(a), bs, xr);
+	self.xf3(&f3, f4, bs, xr);
+	// f4 looking good so far
+
+        // DONE fc4 part of XF2
+        // TODO XF3
+        // TODO YF2
+        // TODO MACHF4
 
         // convert f3 to the proper units and return it as a Vec in the order
         // desired by spectro
