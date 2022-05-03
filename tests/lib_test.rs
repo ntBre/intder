@@ -357,16 +357,28 @@ fn test_convert_fcs() {
         sizes: (usize, usize, usize),
         eps: (f64, f64, f64),
     }
-    let tests = vec![Test {
-        infile: "testfiles/h2o.freq.in".to_string(),
-        fcs: (
-            "testfiles/h2o.15".to_string(),
-            "testfiles/h2o.30".to_string(),
-            "testfiles/h2o.40".to_string(),
-        ),
-        sizes: (9, 165, 495),
-        eps: (1e-7, 4e-7, 2e-6),
-    }];
+    let tests = vec![
+        Test {
+            infile: "testfiles/h2o.freq.in".to_string(),
+            fcs: (
+                "testfiles/h2o.15".to_string(),
+                "testfiles/h2o.30".to_string(),
+                "testfiles/h2o.40".to_string(),
+            ),
+            sizes: (9, 165, 495),
+            eps: (1e-7, 4e-7, 2e-6),
+        },
+        Test {
+            infile: "testfiles/thoco.freq.in".to_string(),
+            fcs: (
+                "testfiles/thoco.15".to_string(),
+                "testfiles/thoco.30".to_string(),
+                "testfiles/thoco.40".to_string(),
+            ),
+            sizes: (12, 364, 1365),
+            eps: (1e-7, 4e-7, 2e-6),
+        },
+    ];
     for test in tests {
         let intder = Intder::load_file(&test.infile);
         let (fc2, fc3, fc4) = intder.convert_fcs();
