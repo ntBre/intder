@@ -378,6 +378,16 @@ fn test_convert_fcs() {
             sizes: (12, 364, 1365),
             eps: (2e-7, 6e-7, 3e-6),
         },
+        Test {
+            infile: "testfiles/c3h2.freq.in".to_string(),
+            fcs: (
+                "testfiles/c3h2.15".to_string(),
+                "testfiles/c3h2.30".to_string(),
+                "testfiles/c3h2.40".to_string(),
+            ),
+            sizes: (15, 680, 3060),
+            eps: (2e-7, 4e-7, 2e-6),
+        },
     ];
     for test in tests {
         let intder = Intder::load_file(&test.infile);

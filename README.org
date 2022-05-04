@@ -81,14 +81,6 @@
   example. this might work if I just loop over symmetry_internals everywhere
   right now, but I'm not sure
 
-* References
-  - D. F. McIntosh, K. H. Michaelian, and M. R. Peterson. Can. J. Chem. Vol. 56,
-    1978
-  - E. B. Wilson, Jr., J. C. Decius, and P. C. Cross. Molecular
-    Vibrations, 1955.
-  - W. D. Allen and A. G. Csaszar. J. Chem. Phys. 98, 1993.
-  - A. L. L. East, W. D. Allen, and S. J. Klippenstein. J. Chem. Phys. 102, 1995
-
 * Potential improvements
   - use a single vector for Tensor3 and Tensor4 with the indexing formulas. this
     should make FILL{3,4}{A,B} unneccessary if they just fill across the
@@ -119,3 +111,12 @@
      f3_units.print();
      dbg!(c);
    #+end_src
+
+* References
+  - D. F. McIntosh, K. H. Michaelian, and M. R. Peterson. Can. J. Chem. Vol. 56,
+    1978
+  - E. B. Wilson, Jr., J. C. Decius, and P. C. Cross. Molecular
+    Vibrations, 1955.
+  - W. D. Allen and A. G. Csaszar. J. Chem. Phys. 98, 1993.
+  - A. L. L. East, W. D. Allen, and S. J. Klippenstein. J. Chem. Phys. 102, 1995
+
