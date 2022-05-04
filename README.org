@@ -31,6 +31,9 @@
 **** Bend
      - HIJS2
      - AHX3
+**** Torsion
+     - HIJS6
+     - AHX4
 *** MACHY
 **** Stretch
      - HIJKS1
@@ -40,6 +43,10 @@
      - HIJKS2
      - HSRY3
      - AHY3
+**** Torsion
+     - HIJKS6
+     - HSRY4
+     - AHY4
 *** LINTR - perform the linear transformations with the matrices from MACHX/Y
 *** XF2 - "add X-V(M,N) contributions to third and 4th derivatives"
 *** XF3 - "add X-V(M,N,P) contributions to 4th derivatives"
