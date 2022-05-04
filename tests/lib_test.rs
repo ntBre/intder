@@ -376,7 +376,7 @@ fn test_convert_fcs() {
                 "testfiles/thoco.40".to_string(),
             ),
             sizes: (12, 364, 1365),
-            eps: (1e-7, 4e-7, 2e-6),
+            eps: (2e-7, 6e-7, 3e-6),
         },
     ];
     for test in tests {
