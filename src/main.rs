@@ -60,6 +60,17 @@ fn main() {
             Intder::print_cart(&mut file07, &cart);
         }
     } else {
-	intder.convert_fcs();
+        let (f2, f3, f4) = intder.convert_fcs();
+        let f2 = f2.as_slice();
+        let pairs = [(f2, "fort.15"), (&f3, "fort.30"), (&f4, "fort.40")];
+        for p in pairs {
+            let mut f = File::create(p.1).expect("failed to create fort.15");
+            for chunk in p.0.chunks(3) {
+                for c in chunk {
+                    write!(f, "{:>20.10}", c).unwrap();
+                }
+                writeln!(f).unwrap();
+            }
+        }
     }
 }
