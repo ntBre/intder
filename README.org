@@ -19,42 +19,47 @@
    add that step to the Cartesian coordinates
 
 * Force constant conversion
-** Fortran code
-*** INPFKM - load internal coordinate force constants from file
-    - I handle this in =Intder::load=
-*** Assemble symmetric B matrix
-*** BINVRT - get A matrix, just like geometry conversion
-*** MACHX
-**** Stretch
-     - HIJS1
-     - AHX2
-**** Bend
-     - HIJS2
-     - AHX3
-**** Torsion
-     - HIJS6
-     - AHX4
-*** MACHY
-**** Stretch
-     - HIJKS1
-     - HSRY2
-     - AHY2
-**** Bend
-     - HIJKS2
-     - HSRY3
-     - AHY3
-**** Torsion
-     - HIJKS6
-     - HSRY4
-     - AHY4
-*** LINTR - perform the linear transformations with the matrices from MACHX/Y
-*** XF2 - "add X-V(M,N) contributions to third and 4th derivatives"
-*** XF3 - "add X-V(M,N,P) contributions to 4th derivatives"
-*** YF2 - "add Y-V(M,N) contributions to 4th derivatives"
-*** FCOUT - write out the force constants
-*** this is where the files are written, then it does the vibrational analysis
-**** GFMAT - normal mode analysis in internal coordinates
-**** NORMCO - normal mode analysis in cartesian coordinates
+** INPFKM - load internal coordinate force constants from file
+   - I handle this in =Intder::load=
+** Assemble symmetric B matrix
+** BINVRT - get A matrix, just like geometry conversion
+** MACHX
+*** Stretch
+    - HIJS1
+    - AHX2
+*** Bend
+    - HIJS2
+    - AHX3
+*** Torsion
+    - HIJS6
+    - AHX4
+** MACHY
+*** Stretch
+    - HIJKS1
+    - HSRY2
+    - AHY2
+*** Bend
+    - HIJKS2
+    - HSRY3
+    - AHY3
+*** Torsion
+    - HIJKS6
+    - HSRY4
+    - AHY4
+** LINTR - perform the linear transformations with the matrices from MACHX/Y
+** XF2 - "add X-V(M,N) contributions to third and 4th derivatives"
+** XF3 - "add X-V(M,N,P) contributions to 4th derivatives"
+** YF2 - "add Y-V(M,N) contributions to 4th derivatives"
+** FCOUT - write out the force constants
+
+* Vibrational analysis
+  this part is unimplemented. I don't really think this is within the scope of
+  intder, but it might help one day in debugging. If the whole pipeline from
+  intder to spectro is automated, no issues should arise that these analyses
+  would help with. You can also always run the old version of intder if you
+  really think the issue is here.
+** GFMAT - normal mode analysis in internal coordinates
+** NORMCO - normal mode analysis in cartesian coordinates
 
 * Adding more coordinate types
   So far I have only implemented STRE, BEND, and TORS. The steps for adding more
@@ -85,32 +90,6 @@
   - use a single vector for Tensor3 and Tensor4 with the indexing formulas. this
     should make FILL{3,4}{A,B} unneccessary if they just fill across the
     diagonals because the indexing formulas already take care of the symmetry
-
-* Extra code
-** fcout for f3 I think
-   #+begin_src rust
-     // TODO follow F3 out of LINTR before it gets to FCOUT - some other
-     // transformations are happening, probably bringing back the pieces
-     // written to disk
-
-     const CF3: f64 = ANGBOHR * ANGBOHR * ANGBOHR / HART;
-     let mut f3_units = Tensor3::zeros(nsx, nsx, nsx);
-     let mut _c = 0;
-     for p in 0..nsx {
-	 for n in 0..nsx {
-	     for m in 0..nsx {
-		 // if c > 0 && c % 3 == 0 {
-		 //     println!();
-		 // }
-		 // print!("{:12.6}", CF3 * f3[(m, n, p)]);
-		 // c += 1;
-		 f3_units[(m, n, p)] = CF3 * f3[(m, n, p)];
-	     }
-	 }
-     }
-     f3_units.print();
-     dbg!(c);
-   #+end_src
 
 * References
   - D. F. McIntosh, K. H. Michaelian, and M. R. Peterson. Can. J. Chem. Vol. 56,
