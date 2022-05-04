@@ -195,12 +195,10 @@ impl Htens {
                 }
             }
             // HIJKS6
-            #[allow(unused)]
             Torsion(i, j, k, l) => {
                 let tmp = geom.s_vec(s);
                 let v1 = &tmp[3 * i..3 * i + 3];
                 let v2 = &tmp[3 * j..3 * j + 3];
-                let v3 = &tmp[3 * k..3 * k + 3];
                 let v4 = &tmp[3 * l..3 * l + 3];
                 // unit and non-unit vectors
                 let e21 = geom.unit(*j, *i);
@@ -324,9 +322,7 @@ impl Htens {
                 let h11 = hijs2.h11;
                 let mut h21 = hijs2.h21;
                 let h31 = hijs2.h31;
-                let h22 = hijs2.h22;
                 let h32 = hijs2.h32;
-                let h33 = hijs2.h33;
                 let h44 = Hmat::new(geom, &Stretch(*i, *j)).h11;
                 let h42 = Hmat::new(geom, &Stretch(*j, *k)).h11;
                 let mut h43 = Hmat::mat1(&e34);
@@ -424,11 +420,8 @@ impl Htens {
                 } // end 162
 
                 let hijs2 = Hmat::new(geom, &Bend(*j, *k, *l));
-                let h22 = hijs2.h11;
                 let h32 = hijs2.h21;
                 let h42 = hijs2.h31;
-                let h33 = hijs2.h22;
-                let h43 = hijs2.h32;
                 let h44 = hijs2.h33;
                 let h11 = Hmat::new(geom, &Stretch(*l, *k)).h11;
                 let h31 = Hmat::new(geom, &Stretch(*k, *j)).h11;
@@ -532,11 +525,11 @@ impl Htens {
                     h11,
                     h21,
                     h31,
-                    h41,
-                    h22,
-                    h32,
+                    h41: _,
+                    h22: _,
+                    h32: _,
                     h42,
-                    h33,
+                    h33: _,
                     h43,
                     h44,
                 } = Hmat::new(geom, s);
@@ -635,8 +628,8 @@ impl Htens {
 
                 for k in 0..3 {
                     for j in 0..3 {
-                        let w1 = (h31[(k, j)] - c3 * v1[(j)] * e23[(k)]);
-                        let w2 = (h42[(j, k)] + c3 * v4[(j)] * e23[(k)]);
+                        let w1 = h31[(k, j)] - c3 * v1[(j)] * e23[(k)];
+                        let w2 = h42[(j, k)] + c3 * v4[(j)] * e23[(k)];
                         for i in 0..3 {
                             h.h223[(i, j, k)] += w1 * h.h411[(0, 2, i)];
                             h.h332[(i, j, k)] += w2 * h.h411[(1, 0, i)];
