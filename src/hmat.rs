@@ -223,7 +223,7 @@ impl Hmat {
     }
 
     /// helper function for TORS
-    fn mat1(v: &Vec3) -> DMat {
+    pub fn mat1(v: &Vec3) -> DMat {
         let mut em = DMat::zeros(3, 3);
         em[(1, 0)] = -v[2];
         em[(2, 0)] = v[1];
