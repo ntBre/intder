@@ -309,7 +309,7 @@ impl Htens {
                 let w2 = c2 * c3 * c11;
                 for k in 0..3 {
                     let w5 = w1 * h.h411[(1, 1, k)];
-                    let w6 = w2 * h.h411[(0, 1, k)];
+                    let w6 = w2 * h.h411[(1, 2, k)];
                     for j in 0..3 {
                         for i in 0..3 {
                             h.h123[(i, k, j)] =
@@ -468,20 +468,22 @@ impl Htens {
                         }
                     }
                 }
+
                 for k in 0..3 {
                     for j in 0..3 {
                         h21[(j, k)] = w3 * h31[(j, k)] - w1 * h32[(j, k)]
                             + w2 * bp33[(j)] * bp32[(k)];
                     }
                     h21[(k, k)] -= c14;
-                }
+                } // end 185
+
                 for k in 0..3 {
                     for j in 0..3 {
                         for i in 0..3 {
                             h.h432[(i, j, k)] += v4[(i)] * h21[(j, k)];
                         }
                     }
-                } // end 192      W1=C7*C3
+                } // end 192
 
                 let w1 = c7 * c3;
                 let w2 = c7 * c16;
@@ -566,15 +568,10 @@ impl Htens {
                     }
                 } // end 227
 
-		// TODO problem with 223 is in this loop
-		// w1 and w2 are okay, check h123 and h432
                 let w4 = c5 * c15;
                 let w1 = w4 - 1.0;
                 let w2 = c8 * c16;
                 let w3 = w2 - 1.0;
-		// TODO h432 is the problem
-                h.h432.print();
-                todo!();
                 for k in 0..3 {
                     for j in 0..3 {
                         for i in 0..3 {
@@ -584,10 +581,8 @@ impl Htens {
                                 w3 * h.h432[(j, i, k)] - w4 * h.h123[(j, k, i)];
                         }
                     }
-                }
+                } // end 232
 
-                h.h223.print();
-                todo!();
                 for k in 0..3 {
                     for j in 0..3 {
                         for i in 0..3 {
@@ -599,8 +594,6 @@ impl Htens {
                     }
                 } // end 242
 
-                h.h223.print();
-                todo!();
                 for k in 0..3 {
                     for j in 0..3 {
                         let w1 = c16 * (h43[(j, k)] - c3 * v4[(j)] * e23[(k)]);
@@ -633,9 +626,9 @@ impl Htens {
                     for j in 0..3 {
                         for i in 0..3 {
                             h.h223[(i, j, k)] +=
-                                h42[(j, i)] * h.h411[(1, 1, k)];
+                                h42[(j, i)] * h.h411[(0, 0, k)];
                             h.h332[(i, j, k)] +=
-                                h31[(i, j)] * h.h411[(1, 2, k)];
+                                h31[(i, j)] * h.h411[(0, 1, k)];
                         }
                     }
                 } // end 267
@@ -650,6 +643,7 @@ impl Htens {
                         }
                     }
                 }
+
                 for k in 0..3 {
                     for j in 0..3 {
                         for i in 0..3 {
@@ -685,9 +679,6 @@ impl Htens {
                     }
                 } // end 292
 
-                // h222 is bad at the end of this, but it's only written here
-                // h221 is good
-                // 223 and 422 are bad
                 for k in 0..3 {
                     for j in 0..=k {
                         for i in 0..=j {
@@ -703,10 +694,9 @@ impl Htens {
                 h.h222.fill3a(3);
                 h.h333.fill3a(3);
 
-                h.h223.print();
-                todo!();
                 dbg!(333);
                 h.h333.print();
+		todo!();
             }
         }
         h
