@@ -693,10 +693,6 @@ impl Htens {
                 } // end 302
                 h.h222.fill3a(3);
                 h.h333.fill3a(3);
-
-                dbg!(333);
-                h.h333.print();
-		todo!();
             }
         }
         h
