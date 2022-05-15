@@ -185,7 +185,7 @@ impl Intder {
                 // build up tmp until we hit a zero just like with syics
                 if zero.is_match(&line) {
                     intder.disps.push(disp_tmp.clone());
-                    disp_tmp = vec![0.0; intder.simple_internals.len()];
+                    disp_tmp = vec![0.0; intder.symmetry_internals.len()];
                     continue;
                 }
                 let sp: Vec<&str> = line.split_whitespace().collect();
