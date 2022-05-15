@@ -32,7 +32,7 @@ type Vec3 = na::Vector3<f64>;
 pub type DMat = na::DMatrix<f64>;
 pub type DVec = na::DVector<f64>;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Siic {
     Stretch(usize, usize),
     /// central atom is second like normal people would expect
@@ -82,13 +82,13 @@ impl Siic {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Atom {
     pub label: String,
     pub weight: usize,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Intder {
     pub input_options: Vec<usize>,
     pub simple_internals: Vec<Siic>,
