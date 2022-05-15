@@ -97,20 +97,18 @@ impl Geom {
     }
 }
 
-impl From<psqs::atom::Geom> for Geom {
+impl From<psqs::geom::Geom> for Geom {
     /// panics if any element of `geom` has a length other than 3 or if `geom`
     /// is not Cartesian
-    fn from(geom: psqs::atom::Geom) -> Self {
-	let geom = geom.xyz().unwrap();
-	let mut ret = Vec::new();
-	for atom in geom {
-	    assert!(atom.coord.len() == 3);
-	    ret.push(Vec3::from_row_slice(&atom.coord));
-	}
-	Self(ret)
+    fn from(geom: psqs::geom::Geom) -> Self {
+        let geom = geom.xyz().unwrap();
+        let mut ret = Vec::new();
+        for atom in geom {
+            ret.push(Vec3::from_row_slice(&atom.coord()));
+        }
+        Self(ret)
     }
 }
-
 
 impl From<&DVec> for Geom {
     fn from(dvec: &DVec) -> Self {
