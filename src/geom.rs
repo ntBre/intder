@@ -110,6 +110,16 @@ impl From<psqs::geom::Geom> for Geom {
     }
 }
 
+impl From<symm::Molecule> for Geom {
+    fn from(geom: symm::Molecule) -> Self {
+        let mut ret = Vec::new();
+        for atom in geom.atoms {
+            ret.push(Vec3::from_row_slice(&atom.coord()));
+        }
+        Self(ret)
+    }
+}
+
 impl From<&DVec> for Geom {
     fn from(dvec: &DVec) -> Self {
         Self(
