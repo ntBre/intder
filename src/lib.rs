@@ -1992,11 +1992,12 @@ impl Intder {
         (f2, f3, f4)
     }
 
-    pub fn dump_fcs(f2: &DMat, f3: &Vec<f64>, f4: &Vec<f64>) {
+    pub fn dump_fcs(dir: &str, f2: &DMat, f3: &Vec<f64>, f4: &Vec<f64>) {
         let f2 = f2.as_slice();
         let pairs = [(f2, "fort.15"), (&f3, "fort.30"), (&f4, "fort.40")];
         for p in pairs {
-            let mut f = File::create(p.1).expect("failed to create fort.15");
+            let mut f = File::create(format!("{dir}/{}", p.1))
+                .expect("failed to create fort.15");
             for chunk in p.0.chunks(3) {
                 for c in chunk {
                     write!(f, "{:>20.10}", c).unwrap();

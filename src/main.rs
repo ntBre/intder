@@ -61,6 +61,6 @@ fn main() {
         }
     } else {
         let (f2, f3, f4) = intder.convert_fcs();
-        Intder::dump_fcs(&f2, &f3, &f4);
+        Intder::dump_fcs(".", &f2, &f3, &f4);
     }
 }
