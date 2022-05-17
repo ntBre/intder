@@ -260,23 +260,25 @@ impl Intder {
                     .iter()
                     .map(|s| s.parse::<usize>().unwrap())
                     .collect::<Vec<_>>();
-                let (idx, target) = match (sp[2], sp[3]) {
-                    (0, 0) => (intder.fc2_index(sp[0], sp[1]), &mut intder.fc2),
-                    (_, 0) => {
-                        (intder.fc3_index(sp[0], sp[1], sp[2]), &mut intder.fc3)
-                    }
-                    (_, _) => (
-                        intder.fc4_index(sp[0], sp[1], sp[2], sp[3]),
-                        &mut intder.fc4,
-                    ),
-                };
-                if target.len() <= idx {
-                    target.resize(idx + 1, 0.0);
-                }
-                target[idx] = val;
+                // here
+                intder.add_fc(sp, val);
             }
         }
         intder
+    }
+
+    pub fn add_fc(&mut self, sp: Vec<usize>, val: f64) {
+        let (idx, target) = match (sp[2], sp[3]) {
+            (0, 0) => (self.fc2_index(sp[0], sp[1]), &mut self.fc2),
+            (_, 0) => (self.fc3_index(sp[0], sp[1], sp[2]), &mut self.fc3),
+            (_, _) => {
+                (self.fc4_index(sp[0], sp[1], sp[2], sp[3]), &mut self.fc4)
+            }
+        };
+        if target.len() <= idx {
+            target.resize(idx + 1, 0.0);
+        }
+        target[idx] = val;
     }
 
     /// return the number of symmetry internal coordinates
@@ -1988,5 +1990,19 @@ impl Intder {
         let (f2, f3, f4) = self.lintr(&b_sym, &b_sym, &srs, &srsy);
 
         (f2, f3, f4)
+    }
+
+    pub fn dump_fcs(f2: &DMat, f3: &Vec<f64>, f4: &Vec<f64>) {
+        let f2 = f2.as_slice();
+        let pairs = [(f2, "fort.15"), (&f3, "fort.30"), (&f4, "fort.40")];
+        for p in pairs {
+            let mut f = File::create(p.1).expect("failed to create fort.15");
+            for chunk in p.0.chunks(3) {
+                for c in chunk {
+                    write!(f, "{:>20.10}", c).unwrap();
+                }
+                writeln!(f).unwrap();
+            }
+        }
     }
 }
