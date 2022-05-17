@@ -18,6 +18,13 @@ impl Geom {
         self.0.push(it)
     }
 
+    /// convert the geometry from angstroms to bohr
+    pub fn to_bohr(&mut self) {
+	for a in self.0.iter_mut() {
+	    *a /= ANGBOHR;
+	}
+    }
+
     /// return the unit vector from atom i to atom j
     pub fn unit(&self, i: usize, j: usize) -> Vec3 {
         let diff = self[j] - self[i];
