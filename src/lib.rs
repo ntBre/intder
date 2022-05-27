@@ -110,6 +110,30 @@ pub struct Intder {
     pub fc4: Vec<f64>,
 }
 
+/// compute the index in the second-order force constant array, assuming `i`
+/// and `j` have minimum values of 1
+pub fn fc2_index(ncoords: usize, i: usize, j: usize) -> usize {
+    let mut sp = [i, j];
+    sp.sort();
+    ncoords * (sp[0] - 1) + sp[1] - 1
+}
+
+pub fn fc3_index(i: usize, j: usize, k: usize) -> usize {
+    let mut sp = [i, j, k];
+    sp.sort();
+    sp[0] + (sp[1] - 1) * sp[1] / 2 + (sp[2] - 1) * sp[2] * (sp[2] + 1) / 6 - 1
+}
+
+pub fn fc4_index(i: usize, j: usize, k: usize, l: usize) -> usize {
+    let mut sp = [i, j, k, l];
+    sp.sort();
+    sp[0]
+        + (sp[1] - 1) * sp[1] / 2
+        + (sp[2] - 1) * sp[2] * (sp[2] + 1) / 6
+        + (sp[3] - 1) * sp[3] * (sp[3] + 1) * (sp[3] + 2) / 24
+        - 1
+}
+
 impl Intder {
     pub fn new() -> Self {
         Intder {
@@ -269,11 +293,12 @@ impl Intder {
 
     pub fn add_fc(&mut self, sp: Vec<usize>, val: f64) {
         let (idx, target) = match (sp[2], sp[3]) {
-            (0, 0) => (self.fc2_index(sp[0], sp[1]), &mut self.fc2),
-            (_, 0) => (self.fc3_index(sp[0], sp[1], sp[2]), &mut self.fc3),
-            (_, _) => {
-                (self.fc4_index(sp[0], sp[1], sp[2], sp[3]), &mut self.fc4)
-            }
+            (0, 0) => (
+                fc2_index(self.symmetry_internals.len(), sp[0], sp[1]),
+                &mut self.fc2,
+            ),
+            (_, 0) => (fc3_index(sp[0], sp[1], sp[2]), &mut self.fc3),
+            (_, _) => (fc4_index(sp[0], sp[1], sp[2], sp[3]), &mut self.fc4),
         };
         if target.len() <= idx {
             target.resize(idx + 1, 0.0);
@@ -508,30 +533,6 @@ impl Intder {
             ret.push(cart_current);
         }
         ret
-    }
-
-    fn fc2_index(&self, i: usize, j: usize) -> usize {
-        let n3n = self.symmetry_internals.len();
-        let mut sp = [i, j];
-        sp.sort();
-        n3n * (sp[0] - 1) + sp[1] - 1
-    }
-
-    fn fc3_index(&self, i: usize, j: usize, k: usize) -> usize {
-        let mut sp = [i, j, k];
-        sp.sort();
-        sp[0] + (sp[1] - 1) * sp[1] / 2 + (sp[2] - 1) * sp[2] * (sp[2] + 1) / 6
-            - 1
-    }
-
-    fn fc4_index(&self, i: usize, j: usize, k: usize, l: usize) -> usize {
-        let mut sp = [i, j, k, l];
-        sp.sort();
-        sp[0]
-            + (sp[1] - 1) * sp[1] / 2
-            + (sp[2] - 1) * sp[2] * (sp[2] + 1) / 6
-            + (sp[3] - 1) * sp[3] * (sp[3] + 1) * (sp[3] + 2) / 24
-            - 1
     }
 
     /// returns X and SR matrices in symmetry internal coordinates
@@ -1339,7 +1340,13 @@ impl Intder {
             for j in 0..nsy {
                 // multiply by a coefficient here if you need to convert
                 // units
-                v.push(self.fc2[self.fc2_index(i + 1, j + 1)]);
+                v.push(
+                    self.fc2[fc2_index(
+                        self.symmetry_internals.len(),
+                        i + 1,
+                        j + 1,
+                    )],
+                );
             }
         }
         DVec::from(v)
@@ -1867,8 +1874,7 @@ impl Intder {
             for l in 0..nc {
                 for n in 0..ns {
                     for p in 0..ns {
-                        if let Some(x) =
-                            yr.get(self.fc3_index(r + 1, n + 1, p + 1))
+                        if let Some(x) = yr.get(fc3_index(r + 1, n + 1, p + 1))
                         {
                             xt[(n, l)] += x * bs[(p, l)]
                         }
