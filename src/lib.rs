@@ -16,7 +16,7 @@ use regex::Regex;
 use tensor::{Tensor3, Tensor4};
 
 /// from <https://physics.nist.gov/cgi-bin/cuu/Value?bohrrada0>
-const ANGBOHR: f64 = 0.5291_772_109;
+pub const ANGBOHR: f64 = 0.5291_772_109;
 /// constants from the fortran version
 const HART: f64 = 4.3597482;
 // const DEBYE: f64 = 2.54176548;
