@@ -388,11 +388,12 @@ impl Intder {
     /// int. long
     pub fn u_mat(&self) -> DMat {
         let r = self.symmetry_internals.len();
+	let c = self.simple_internals.len();
         let mut u = Vec::new();
         for i in 0..r {
             u.extend(&self.symmetry_internals[i].clone());
         }
-        DMat::from_row_slice(r, r, &u)
+        DMat::from_row_slice(r, c, &u)
     }
 
     /// return the symmetry internal coordinate B matrix by computing the simple
