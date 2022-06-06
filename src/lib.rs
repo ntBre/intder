@@ -269,7 +269,7 @@ impl Intder {
                 }
             } else if line.contains("DISP") {
                 in_disps = true;
-                disp_tmp = vec![0.0; intder.simple_internals.len()];
+                disp_tmp = vec![0.0; intder.symmetry_internals.len()];
             } else if atoms.is_match(&line) {
                 for cap in atom.captures_iter(&line) {
                     intder.atoms.push(Atom {
