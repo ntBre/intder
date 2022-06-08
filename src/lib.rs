@@ -34,11 +34,18 @@ pub type DVec = na::DVector<f64>;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Siic {
+    /// bond stretch between two atoms
     Stretch(usize, usize),
+
     /// central atom is second like normal people would expect
     Bend(usize, usize, usize),
+
     /// angle between planes formed by i, j, k and j, k, l
     Torsion(usize, usize, usize, usize),
+
+    /// linear bend of atoms `i`, `j`, and `k`, about `d`, a dummy atom
+    /// perpendicular to the line `i`-`j`-`k` and extending from atom `j`
+    Lin1(usize, usize, usize, usize),
 }
 
 impl Siic {
@@ -47,6 +54,7 @@ impl Siic {
         match self {
             Stretch(a, b) => geom.dist(*a, *b),
             Bend(a, b, c) => geom.angle(*a, *b, *c),
+            // vect6
             Torsion(a, b, c, d) => {
                 let e_21 = geom.unit(*b, *a);
                 let e_32 = geom.unit(*c, *b);
@@ -77,6 +85,21 @@ impl Siic {
                 } else {
                     w
                 }
+            }
+            // vect3
+            Lin1(a, b, c, d) => {
+                let e21 = geom.unit(*b, *a);
+                let e23 = geom.unit(*c, *b);
+                let ea = geom[*d];
+                let d = {
+                    let d = ea.dot(&ea);
+                    1.0 / d.sqrt()
+                };
+                let ea = d * ea;
+                let e2m = e23.cross(&e21);
+                let stheta = ea.dot(&e2m);
+                let w = f64::asin(stheta);
+                -w
             }
         }
     }
@@ -173,6 +196,12 @@ impl Intder {
                 sp[3].parse::<usize>().unwrap() - 1,
             ),
             "TORS" => Siic::Torsion(
+                sp[1].parse::<usize>().unwrap() - 1,
+                sp[2].parse::<usize>().unwrap() - 1,
+                sp[3].parse::<usize>().unwrap() - 1,
+                sp[4].parse::<usize>().unwrap() - 1,
+            ),
+            "LIN1" => Siic::Lin1(
                 sp[1].parse::<usize>().unwrap() - 1,
                 sp[2].parse::<usize>().unwrap() - 1,
                 sp[3].parse::<usize>().unwrap() - 1,
@@ -388,7 +417,7 @@ impl Intder {
     /// int. long
     pub fn u_mat(&self) -> DMat {
         let r = self.symmetry_internals.len();
-	let c = self.simple_internals.len();
+        let c = self.simple_internals.len();
         let mut u = Vec::new();
         for i in 0..r {
             u.extend(&self.symmetry_internals[i].clone());
@@ -732,6 +761,7 @@ impl Intder {
                         }
                     }
                 }
+                Lin1(_, _, _, _) => todo!(),
             }
             // println!("SR_{} = {:12.8}", i + 1, sr);
             // println!("X = {:12.8}", x);
@@ -1284,6 +1314,7 @@ impl Intder {
                         }
                     }
                 }
+                Lin1(_, _, _, _) => todo!(),
             }
             y.fill3a(nsx);
             ys_sim.push(y);

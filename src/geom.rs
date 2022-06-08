@@ -99,6 +99,37 @@ impl Geom {
                     tmp[3 * c + i] = w5 * v6[i] + w6 * v5[i];
                 }
             }
+            Siic::Lin1(a, b, c, d) => {
+                let e21 = self.unit(*b, *a);
+                let e23 = self.unit(*c, *b);
+                let t21 = self.dist(*b, *a);
+                let t23 = self.dist(*c, *b);
+                let ea = self[*d];
+                let d = {
+                    let d = ea.dot(&ea);
+                    1.0 / d.sqrt()
+                };
+                let ea = d * ea;
+                let e2m = e23.cross(&e21);
+                let stheta = ea.dot(&e2m);
+                let w = f64::asin(stheta);
+                let ctheta = w.cos();
+                let ttheta = stheta / ctheta;
+                let v4 = ea.cross(&e23);
+                let v5 = ea.cross(&e21);
+                let c1 = 1.0 / (ctheta * t21);
+                let c2 = ttheta / t21;
+                let c3 = 1.0 / (ctheta * t23);
+                let c4 = ttheta / t23;
+                for i in 0..3 {
+                    // V1, V3, V2 in VECT3
+                    let v1i = c1 * v4[i] - c2 * e21[i];
+                    let v3i = -(c3 * v5[i] + c4 * e23[i]);
+                    tmp[3 * a + i] = -v1i;
+                    tmp[3 * c + i] = v3i;
+                    tmp[3 * b + i] = -(-v1i + v3i);
+                }
+            }
         }
         tmp
     }

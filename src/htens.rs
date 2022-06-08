@@ -687,6 +687,7 @@ impl Htens {
                 h.h222.fill3a(3);
                 h.h333.fill3a(3);
             }
+            Lin1(_, _, _, _) => todo!(),
         }
         h
     }
