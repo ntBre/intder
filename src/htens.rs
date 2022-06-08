@@ -687,7 +687,126 @@ impl Htens {
                 h.h222.fill3a(3);
                 h.h333.fill3a(3);
             }
-            Lin1(_, _, _, _) => todo!(),
+            // HIJKS3
+            Lin1(i, j, k, _) => {
+                let tmp = geom.s_vec(s);
+                let v1 = &tmp[3 * i..3 * i + 3];
+                let v3 = &tmp[3 * k..3 * k + 3];
+                let th = s.value(&geom);
+                let e21 = geom.unit(*j, *i);
+                let e23 = geom.unit(*j, *k);
+                let t21 = geom.dist(*j, *i);
+                let t23 = geom.dist(*j, *k);
+                let h11a = Hmat::new(geom, &Stretch(*i, *j)).h11;
+                let h33a = Hmat::new(geom, &Stretch(*k, *j)).h11;
+                let hijs3 = Hmat::new(geom, s);
+                let h11 = hijs3.h11;
+                let h31 = hijs3.h31;
+                let h33 = hijs3.h33;
+                let h111a = Self::new(geom, &Stretch(*i, *j)).h111;
+                let h333a = Self::new(geom, &Stretch(*k, *j)).h111;
+
+                let tanth = th.tan();
+                let costh = th.cos();
+
+                let w1 = 1.0 / t21;
+                let w2 = 1.0 / t23;
+                let w3 = tanth * w1;
+                let w4 = tanth * w2;
+                for k in 0..3 {
+                    for j in 0..3 {
+                        for i in 0..3 {
+                            h.h221[(i, j, k)] = h11[(i, j)]
+                                * (v1[(k)] * tanth - e21[(k)] / t21);
+                            h.h221[(i, j, k)] = h.h221[(i, j, k)]
+                                + v1[(k)] * v1[(j)] * e21[(i)] * tanth / t21;
+                            h.h221[(i, j, k)] = h.h221[(i, j, k)]
+                                - (h11a[(i, j)] * v1[(k)]) / t21;
+                            h.h223[(i, j, k)] = h33[(i, j)]
+                                * (v3[(k)] * tanth - e23[(k)] / t23);
+                            h.h223[(i, j, k)] = h.h223[(i, j, k)]
+                                + v3[(k)] * v3[(j)] * e23[(i)] * tanth / t23;
+                            h.h223[(i, j, k)] = h.h223[(i, j, k)]
+                                - (h33a[(i, j)] * v3[(k)]) / t23;
+                        }
+                    }
+                } // end 12
+                for k in 0..3 {
+                    for j in k..3 {
+                        for i in j..3 {
+                            h.h111[(i, j, k)] = (h.h221[(i, j, k)]
+                                + h.h221[(j, k, i)]
+                                + h.h221[(k, i, j)])
+                                + v1[(i)] * v1[(j)] * v1[(k)]
+                                - h111a[(i, j, k)] * w3;
+                            h.h333[(i, j, k)] = (h.h223[(i, j, k)]
+                                + h.h223[(j, k, i)]
+                                + h.h223[(k, i, j)])
+                                + v3[(i)] * v3[(j)] * v3[(k)]
+                                - h333a[(i, j, k)] * w4;
+                        }
+                    }
+                }
+                h.h111.fill3b();
+                h.h333.fill3b();
+                for i in 0..3 {
+                    let w5 = v1[(i)] * tanth - e21[(i)] * w1;
+                    let w6 = v3[(i)] * tanth - e23[(i)] * w2;
+                    for j in 0..3 {
+                        for k in 0..3 {
+                            h.h221[(i, j, k)] = w5 * h31[(k, j)];
+                            h.h223[(i, j, k)] = w6 * h31[(j, k)];
+                        }
+                    }
+                }
+                let w5 = 1.0 / (costh * costh);
+                for k in 0..3 {
+                    for j in 0..3 {
+                        for i in 0..3 {
+                            h.h113[(i, j, k)] = v3[(k)]
+                                * (v1[(i)] * v1[(j)] - h11a[(i, j)] * w1)
+                                * w5
+                                + h.h221[(i, j, k)]
+                                + h.h221[(j, i, k)];
+                            h.h331[(i, j, k)] = v1[(k)]
+                                * (v3[(i)] * v3[(j)] - h33a[(i, j)] * w2)
+                                * w5
+                                + h.h223[(i, j, k)]
+                                + h.h223[(j, i, k)];
+                        }
+                    }
+                }
+                for k in 0..3 {
+                    for j in 0..3 {
+                        for i in 0..3 {
+                            h.h123[(i, j, k)] =
+                                -(h.h331[(j, k, i)] + h.h113[(i, j, k)]);
+                            h.h112[(i, j, k)] =
+                                -(h.h111[(i, j, k)] + h.h113[(i, j, k)]);
+                            h.h332[(i, j, k)] =
+                                -(h.h333[(i, j, k)] + h.h331[(i, j, k)]);
+                        }
+                    }
+                }
+                for k in 0..3 {
+                    for j in 0..3 {
+                        for i in 0..3 {
+                            h.h221[(j, k, i)] =
+                                -(h.h123[(i, j, k)] + h.h112[(i, k, j)]);
+                            h.h223[(j, k, i)] =
+                                -(h.h332[(i, j, k)] + h.h123[(j, k, i)]);
+                        }
+                    }
+                }
+                for k in 0..3 {
+                    for j in 0..3 {
+                        for i in 0..3 {
+                            h.h222[(i, j, k)] =
+                                -(h.h223[(j, k, i)] + h.h221[(j, k, i)]);
+                        }
+                    }
+                }
+            }
         }
         h
     }

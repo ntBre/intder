@@ -345,6 +345,11 @@ impl Intder {
         3 * self.geom.len()
     }
 
+    /// return the number of dummy atoms
+    pub fn ndum(&self) -> usize {
+        self.input_options[7]
+    }
+
     pub fn print_geom(&self) {
         for atom in &self.geom {
             for c in &atom {
@@ -611,12 +616,6 @@ impl Intder {
                             }
                         }
                     }
-                    // TODO I think this can go after the i loop above
-                    for n in 0..nsym {
-                        for m in 0..n {
-                            x[(n, m)] = x[(m, n)];
-                        }
-                    }
                 }
                 Bend(a, b, c) => {
                     let l1 = 3 * a;
@@ -636,44 +635,7 @@ impl Intder {
                         }
                     }
                     // AHX3
-                    for n in 0..nsym {
-                        for m in 0..=n {
-                            for i in 0..3 {
-                                for j in 0..3 {
-                                    let w1 =
-                                        a_mat[(l1 + i, m)] * a_mat[(l1 + j, n)];
-                                    let w2 =
-                                        a_mat[(l2 + i, m)] * a_mat[(l2 + j, n)];
-                                    let w3 =
-                                        a_mat[(l3 + i, m)] * a_mat[(l3 + j, n)];
-                                    x[(m, n)] += w1 * h.h11[(i, j)]
-                                        + w2 * h.h22[(i, j)]
-                                        + w3 * h.h33[(i, j)];
-                                    let w1 = a_mat[(l2 + i, m)]
-                                        * a_mat[(l1 + j, n)]
-                                        + a_mat[(l1 + j, m)]
-                                            * a_mat[(l2 + i, n)];
-                                    let w2 = a_mat[(l3 + i, m)]
-                                        * a_mat[(l1 + j, n)]
-                                        + a_mat[(l1 + j, m)]
-                                            * a_mat[(l3 + i, n)];
-                                    let w3 = a_mat[(l3 + i, m)]
-                                        * a_mat[(l2 + j, n)]
-                                        + a_mat[(l2 + j, m)]
-                                            * a_mat[(l3 + i, n)];
-                                    x[(m, n)] += w1 * h.h21[(i, j)]
-                                        + w2 * h.h31[(i, j)]
-                                        + w3 * h.h32[(i, j)];
-                                }
-                            }
-                        }
-                    }
-                    // TODO move this into above loop
-                    for n in 0..nsym {
-                        for m in 0..=n {
-                            x[(n, m)] = x[(m, n)];
-                        }
-                    }
+                    ahx3(nsym, a_mat, l1, l2, l3, &mut x, &h);
                 }
                 Torsion(a, b, c, d) => {
                     let l1 = 3 * a;
@@ -754,18 +716,33 @@ impl Intder {
                             }
                         }
                     }
-                    // TODO move this out of the loop, share for all Siic types
-                    for n in 0..nsym {
-                        for m in 0..n {
-                            x[(n, m)] = x[(m, n)];
+                }
+                Lin1(a, b, c, _) => {
+                    let l1 = 3 * a;
+                    let l2 = 3 * b;
+                    let l3 = 3 * c;
+                    for j in 0..3 {
+                        for i in 0..3 {
+                            sr[(l1 + i, l1 + j)] = h.h11[(i, j)];
+                            sr[(l2 + i, l1 + j)] = h.h21[(i, j)];
+                            sr[(l3 + i, l1 + j)] = h.h31[(i, j)];
+                            sr[(l1 + i, l2 + j)] = h.h21[(j, i)];
+                            sr[(l2 + i, l2 + j)] = h.h22[(i, j)];
+                            sr[(l3 + i, l2 + j)] = h.h32[(i, j)];
+                            sr[(l1 + i, l3 + j)] = h.h31[(j, i)];
+                            sr[(l2 + i, l3 + j)] = h.h32[(j, i)];
+                            sr[(l3 + i, l3 + j)] = h.h33[(i, j)];
                         }
                     }
+                    // AHX3
+                    ahx3(nsym, a_mat, l1, l2, l3, &mut x, &h);
                 }
-                Lin1(_, _, _, _) => todo!(),
             }
-            // println!("SR_{} = {:12.8}", i + 1, sr);
-            // println!("X = {:12.8}", x);
-            // println!("U = {:12.8}", u);
+            for n in 0..nsym {
+                for m in 0..=n {
+                    x[(n, m)] = x[(m, n)];
+                }
+            }
             xs_sim.push(x);
             srs_sim.push(sr);
         }
@@ -863,150 +840,9 @@ impl Intder {
                     let l2 = 3 * b;
                     let l3 = 3 * c;
                     // HSRY3
-                    for k in 0..3 {
-                        for j in 0..3 {
-                            for i in 0..3 {
-                                sr[(l1 + i, l1 + j, l1 + k)] =
-                                    h.h111[(i, j, k)];
-                                sr[(l1 + i, l1 + j, l2 + k)] =
-                                    h.h112[(i, j, k)];
-                                sr[(l1 + i, l1 + j, l3 + k)] =
-                                    h.h113[(i, j, k)];
-                                sr[(l1 + i, l2 + j, l1 + k)] =
-                                    h.h112[(i, k, j)];
-                                sr[(l1 + i, l2 + j, l2 + k)] =
-                                    h.h221[(j, k, i)];
-                                sr[(l1 + i, l2 + j, l3 + k)] =
-                                    h.h123[(i, j, k)];
-                                sr[(l2 + i, l2 + j, l1 + k)] =
-                                    h.h221[(i, j, k)];
-                                sr[(l2 + i, l2 + j, l2 + k)] =
-                                    h.h222[(i, j, k)];
-                                sr[(l2 + i, l2 + j, l3 + k)] =
-                                    h.h223[(i, j, k)];
-                                sr[(l2 + i, l1 + j, l1 + k)] =
-                                    h.h112[(j, k, i)];
-                                sr[(l2 + i, l1 + j, l2 + k)] =
-                                    h.h221[(i, k, j)];
-                                sr[(l2 + i, l1 + j, l3 + k)] =
-                                    h.h123[(j, i, k)];
-                                sr[(l1 + i, l3 + j, l1 + k)] =
-                                    h.h113[(i, k, j)];
-                                sr[(l1 + i, l3 + j, l2 + k)] =
-                                    h.h123[(i, k, j)];
-                                sr[(l1 + i, l3 + j, l3 + k)] =
-                                    h.h331[(j, k, i)];
-                                sr[(l2 + i, l3 + j, l1 + k)] =
-                                    h.h123[(k, i, j)];
-                                sr[(l2 + i, l3 + j, l2 + k)] =
-                                    h.h223[(i, k, j)];
-                                sr[(l2 + i, l3 + j, l3 + k)] =
-                                    h.h332[(j, k, i)];
-                                sr[(l3 + i, l1 + j, l1 + k)] =
-                                    h.h113[(j, k, i)];
-                                sr[(l3 + i, l1 + j, l2 + k)] =
-                                    h.h123[(j, k, i)];
-                                sr[(l3 + i, l1 + j, l3 + k)] =
-                                    h.h331[(i, k, j)];
-                                sr[(l3 + i, l2 + j, l1 + k)] =
-                                    h.h123[(k, j, i)];
-                                sr[(l3 + i, l2 + j, l2 + k)] =
-                                    h.h223[(j, k, i)];
-                                sr[(l3 + i, l2 + j, l3 + k)] =
-                                    h.h332[(i, k, j)];
-                                sr[(l3 + i, l3 + j, l1 + k)] =
-                                    h.h331[(i, j, k)];
-                                sr[(l3 + i, l3 + j, l2 + k)] =
-                                    h.h332[(i, j, k)];
-                                sr[(l3 + i, l3 + j, l3 + k)] =
-                                    h.h333[(i, j, k)];
-                            }
-                        }
-                    }
+                    hsry3(&mut sr, l1, &h, l2, l3);
                     // AHY3
-                    for p in 0..nsx {
-                        for n in 0..=p {
-                            for m in 0..=n {
-                                for i in 0..3 {
-                                    for j in 0..3 {
-                                        let v1 = a_mat[(l1 + i, m)]
-                                            * a_mat[(l1 + j, n)];
-                                        let v2 = a_mat[(l2 + i, m)]
-                                            * a_mat[(l2 + j, n)];
-                                        let v3 = a_mat[(l3 + i, m)]
-                                            * a_mat[(l3 + j, n)];
-                                        let v4 = a_mat[(l1 + i, m)]
-                                            * a_mat[(l1 + j, p)];
-                                        let v5 = a_mat[(l1 + i, n)]
-                                            * a_mat[(l1 + j, p)];
-                                        let v6 = a_mat[(l2 + i, m)]
-                                            * a_mat[(l2 + j, p)];
-                                        let v7 = a_mat[(l2 + i, n)]
-                                            * a_mat[(l2 + j, p)];
-                                        let v8 = a_mat[(l3 + i, m)]
-                                            * a_mat[(l3 + j, p)];
-                                        let v9 = a_mat[(l3 + i, n)]
-                                            * a_mat[(l3 + j, p)];
-                                        let v10 = a_mat[(l1 + i, m)]
-                                            * a_mat[(l2 + j, n)];
-                                        let v11 = a_mat[(l1 + i, m)]
-                                            * a_mat[(l2 + j, p)];
-                                        let v12 = a_mat[(l1 + i, n)]
-                                            * a_mat[(l2 + j, m)];
-                                        let v13 = a_mat[(l1 + i, n)]
-                                            * a_mat[(l2 + j, p)];
-                                        let v14 = a_mat[(l1 + i, p)]
-                                            * a_mat[(l2 + j, m)];
-                                        let v15 = a_mat[(l1 + i, p)]
-                                            * a_mat[(l2 + j, n)];
-                                        for k in 0..3 {
-                                            let w1 = v1 * a_mat[(l1 + k, p)];
-                                            let w2 = v2 * a_mat[(l2 + k, p)];
-                                            let w3 = v3 * a_mat[(l3 + k, p)];
-                                            y[(m, n, p)] = y[(m, n, p)]
-                                                + w1 * h.h111[(i, j, k)]
-                                                + w2 * h.h222[(i, j, k)]
-                                                + w3 * h.h333[(i, j, k)];
-                                            let w1 = v1 * a_mat[(l2 + k, p)]
-                                                + v4 * a_mat[(l2 + k, n)]
-                                                + v5 * a_mat[(l2 + k, m)];
-                                            let w2 = v1 * a_mat[(l3 + k, p)]
-                                                + v4 * a_mat[(l3 + k, n)]
-                                                + v5 * a_mat[(l3 + k, m)];
-                                            let w3 = v3 * a_mat[(l2 + k, p)]
-                                                + v8 * a_mat[(l2 + k, n)]
-                                                + v9 * a_mat[(l2 + k, m)];
-                                            let w4 = v3 * a_mat[(l1 + k, p)]
-                                                + v8 * a_mat[(l1 + k, n)]
-                                                + v9 * a_mat[(l1 + k, m)];
-                                            let w5 = v2 * a_mat[(l1 + k, p)]
-                                                + v6 * a_mat[(l1 + k, n)]
-                                                + v7 * a_mat[(l1 + k, m)];
-                                            let w6 = v2 * a_mat[(l3 + k, p)]
-                                                + v6 * a_mat[(l3 + k, n)]
-                                                + v7 * a_mat[(l3 + k, m)];
-                                            y[(m, n, p)] = y[(m, n, p)]
-                                                + w1 * h.h112[(i, j, k)]
-                                                + w2 * h.h113[(i, j, k)]
-                                                + w3 * h.h332[(i, j, k)];
-                                            y[(m, n, p)] = y[(m, n, p)]
-                                                + w4 * h.h331[(i, j, k)]
-                                                + w5 * h.h221[(i, j, k)]
-                                                + w6 * h.h223[(i, j, k)];
-                                            let w1 = a_mat[(l3 + k, p)]
-                                                * (v10 + v12)
-                                                + a_mat[(l3 + k, n)]
-                                                    * (v11 + v14)
-                                                + a_mat[(l3 + k, m)]
-                                                    * (v13 + v15);
-                                            y[(m, n, p)] = y[(m, n, p)]
-                                                + w1 * h.h123[(i, j, k)];
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    ahy3(nsx, a_mat, l1, l2, l3, &mut y, &h);
                 }
                 Torsion(a, b, c, d) => {
                     let l1 = 3 * a;
@@ -1314,7 +1150,15 @@ impl Intder {
                         }
                     }
                 }
-                Lin1(_, _, _, _) => todo!(),
+                Lin1(a, b, c, _) => {
+                    let l1 = 3 * a;
+                    let l2 = 3 * b;
+                    let l3 = 3 * c;
+                    // HSRY3
+                    hsry3(&mut sr, l1, &h, l2, l3);
+                    // AHY3
+                    ahy3(nsx, a_mat, l1, l2, l3, &mut y, &h);
+                }
             }
             y.fill3a(nsx);
             ys_sim.push(y);
@@ -1396,7 +1240,7 @@ impl Intder {
     }
 
     fn lintr_fc2(&self, a: &DMat) -> DMat {
-        let nsx = 3 * self.geom.len();
+        let nsx = self.ncart() - 3 * self.ndum();
         let nsy = self.symmetry_internals.len();
         let v = self.flatten_fc2(nsy);
         let xs = {
@@ -1419,11 +1263,12 @@ impl Intder {
                 f2[(n, m)] = f2[(m, n)];
             }
         }
-        f2 * ANGBOHR * ANGBOHR / HART
+        let f2 = f2 * ANGBOHR * ANGBOHR / HART;
+        f2.resize(nsx, nsx, 0.0)
     }
 
     pub fn lintr_fc3(&self, a: &DMat) -> Tensor3 {
-        let nsx = self.ncart();
+        let nsx = self.ncart() - 3 * self.ndum();
         let nsy = self.nsym();
         let v = &self.fc3;
         let mut i = 0;
@@ -1563,7 +1408,7 @@ impl Intder {
     }
 
     pub fn lintr_fc4(&self, a: &DMat) -> Tensor4 {
-        let nsx = self.ncart();
+        let nsx = self.ncart() - 3 * self.ndum();
         let nsy = self.nsym();
         let v = &self.fc4;
         let mut i = 0;
@@ -1843,7 +1688,7 @@ impl Intder {
         xrs: &Vec<DMat>,
     ) -> (Tensor3, Tensor4) {
         let ns = self.symmetry_internals.len();
-        let nc = 3 * self.geom.len();
+        let nc = self.ncart() - 3 * self.ndum();
         let v = self.mat_fc2(ns);
         let xs = v * bs;
         for (r, xr) in xrs.iter().enumerate() {
@@ -1897,7 +1742,7 @@ impl Intder {
 
     fn xf3(&self, mut f4: Tensor4, bs: &DMat, xrs: &Vec<DMat>) -> Tensor4 {
         let ns = self.nsym();
-        let nc = self.ncart();
+        let nc = self.ncart() - 3 * self.ndum();
         // might need to turn this into a Tensor3 and call FILL3B on it, but
         // we'll see
         let yr = &self.fc3;
@@ -1945,7 +1790,7 @@ impl Intder {
     }
 
     fn yf2(&self, mut f4: Tensor4, bs: &DMat, yrs: &Vec<Tensor3>) -> Tensor4 {
-        let nc = self.ncart();
+        let nc = self.ncart() - 3 * self.ndum();
         let ns = self.nsym();
         let xs = self.mat_fc2(ns);
         let xr = xs * bs;
@@ -1985,7 +1830,7 @@ impl Intder {
 
         // convert f3 to the proper units and return it as a Vec in the order
         // desired by spectro
-        let nsx = self.ncart();
+        let nsx = self.ncart() - 3 * self.ndum();
         const CF3: f64 = ANGBOHR * ANGBOHR * ANGBOHR / HART;
         let mut f3_out = Vec::new();
         for m in 0..nsx {
@@ -2014,8 +1859,7 @@ impl Intder {
 
     /// convert the force constants in `self.fc[234]` from (symmetry) internal
     /// coordinates to Cartesian coordinates. returns (fc2, fc3, fc4) in the
-    /// order printed in the fort.{15,30,40} files for spectro. TODO - for now
-    /// it just returns (fc2)
+    /// order printed in the fort.{15,30,40} files for spectro.
     pub fn convert_fcs(&self) -> (DMat, Vec<f64>, Vec<f64>) {
         if unsafe { VERBOSE } {
             self.print_init();
@@ -2041,6 +1885,152 @@ impl Intder {
                     write!(f, "{:>20.10}", c).unwrap();
                 }
                 writeln!(f).unwrap();
+            }
+        }
+    }
+}
+
+fn ahy3(
+    nsx: usize,
+    a_mat: &DMat,
+    l1: usize,
+    l2: usize,
+    l3: usize,
+    y: &mut Tensor3,
+    h: &Htens,
+) {
+    for p in 0..nsx {
+        for n in 0..=p {
+            for m in 0..=n {
+                for i in 0..3 {
+                    for j in 0..3 {
+                        let v1 = a_mat[(l1 + i, m)] * a_mat[(l1 + j, n)];
+                        let v2 = a_mat[(l2 + i, m)] * a_mat[(l2 + j, n)];
+                        let v3 = a_mat[(l3 + i, m)] * a_mat[(l3 + j, n)];
+                        let v4 = a_mat[(l1 + i, m)] * a_mat[(l1 + j, p)];
+                        let v5 = a_mat[(l1 + i, n)] * a_mat[(l1 + j, p)];
+                        let v6 = a_mat[(l2 + i, m)] * a_mat[(l2 + j, p)];
+                        let v7 = a_mat[(l2 + i, n)] * a_mat[(l2 + j, p)];
+                        let v8 = a_mat[(l3 + i, m)] * a_mat[(l3 + j, p)];
+                        let v9 = a_mat[(l3 + i, n)] * a_mat[(l3 + j, p)];
+                        let v10 = a_mat[(l1 + i, m)] * a_mat[(l2 + j, n)];
+                        let v11 = a_mat[(l1 + i, m)] * a_mat[(l2 + j, p)];
+                        let v12 = a_mat[(l1 + i, n)] * a_mat[(l2 + j, m)];
+                        let v13 = a_mat[(l1 + i, n)] * a_mat[(l2 + j, p)];
+                        let v14 = a_mat[(l1 + i, p)] * a_mat[(l2 + j, m)];
+                        let v15 = a_mat[(l1 + i, p)] * a_mat[(l2 + j, n)];
+                        for k in 0..3 {
+                            let w1 = v1 * a_mat[(l1 + k, p)];
+                            let w2 = v2 * a_mat[(l2 + k, p)];
+                            let w3 = v3 * a_mat[(l3 + k, p)];
+                            y[(m, n, p)] = y[(m, n, p)]
+                                + w1 * h.h111[(i, j, k)]
+                                + w2 * h.h222[(i, j, k)]
+                                + w3 * h.h333[(i, j, k)];
+                            let w1 = v1 * a_mat[(l2 + k, p)]
+                                + v4 * a_mat[(l2 + k, n)]
+                                + v5 * a_mat[(l2 + k, m)];
+                            let w2 = v1 * a_mat[(l3 + k, p)]
+                                + v4 * a_mat[(l3 + k, n)]
+                                + v5 * a_mat[(l3 + k, m)];
+                            let w3 = v3 * a_mat[(l2 + k, p)]
+                                + v8 * a_mat[(l2 + k, n)]
+                                + v9 * a_mat[(l2 + k, m)];
+                            let w4 = v3 * a_mat[(l1 + k, p)]
+                                + v8 * a_mat[(l1 + k, n)]
+                                + v9 * a_mat[(l1 + k, m)];
+                            let w5 = v2 * a_mat[(l1 + k, p)]
+                                + v6 * a_mat[(l1 + k, n)]
+                                + v7 * a_mat[(l1 + k, m)];
+                            let w6 = v2 * a_mat[(l3 + k, p)]
+                                + v6 * a_mat[(l3 + k, n)]
+                                + v7 * a_mat[(l3 + k, m)];
+                            y[(m, n, p)] = y[(m, n, p)]
+                                + w1 * h.h112[(i, j, k)]
+                                + w2 * h.h113[(i, j, k)]
+                                + w3 * h.h332[(i, j, k)];
+                            y[(m, n, p)] = y[(m, n, p)]
+                                + w4 * h.h331[(i, j, k)]
+                                + w5 * h.h221[(i, j, k)]
+                                + w6 * h.h223[(i, j, k)];
+                            let w1 = a_mat[(l3 + k, p)] * (v10 + v12)
+                                + a_mat[(l3 + k, n)] * (v11 + v14)
+                                + a_mat[(l3 + k, m)] * (v13 + v15);
+                            y[(m, n, p)] =
+                                y[(m, n, p)] + w1 * h.h123[(i, j, k)];
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn hsry3(sr: &mut Tensor3, l1: usize, h: &Htens, l2: usize, l3: usize) {
+    for k in 0..3 {
+        for j in 0..3 {
+            for i in 0..3 {
+                sr[(l1 + i, l1 + j, l1 + k)] = h.h111[(i, j, k)];
+                sr[(l1 + i, l1 + j, l2 + k)] = h.h112[(i, j, k)];
+                sr[(l1 + i, l1 + j, l3 + k)] = h.h113[(i, j, k)];
+                sr[(l1 + i, l2 + j, l1 + k)] = h.h112[(i, k, j)];
+                sr[(l1 + i, l2 + j, l2 + k)] = h.h221[(j, k, i)];
+                sr[(l1 + i, l2 + j, l3 + k)] = h.h123[(i, j, k)];
+                sr[(l2 + i, l2 + j, l1 + k)] = h.h221[(i, j, k)];
+                sr[(l2 + i, l2 + j, l2 + k)] = h.h222[(i, j, k)];
+                sr[(l2 + i, l2 + j, l3 + k)] = h.h223[(i, j, k)];
+                sr[(l2 + i, l1 + j, l1 + k)] = h.h112[(j, k, i)];
+                sr[(l2 + i, l1 + j, l2 + k)] = h.h221[(i, k, j)];
+                sr[(l2 + i, l1 + j, l3 + k)] = h.h123[(j, i, k)];
+                sr[(l1 + i, l3 + j, l1 + k)] = h.h113[(i, k, j)];
+                sr[(l1 + i, l3 + j, l2 + k)] = h.h123[(i, k, j)];
+                sr[(l1 + i, l3 + j, l3 + k)] = h.h331[(j, k, i)];
+                sr[(l2 + i, l3 + j, l1 + k)] = h.h123[(k, i, j)];
+                sr[(l2 + i, l3 + j, l2 + k)] = h.h223[(i, k, j)];
+                sr[(l2 + i, l3 + j, l3 + k)] = h.h332[(j, k, i)];
+                sr[(l3 + i, l1 + j, l1 + k)] = h.h113[(j, k, i)];
+                sr[(l3 + i, l1 + j, l2 + k)] = h.h123[(j, k, i)];
+                sr[(l3 + i, l1 + j, l3 + k)] = h.h331[(i, k, j)];
+                sr[(l3 + i, l2 + j, l1 + k)] = h.h123[(k, j, i)];
+                sr[(l3 + i, l2 + j, l2 + k)] = h.h223[(j, k, i)];
+                sr[(l3 + i, l2 + j, l3 + k)] = h.h332[(i, k, j)];
+                sr[(l3 + i, l3 + j, l1 + k)] = h.h331[(i, j, k)];
+                sr[(l3 + i, l3 + j, l2 + k)] = h.h332[(i, j, k)];
+                sr[(l3 + i, l3 + j, l3 + k)] = h.h333[(i, j, k)];
+            }
+        }
+    }
+}
+
+fn ahx3(
+    nsym: usize,
+    a_mat: &DMat,
+    l1: usize,
+    l2: usize,
+    l3: usize,
+    x: &mut DMat,
+    h: &Hmat,
+) {
+    for n in 0..nsym {
+        for m in 0..=n {
+            for i in 0..3 {
+                for j in 0..3 {
+                    let w1 = a_mat[(l1 + i, m)] * a_mat[(l1 + j, n)];
+                    let w2 = a_mat[(l2 + i, m)] * a_mat[(l2 + j, n)];
+                    let w3 = a_mat[(l3 + i, m)] * a_mat[(l3 + j, n)];
+                    x[(m, n)] += w1 * h.h11[(i, j)]
+                        + w2 * h.h22[(i, j)]
+                        + w3 * h.h33[(i, j)];
+                    let w1 = a_mat[(l2 + i, m)] * a_mat[(l1 + j, n)]
+                        + a_mat[(l1 + j, m)] * a_mat[(l2 + i, n)];
+                    let w2 = a_mat[(l3 + i, m)] * a_mat[(l1 + j, n)]
+                        + a_mat[(l1 + j, m)] * a_mat[(l3 + i, n)];
+                    let w3 = a_mat[(l3 + i, m)] * a_mat[(l2 + j, n)]
+                        + a_mat[(l2 + j, m)] * a_mat[(l3 + i, n)];
+                    x[(m, n)] += w1 * h.h21[(i, j)]
+                        + w2 * h.h31[(i, j)]
+                        + w3 * h.h32[(i, j)];
+                }
             }
         }
     }
