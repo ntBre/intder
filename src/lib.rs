@@ -1,6 +1,7 @@
 use std::{
+    fmt::Display,
     fs::File,
-    io::{BufRead, BufReader, Read, Write}, fmt::Display,
+    io::{BufRead, BufReader, Read, Write},
 };
 
 pub mod geom;
@@ -114,14 +115,14 @@ pub struct Atom {
 impl Display for Intder {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "# INTDER ###############")?;
-	for (i, op) in self.input_options.iter().enumerate() {
-	    if i == 16 {
-		writeln!(f)?;
-	    }
-	    write!(f, "{:5}", op)?;
-	}
-	writeln!(f)?;
-	Ok(())
+        for (i, op) in self.input_options.iter().enumerate() {
+            if i == 16 {
+                writeln!(f)?;
+            }
+            write!(f, "{:5}", op)?;
+        }
+        writeln!(f)?;
+        Ok(())
     }
 }
 
