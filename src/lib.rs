@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::{BufRead, BufReader, Read, Write},
+    io::{BufRead, BufReader, Read, Write}, fmt::Display,
 };
 
 pub mod geom;
@@ -109,6 +109,20 @@ impl Siic {
 pub struct Atom {
     pub label: String,
     pub weight: usize,
+}
+
+impl Display for Intder {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "# INTDER ###############")?;
+	for (i, op) in self.input_options.iter().enumerate() {
+	    if i == 16 {
+		writeln!(f)?;
+	    }
+	    write!(f, "{:5}", op)?;
+	}
+	writeln!(f)?;
+	Ok(())
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
