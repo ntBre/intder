@@ -1,4 +1,4 @@
-use std::ops::Index;
+use std::{fmt::Display, ops::Index};
 
 use crate::{DVec, Siic, Vec3, ANGBOHR};
 
@@ -194,5 +194,14 @@ impl Index<usize> for Geom {
 
     fn index(&self, index: usize) -> &Self::Output {
         &self.0[index]
+    }
+}
+
+impl Display for Geom {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for atom in &self.0 {
+            writeln!(f, "{:12.8}{:12.8}{:12.8}", atom[0], atom[1], atom[2])?;
+        }
+        Ok(())
     }
 }
