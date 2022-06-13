@@ -14,6 +14,7 @@ use hmat::Hmat;
 use htens::Htens;
 use nalgebra as na;
 use regex::Regex;
+use symm::Irrep;
 use tensor::{Tensor3, Tensor4};
 
 /// from <https://physics.nist.gov/cgi-bin/cuu/Value?bohrrada0>
@@ -47,6 +48,23 @@ pub enum Siic {
     /// linear bend of atoms `i`, `j`, and `k`, about `d`, a dummy atom
     /// perpendicular to the line `i`-`j`-`k` and extending from atom `j`
     Lin1(usize, usize, usize, usize),
+}
+
+impl Display for Siic {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self {
+            Siic::Stretch(i, j) => write!(f, "r({}-{})", i + 1, j + 1),
+            Siic::Bend(i, j, k) => {
+                write!(f, "∠({}-{}-{})", i + 1, j + 1, k + 1)
+            }
+            Siic::Torsion(i, j, k, l) => {
+                write!(f, "τ({}-{}-{}-{})", i + 1, j + 1, k + 1, l + 1)
+            }
+            Siic::Lin1(i, j, k, l) => {
+                write!(f, "LIN({}-{}-{}-{})", i + 1, j + 1, k + 1, l + 1)
+            }
+        }
+    }
 }
 
 impl Siic {
@@ -376,7 +394,7 @@ impl Intder {
 
     /// print the simple internal coordinate values, assuming that vals are in
     /// the same order as self.simple_internals for unit purposes
-    pub fn print_simple(&self, vals: &[f64]) {
+    pub fn print_simple_values(&self, vals: &[f64]) {
         for (i, v) in vals.iter().enumerate() {
             if let Siic::Bend(_, _, _) = self.simple_internals[i] {
                 println!("{:5}{:>18.10}", i, v.to_degrees());
@@ -387,9 +405,33 @@ impl Intder {
     }
 
     /// print the symmetry internal coordinate values
-    pub fn print_symmetry(&self, vals: &[f64]) {
+    pub fn print_symmetry_values(&self, vals: &[f64]) {
         for (i, v) in vals.iter().enumerate() {
             println!("{:5}{:>18.10}", i, v);
+        }
+    }
+
+    pub fn print_sics<W: std::io::Write>(&self, w: &mut W, irreps: &[Irrep]) {
+        assert_eq!(self.symmetry_internals.len(), irreps.len());
+        for (i, sic) in self.symmetry_internals.iter().enumerate() {
+            write!(w, "S{i:<2}({}) = ", irreps[i]).unwrap();
+            // number of siics printed so far
+            let mut nprt = 0;
+            for (j, s) in sic.iter().enumerate() {
+                if *s != 0.0 {
+                    if nprt > 0 {
+                        let sign = match s.signum() as isize {
+                            -1 => "-",
+                            1 => "+",
+                            _ => panic!("it's NaN"),
+                        };
+                        write!(w, " {sign} ").unwrap();
+                    }
+                    write!(w, "{}", &self.simple_internals[j]).unwrap();
+                    nprt += 1;
+                }
+            }
+            writeln!(w).unwrap();
         }
     }
 
@@ -478,13 +520,13 @@ impl Intder {
         "VALUES OF SIMPLE INTERNAL COORDINATES (ANG. or DEG.) FOR REFERENCE \
 	     GEOMETRY\n"
     );
-        self.print_simple(&simple_vals);
+        self.print_simple_values(&simple_vals);
         println!();
         println!(
         "VALUES OF SYMMETRY INTERNAL COORDINATES (ANG. or RAD.) FOR REFERENCE \
 	     GEOMETRY\n"
     );
-        self.print_symmetry(&sic_vals);
+        self.print_symmetry_values(&sic_vals);
         println!();
         println!();
     }
@@ -524,7 +566,7 @@ impl Intder {
                 }
                 println!();
                 println!("SYMMETRY INTERNAL COORDINATE FINAL VALUES\n");
-                self.print_symmetry(sic_desired.as_slice());
+                self.print_symmetry_values(sic_desired.as_slice());
                 println!();
             }
 
