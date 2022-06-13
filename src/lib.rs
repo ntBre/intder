@@ -132,6 +132,7 @@ pub struct Atom {
 
 impl Display for Intder {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use Siic::*;
         writeln!(f, "# INTDER ###############")?;
         for (i, op) in self.input_options.iter().enumerate() {
             if i == 16 {
@@ -140,6 +141,60 @@ impl Display for Intder {
             write!(f, "{:5}", op)?;
         }
         writeln!(f)?;
+        for siic in &self.simple_internals {
+            match siic {
+                Stretch(i, j) => {
+                    writeln!(f, "{:<6}{:5}{:5}", "STRE", i + 1, j + 1)?
+                }
+                Bend(i, j, k) => writeln!(
+                    f,
+                    "{:<6}{:5}{:5}{:5}",
+                    "BEND",
+                    i + 1,
+                    j + 1,
+                    k + 1
+                )?,
+                Torsion(i, j, k, l) => writeln!(
+                    f,
+                    "{:<6}{:5}{:5}{:5}{:5}",
+                    "TORS",
+                    i + 1,
+                    j + 1,
+                    k + 1,
+                    l + 1
+                )?,
+                Lin1(i, j, k, l) => writeln!(
+                    f,
+                    "{:<6}{:5}{:5}{:5}{:5}",
+                    "LIN1",
+                    i + 1,
+                    j + 1,
+                    k + 1,
+                    l + 1
+                )?,
+            }
+        }
+        for (i, sic) in self.symmetry_internals.iter().enumerate() {
+            write!(f, "{:5}", i)?;
+            for (j, s) in sic.iter().enumerate() {
+                if *s != 0.0 {
+                    let sign = s.signum();
+                    write!(f, "{:4}{:14.9}", j + 1, sign)?;
+                }
+            }
+            writeln!(f)?;
+        }
+        writeln!(f, "{:5}", 0)?;
+        write!(f, "{}", self.geom)?;
+        writeln!(f, "DISP{:5}", self.disps.len())?;
+        for disp in &self.disps {
+            for (i, d) in disp.iter().enumerate() {
+                if *d != 0.0 {
+                    writeln!(f, "{:5}{:20.10}", i + 1, d)?;
+                }
+            }
+            writeln!(f, "{:5}", 0)?;
+        }
         Ok(())
     }
 }

@@ -200,7 +200,7 @@ impl Index<usize> for Geom {
 impl Display for Geom {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for atom in &self.0 {
-            writeln!(f, "{:12.8}{:12.8}{:12.8}", atom[0], atom[1], atom[2])?;
+            writeln!(f, "{:20.10}{:20.10}{:20.10}", atom[0], atom[1], atom[2])?;
         }
         Ok(())
     }
