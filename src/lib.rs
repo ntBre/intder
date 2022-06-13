@@ -144,11 +144,11 @@ impl Display for Intder {
         for siic in &self.simple_internals {
             match siic {
                 Stretch(i, j) => {
-                    writeln!(f, "{:<6}{:5}{:5}", "STRE", i + 1, j + 1)?
+                    writeln!(f, "{:<5}{:5}{:5}", "STRE", i + 1, j + 1)?
                 }
                 Bend(i, j, k) => writeln!(
                     f,
-                    "{:<6}{:5}{:5}{:5}",
+                    "{:<5}{:5}{:5}{:5}",
                     "BEND",
                     i + 1,
                     j + 1,
@@ -156,7 +156,7 @@ impl Display for Intder {
                 )?,
                 Torsion(i, j, k, l) => writeln!(
                     f,
-                    "{:<6}{:5}{:5}{:5}{:5}",
+                    "{:<5}{:5}{:5}{:5}{:5}",
                     "TORS",
                     i + 1,
                     j + 1,
@@ -165,7 +165,7 @@ impl Display for Intder {
                 )?,
                 Lin1(i, j, k, l) => writeln!(
                     f,
-                    "{:<6}{:5}{:5}{:5}{:5}",
+                    "{:<5}{:5}{:5}{:5}{:5}",
                     "LIN1",
                     i + 1,
                     j + 1,
@@ -175,7 +175,7 @@ impl Display for Intder {
             }
         }
         for (i, sic) in self.symmetry_internals.iter().enumerate() {
-            write!(f, "{:5}", i)?;
+            write!(f, "{:5}", i + 1)?;
             for (j, s) in sic.iter().enumerate() {
                 if *s != 0.0 {
                     let sign = s.signum();
