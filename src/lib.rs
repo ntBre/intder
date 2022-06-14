@@ -186,11 +186,55 @@ impl Display for Intder {
         }
         writeln!(f, "{:5}", 0)?;
         write!(f, "{}", self.geom)?;
-        writeln!(f, "DISP{:5}", self.disps.len())?;
-        for disp in &self.disps {
-            for (i, d) in disp.iter().enumerate() {
-                if *d != 0.0 {
-                    writeln!(f, "{:5}{:20.10}", i + 1, d)?;
+        if !self.disps.is_empty() {
+            writeln!(f, "DISP{:5}", self.disps.len())?;
+            for disp in &self.disps {
+                for (i, d) in disp.iter().enumerate() {
+                    if *d != 0.0 {
+                        writeln!(f, "{:5}{:20.10}", i + 1, d)?;
+                    }
+                }
+                writeln!(f, "{:5}", 0)?;
+            }
+        } else {
+            // assume freqs
+            let nsic = self.symmetry_internals.len();
+            for i in 1..=nsic {
+                for j in 1..=i {
+                    if let Some(v) = self.fc2.get(fc2_index(nsic, i, j)) {
+                        writeln!(f, "{:5}{:5}{:5}{:5}{:20.12}", i, j, 0, 0, v)?;
+                    }
+                }
+            }
+            writeln!(f, "{:5}", 0)?;
+            for i in 1..=nsic {
+                for j in 1..=i {
+                    for k in 1..=j {
+                        if let Some(v) = self.fc3.get(fc3_index(i, j, k)) {
+                            writeln!(
+                                f,
+                                "{:5}{:5}{:5}{:5}{:20.12}",
+                                i, j, k, 0, v,
+                            )?;
+                        }
+                    }
+                }
+            }
+            writeln!(f, "{:5}", 0)?;
+            for i in 1..=nsic {
+                for j in 1..=i {
+                    for k in 1..=j {
+                        for l in 1..=k {
+                            if let Some(v) = self.fc4.get(fc4_index(i, j, k, l))
+                            {
+                                writeln!(
+                                    f,
+                                    "{:5}{:5}{:5}{:5}{:20.12}",
+                                    i, j, k, l, v
+                                )?;
+                            }
+                        }
+                    }
                 }
             }
             writeln!(f, "{:5}", 0)?;
