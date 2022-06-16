@@ -2038,7 +2038,7 @@ impl Intder {
                 .expect("failed to create fort.15");
             for chunk in p.0.chunks(3) {
                 for c in chunk {
-                    write!(f, "{:>20.10}", c).unwrap();
+                    write!(f, " {:>19.10}", c).unwrap();
                 }
                 writeln!(f).unwrap();
             }
