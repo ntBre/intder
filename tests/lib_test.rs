@@ -337,6 +337,10 @@ fn test_convert_disps() {
             infile: "testfiles/c2h2.in",
             wantfile: "testfiles/c2h2.07",
         },
+        Test {
+            infile: "testfiles/h2co.in",
+            wantfile: "testfiles/h2co.07",
+        },
     ];
     for test in tests {
         let intder = Intder::load_file(test.infile);

@@ -130,6 +130,51 @@ impl Geom {
                     tmp[3 * b + i] = -(-v1i + v3i);
                 }
             }
+            Siic::Out(a, b, c, d) => {
+                let e21 = self.unit(*a, *b);
+                let e23 = self.unit(*c, *b);
+                let e24 = self.unit(*d, *b);
+                let t21 = self.dist(*a, *b);
+                let t23 = self.dist(*c, *b);
+                let t24 = self.dist(*d, *b);
+                let v5 = e23.cross(&e24);
+                let w1 = e21.dot(&e23);
+                let w2 = e21.dot(&e24);
+                let phi = self.angle(*c, *b, *d);
+                let sphi = phi.sin();
+                let w = e21.dot(&v5);
+                let w = (w / sphi).asin();
+                let w = if w1 + w2 > 0.0 {
+                    std::f64::consts::PI.copysign(w) - w
+                } else {
+                    w
+                };
+                let cg = w.cos();
+                let sg = w.sin();
+                let tg = sg / cg;
+                let w1 = cg * sphi;
+                let w2 = 1.0 / (t21 * w1);
+                let w3 = tg / t21;
+                let w4 = 1.0 / (t23 * w1);
+                let w5 = t24 * sg * w4;
+                let w6 = 1.0 / (t24 * w1);
+                let w7 = t23 * sg * w6;
+                let v6 = e24.cross(&e21);
+                let v7 = e21.cross(&e23);
+                let svec = self.s_vec(&Siic::Bend(*c, *b, *d));
+                let b3p = &svec[3 * c..3 * c + 3];
+                let b4p = &svec[3 * d..3 * d + 3];
+                for i in 0..3 {
+                    // V1, V3, V4, V2 in VECT5
+                    let v1i = v5[i] * w2 - e21[i] * w3;
+                    let v3i = v6[i] * w4 - b4p[i] * w5;
+                    let v4i = v7[i] * w6 - b3p[i] * w7;
+                    tmp[3 * a + i] = v1i;
+                    tmp[3 * c + i] = v3i;
+                    tmp[3 * d + i] = v4i;
+                    tmp[3 * b + i] = -v1i - v3i - v4i;
+                }
+            }
         }
         tmp
     }

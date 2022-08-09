@@ -48,6 +48,9 @@ pub enum Siic {
     /// linear bend of atoms `i`, `j`, and `k`, about `d`, a dummy atom
     /// perpendicular to the line `i`-`j`-`k` and extending from atom `j`
     Lin1(usize, usize, usize, usize),
+
+    /// bend of atom `i` out of the plane formed by atoms `j`, `k`, and `l`
+    Out(usize, usize, usize, usize),
 }
 
 impl Display for Siic {
@@ -62,6 +65,9 @@ impl Display for Siic {
             }
             Siic::Lin1(i, j, k, l) => {
                 write!(f, "LIN({}-{}-{}-{})", i + 1, j + 1, k + 1, l + 1)
+            }
+            Siic::Out(i, j, k, l) => {
+                write!(f, "OUT({}-{}-{}-{})", i + 1, j + 1, k + 1, l + 1)
             }
         }
     }
@@ -120,6 +126,26 @@ impl Siic {
                 let w = f64::asin(stheta);
                 w
             }
+            // vect4
+            Out(a, b, c, d) => {
+                let e21 = geom.unit(*a, *b);
+                let e23 = geom.unit(*c, *b);
+                let e24 = geom.unit(*d, *b);
+                let v5 = e23.cross(&e24);
+                let w1 = e21.dot(&e23);
+                let w2 = e21.dot(&e24);
+                let phi = geom.angle(*c, *b, *d);
+                let sphi = phi.sin();
+                let w = e21.dot(&v5);
+                let w = (w / sphi).asin();
+                let res = if w1 + w2 > 0.0 {
+                    std::f64::consts::PI.copysign(w) - w
+                } else {
+                    w
+                };
+                // TODO negative again for some reason
+                -res
+            }
         }
     }
 }
@@ -172,6 +198,7 @@ impl Display for Intder {
                     k + 1,
                     l + 1
                 )?,
+                Out(_, _, _, _) => todo!(),
             }
         }
         for (i, sic) in self.symmetry_internals.iter().enumerate() {
@@ -339,9 +366,14 @@ impl Intder {
                 sp[3].parse::<usize>().unwrap() - 1,
                 sp[4].parse::<usize>().unwrap() - 1,
             ),
+            "OUT" => Siic::Out(
+                sp[1].parse::<usize>().unwrap() - 1,
+                sp[2].parse::<usize>().unwrap() - 1,
+                sp[3].parse::<usize>().unwrap() - 1,
+                sp[4].parse::<usize>().unwrap() - 1,
+            ),
             e => {
-                eprintln!("unknown coordinate type '{}'", e);
-                std::process::exit(1);
+                panic!("unknown coordinate type '{}'", e);
             }
         }
     }
@@ -894,6 +926,7 @@ impl Intder {
                     // AHX3
                     ahx3(nsym, a_mat, l1, l2, l3, &mut x, &h);
                 }
+                Out(_, _, _, _) => todo!(),
             }
             for n in 0..nsym {
                 for m in 0..=n {
@@ -1316,6 +1349,7 @@ impl Intder {
                     // AHY3
                     ahy3(nsx, a_mat, l1, l2, l3, &mut y, &h);
                 }
+                Out(_, _, _, _) => todo!(),
             }
             y.fill3a(nsx);
             ys_sim.push(y);
