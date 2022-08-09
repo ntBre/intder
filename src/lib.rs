@@ -401,15 +401,16 @@ impl Intder {
                     }
                     i_max += 1;
                 }
-                match i_max {
-                    2 => (),
-                    4 => {
-                        for t in &mut tmp {
-                            *t *= std::f64::consts::SQRT_2 / 2.0;
-                        }
-                    }
-                    _ => {
-                        panic!("unmatched i_max value of {}", i_max);
+                // i_max is 2 times the number of components in the SIC, if the
+                // SIC is well-formed. for a single component (simple internal =
+                // symmetry internal), i_max is 2, and so on. the prefactor for
+                // the SICs is √n/n where n is the number of components
+                assert!(i_max % 2 == 0);
+                let nparts = (i_max / 2) as f64;
+                if i_max > 2 {
+                    let fac = nparts.sqrt() / nparts;
+                    for t in &mut tmp {
+                        *t *= fac;
                     }
                 }
                 intder.symmetry_internals.push(tmp);
