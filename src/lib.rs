@@ -108,7 +108,7 @@ impl Siic {
             // vect3
             Lin1(a, b, c, d) => {
                 let e21 = geom.unit(*b, *a);
-                let e23 = geom.unit(*c, *b);
+                let e23 = geom.unit(*b, *c);
                 let ea = geom[*d];
                 let d = {
                     let d = ea.dot(&ea);
@@ -118,7 +118,7 @@ impl Siic {
                 let e2m = e23.cross(&e21);
                 let stheta = ea.dot(&e2m);
                 let w = f64::asin(stheta);
-                -w
+                w
             }
         }
     }
