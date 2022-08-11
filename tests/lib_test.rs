@@ -342,12 +342,11 @@ fn test_convert_disps() {
             wantfile: "testfiles/h2co.07",
         },
     ];
-    for (t, test) in tests.iter().enumerate() {
+    for test in tests {
         let intder = Intder::load_file(test.infile);
         let got = intder.convert_disps();
         let want = load_geoms(test.wantfile);
         for i in 0..got.len() {
-            dbg!(t);
             assert_abs_diff_eq!(got[i], want[i], epsilon = 4e-8);
         }
     }
