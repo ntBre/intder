@@ -5,6 +5,7 @@ use crate::{geom::Geom, DMat, Siic, Vec3};
 use na::Matrix3;
 use nalgebra as na;
 
+#[derive(Debug)]
 pub struct Hmat {
     pub h11: DMat,
     pub h21: DMat,
@@ -277,12 +278,138 @@ impl Hmat {
                     }
                 }
             }
-            Out(_, _, _, _) => todo!(),
+            // from HIJS7
+            Out(i, j, k, l) => {
+                let e21 = geom.unit(*j, *i);
+                let e23 = geom.unit(*j, *k);
+                let e24 = geom.unit(*j, *l);
+                let t21 = geom.dist(*j, *i);
+                let t23 = geom.dist(*j, *k);
+                let t24 = geom.dist(*j, *l);
+
+                // vect2 call
+                let phi = Siic::Bend(*k, *j, *l).value(geom);
+                let svec = geom.s_vec(&Siic::Bend(*k, *j, *l));
+                let bp3 = &svec[3 * k..3 * k + 3];
+                let bp4 = &svec[3 * l..3 * l + 3];
+
+                let svec = geom.s_vec(s);
+                let gamma = s.value(geom);
+                let v1 = &svec[3 * i..3 * i + 3];
+                let v2 = &svec[3 * j..3 * j + 3];
+                let v3 = &svec[3 * k..3 * k + 3];
+                let v4 = &svec[3 * l..3 * l + 3];
+                let Hmat {
+                    h11: _,
+                    h21: _,
+                    h31: hp43,
+                    h22: _,
+                    h32: _,
+                    h33: hp44,
+                    h41: _,
+                    h42: _,
+                    h43: _,
+                    h44: _,
+                } = Hmat::new(geom, &Siic::Bend(*k, *j, *l));
+                let v5 = e23.cross(&e24);
+                let v6 = e24.cross(&e21);
+                let cp31 = Self::mat1(&e24);
+                let cp41 = Self::mat1(&e23);
+                let cp43 = Self::mat1(&e21);
+                let sp = phi.sin();
+                let cp = phi.cos();
+                let tp = sp / cp;
+                let sg = gamma.sin();
+                let cg = gamma.cos();
+                let tg = sg / cg;
+                let c21 = 1.0 / t21;
+                let c23 = 1.0 / t23;
+                let c24 = 1.0 / t24;
+                let ctp = 1.0 / tp;
+                let c11 = tg * c21 * c21;
+                let c312 = c21 / (cg * sp);
+                let c311 = c312 * c23;
+                let c313 = c312 * ctp;
+                let c411 = c312 * c24;
+                let c3 = c23 / sp;
+                let c4 = c24 / sp;
+                let c331 = t24 * c3;
+                let c332 = c331 * tg;
+                let c441 = t23 * c4;
+                let c442 = c441 * tg;
+                let c431 = c3 * c24 / cg;
+                let c432 = tg;
+                let c434 = tg * c3;
+                let c435 = t24 * c3;
+                let c436 = c435 * tg;
+                for j in 0..3 {
+                    for i in j..3 {
+                        h.h11[(i, j)] = v1[(j)]
+                            * (tg * v1[(i)] - e21[(i)] * c21)
+                            - v1[(i)] * e21[(j)] * c21;
+                        h.h11[(i, j)] += e21[(i)] * e21[(j)] * c11;
+                        if i == j {
+                            h.h11[(i, j)] -= c11
+                        }
+                        h.h11[(j, i)] = h.h11[(i, j)];
+                        h.h33[(i, j)] =
+                            v3[(i)] * bp4[(j)] * c331 + hp43[(j, i)] * c332;
+                        h.h33[(i, j)] = h.h33[(i, j)]
+                            + v3[(j)]
+                                * (tg * v3[(i)]
+                                    - e23[(i)] * c23
+                                    - bp3[(i)] * ctp);
+                        h.h33[(j, i)] = h.h33[(i, j)];
+                        h.h44[(i, j)] =
+                            v4[(i)] * bp3[(j)] * c441 + hp43[(i, j)] * c442;
+                        h.h44[(i, j)] = h.h44[(i, j)]
+                            + v4[(j)]
+                                * (tg * v4[(i)]
+                                    - e24[(i)] * c24
+                                    - bp4[(i)] * ctp);
+                        h.h44[(j, i)] = h.h44[(i, j)];
+                    }
+                }
+                for j in 0..3 {
+                    let xj = tg * v1[(j)] - e21[(j)] * c21;
+                    for i in 0..3 {
+                        h.h31[(i, j)] = v3[(i)] * xj - cp31[(i, j)] * c311;
+                        h.h31[(i, j)] = h.h31[(i, j)]
+                            - e23[(i)] * v5[(j)] * c311
+                            - bp3[(i)] * v5[(j)] * c313;
+                        h.h41[(i, j)] = v4[(i)] * xj + cp41[(i, j)] * c411;
+                        h.h41[(i, j)] = h.h41[(i, j)]
+                            - e24[(i)] * v5[(j)] * c411
+                            - bp4[(i)] * v5[(j)] * c313;
+                        h.h21[(i, j)] =
+                            -(h.h11[(i, j)] + h.h31[(i, j)] + h.h41[(i, j)]);
+                        h.h43[(i, j)] = (cp43[(j, i)] - e24[(i)] * v6[(j)])
+                            * c431
+                            + v3[(j)] * v4[(i)] * c432;
+                        h.h43[(i, j)] = h.h43[(i, j)]
+                            - v3[(j)] * bp4[(i)] * ctp
+                            + e24[(i)] * bp4[(j)] * c434;
+                        h.h43[(i, j)] = h.h43[(i, j)]
+                            + v4[(i)] * bp4[(j)] * c435
+                            + hp44[(i, j)] * c436;
+                    }
+                }
+                for i in 0..3 {
+                    for j in 0..3 {
+                        h.h32[(i, j)] =
+                            -(h.h31[(i, j)] + h.h33[(i, j)] + h.h43[(j, i)]);
+                        h.h42[(i, j)] =
+                            -(h.h41[(i, j)] + h.h43[(i, j)] + h.h44[(i, j)]);
+                        h.h22[(i, j)] =
+                            -(h.h21[(j, i)] + h.h32[(i, j)] + h.h42[(i, j)]);
+                    }
+                }
+            }
         }
         h
     }
 
-    /// helper function for TORS
+    /// helper function for constructing some kind of matrix
     pub fn mat1(v: &Vec3) -> DMat {
         let mut em = DMat::zeros(3, 3);
         em[(1, 0)] = -v[2];
