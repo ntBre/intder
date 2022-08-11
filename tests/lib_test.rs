@@ -342,11 +342,12 @@ fn test_convert_disps() {
             wantfile: "testfiles/h2co.07",
         },
     ];
-    for test in tests {
+    for (t, test) in tests.iter().enumerate() {
         let intder = Intder::load_file(test.infile);
         let got = intder.convert_disps();
         let want = load_geoms(test.wantfile);
         for i in 0..got.len() {
+            dbg!(t);
             assert_abs_diff_eq!(got[i], want[i], epsilon = 4e-8);
         }
     }
@@ -418,7 +419,7 @@ fn test_convert_fcs() {
                 "testfiles/h2co.40".to_string(),
             ),
             sizes: (12, 364, 1365),
-            eps: (3e-7, 7e-7, 4e-6),
+            eps: (2e-7, 7e-7, 3e-6),
         },
     ];
     for test in tests {

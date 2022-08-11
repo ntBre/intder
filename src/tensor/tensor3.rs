@@ -4,7 +4,7 @@ use std::{
     ops::{Index, IndexMut, Neg},
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Tensor3(pub(crate) Vec<Vec<Vec<f64>>>);
 
 // TODO could probably replace these fields with vectors and fc3 index formula

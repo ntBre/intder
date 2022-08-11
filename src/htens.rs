@@ -807,8 +807,356 @@ impl Htens {
                     }
                 }
             }
-            Out(_, _, _, _) => todo!(),
+            // hijks7
+            Out(i, j, k, l) => {
+                let e21 = geom.unit(*j, *i);
+                let e23 = geom.unit(*j, *k);
+                let e24 = geom.unit(*j, *l);
+                let t21 = geom.dist(*j, *i);
+                let t23 = geom.dist(*j, *k);
+                let t24 = geom.dist(*j, *l);
+
+                // vect2 call
+                let phi = Siic::Bend(*k, *j, *l).value(geom);
+                let svec = geom.s_vec(&Siic::Bend(*k, *j, *l));
+                let bp3 = &svec[3 * k..3 * k + 3];
+                let bp4 = &svec[3 * l..3 * l + 3];
+
+                // vect5 call
+                let svec = geom.s_vec(s);
+                let gamma = s.value(geom);
+                let v1 = &svec[3 * i..3 * i + 3];
+                let v3 = &svec[3 * k..3 * k + 3];
+                let v4 = &svec[3 * l..3 * l + 3];
+
+                // hijs1 call
+                let ht11 = Hmat::new(geom, &Siic::Stretch(*i, *j)).h11;
+
+                // hijs2 call
+                let Hmat {
+                    h11: hp33,
+                    h21: _,
+                    h31: hp43,
+                    h22: _,
+                    h32: _,
+                    h33: hp44,
+                    h41: _,
+                    h42: _,
+                    h43: _,
+                    h44: _,
+                } = Hmat::new(geom, &Siic::Bend(*k, *j, *l));
+
+                // hijs7 call
+                let Hmat {
+                    h11,
+                    h21: _,
+                    h31,
+                    h22: _,
+                    h32: _,
+                    h33,
+                    h41,
+                    h42: _,
+                    h43,
+                    h44,
+                } = Hmat::new(geom, s);
+
+                // hijks1 call
+                let ht111 = Htens::new(geom, &Siic::Stretch(*i, *j)).h111;
+
+                // hijks2 call
+                let Htens {
+                    h111: _,
+                    h112: _,
+                    h113: hp334,
+                    h123: _,
+                    h221: _,
+                    h222: _,
+                    h223: _,
+                    h331: hp443,
+                    h332: _,
+                    h333: _,
+                    h411: _,
+                    h421: _,
+                    h422: _,
+                    h431: _,
+                    h432: _,
+                    h433: _,
+                    h441: _,
+                    h442: _,
+                    h443: _,
+                    h444: _,
+                } = Htens::new(geom, &Siic::Bend(*k, *j, *l));
+
+                let cp21 = Hmat::mat1(&e21);
+                let cp24 = Hmat::mat1(&e24);
+                let cp2124 = e21.cross(&e24);
+                let cg = gamma.cos();
+                let sg = gamma.sin();
+                let tg = sg / cg;
+                let cp = phi.cos();
+                let sp = phi.sin();
+                let ctp = cp / sp;
+                let c1 = 1.0 / t21;
+                let s2g = 1.0 / (cg * cg);
+                let c3 = 1.0 / t23;
+                let c4 = 1.0 / t24;
+                let c2p = 1.0 / (sp * sp);
+                let c1111 = tg * c1;
+                let c1112 = s2g * c1;
+                let c3331 = t24 * c3 / sp;
+                let c3332 = c3331 * tg;
+                let c3333 = c3331 * s2g;
+                let c3335 = c3 * c3;
+                let c3334 = 2.0 * c3335;
+                let c4411 = t23 * c4 / sp;
+                let c4412 = c4411 * s2g;
+                let c431 = c3 * c4 / (cg * sp);
+                let c4311 = c431 * c1;
+                let c4312 = c431 * tg;
+                let c4313 = c3333 * c4;
+                let c4431 = c4411 * tg;
+                let c4442 = c4 * c4;
+                let c4441 = 2.0 * c4442;
+                for i in 0..3 {
+                    for j in 0..=i {
+                        for k in 0..=j {
+                            h.h111[(i, j, k)] =
+                                s2g * v1[(i)] * v1[(j)] * v1[(k)]
+                                    + tg * h11[(i, j)] * v1[(k)]
+                                    + tg * h11[(i, k)] * v1[(j)]
+                                    + c1111
+                                        * (e21[(i)] * v1[(j)] * v1[(k)]
+                                            - ht111[(i, j, k)])
+                                    - c1112 * ht11[(j, k)] * v1[(i)]
+                                    - c1 * (e21[(i)] * h11[(j, k)]
+                                        + e21[(j)] * h11[(i, k)]
+                                        + e21[(k)] * h11[(i, j)]
+                                        + ht11[(i, j)] * v1[(k)]
+                                        + ht11[(i, k)] * v1[(j)]);
+                            h.h333[(i, j, k)] = c3331
+                                * (h33[(i, j)] * bp4[(k)]
+                                    + hp43[(k, i)] * v3[(j)]
+                                    - (v3[(j)] * bp4[(k)] + tg * hp43[(k, j)])
+                                        * (c3 * e23[(i)] + ctp * bp3[(i)]))
+                                + c3332 * hp334[(i, j, k)]
+                                + c3333 * hp43[(k, j)] * v3[(i)]
+                                + h33[(i, k)]
+                                    * (tg * v3[(j)]
+                                        - ctp * bp3[(j)]
+                                        - c3 * e23[(j)])
+                                + v3[(k)]
+                                    * (v3[(i)] * v3[(j)] * s2g
+                                        + h33[(i, j)] * tg
+                                        + bp3[(i)] * bp3[(j)] * c2p
+                                        - hp33[(i, j)] * ctp
+                                        + e23[(i)] * e23[(j)] * c3334);
+                            h.h444[(i, j, k)] = c4411
+                                * (h44[(i, j)] * bp3[(k)]
+                                    + hp43[(i, k)] * v4[(j)]
+                                    - (v4[(j)] * bp3[(k)] + hp43[(j, k)] * tg)
+                                        * (e24[(i)] * c4 + bp4[(i)] * ctp))
+                                + c4431 * hp443[(i, j, k)]
+                                + c4412 * hp43[(j, k)] * v4[(i)]
+                                + h44[(i, k)]
+                                    * (tg * v4[(j)]
+                                        - ctp * bp4[(j)]
+                                        - c4 * e24[(j)])
+                                + v4[(k)]
+                                    * (v4[(i)] * v4[(j)] * s2g
+                                        + h44[(i, j)] * tg
+                                        + bp4[(i)] * bp4[(j)] * c2p
+                                        - hp44[(i, j)] * ctp
+                                        + e24[(i)] * e24[(j)] * c4441);
+                            if i == j {
+                                h.h333[(i, j, k)] =
+                                    h.h333[(i, j, k)] - v3[(k)] * c3335;
+                                h.h444[(i, j, k)] =
+                                    h.h444[(i, j, k)] - v4[(k)] * c4442;
+                            }
+                        }
+                    }
+                } // end 12 loop
+                h.h111.fill3b();
+                h.h333.fill3b();
+                h.h444.fill3b();
+
+                for k in 0..3 {
+                    for j in 0..=k {
+                        for i in 0..3 {
+                            h.h113[(j, k, i)] =
+                                s2g * v3[(i)] * v1[(j)] * v1[(k)]
+                                    + tg * h31[(i, j)] * v1[(k)]
+                                    + tg * h31[(i, k)] * v1[(j)]
+                                    - c1 * (e21[(j)] * h31[(i, k)]
+                                        + e21[(k)] * h31[(i, j)])
+                                    - c1112 * ht11[(j, k)] * v3[(i)];
+                            h.h113[(k, j, i)] = h.h113[(j, k, i)];
+                            h.h411[(i, j, k)] =
+                                s2g * v4[(i)] * v1[(j)] * v1[(k)]
+                                    + tg * h41[(i, j)] * v1[(k)]
+                                    + tg * h41[(i, k)] * v1[(j)]
+                                    - c1 * (e21[(j)] * h41[(i, k)]
+                                        + e21[(k)] * h41[(i, j)])
+                                    - c1112 * ht11[(j, k)] * v4[(i)];
+                            h.h411[(i, k, j)] = h.h411[(i, j, k)];
+                            h.h433[(i, j, k)] = c3331
+                                * (h43[(i, j)] * bp4[(k)]
+                                    + hp44[(i, k)] * v3[(j)]
+                                    + (c4 * e24[(i)] - ctp * bp4[(i)])
+                                        * (v3[(j)] * bp4[(k)]
+                                            + tg * hp43[(k, j)]))
+                                + c3332 * hp443[(i, k, j)]
+                                + c3333 * hp43[(k, j)] * v4[(i)]
+                                + h43[(i, k)]
+                                    * (tg * v3[(j)]
+                                        - ctp * bp3[(j)]
+                                        - c3 * e23[(j)])
+                                + v3[(k)]
+                                    * (tg * h43[(i, j)]
+                                        + s2g * v4[(i)] * v3[(j)]
+                                        - ctp * hp43[(i, j)]
+                                        + c2p * bp4[(i)] * bp3[(j)]);
+                            h.h433[(i, k, j)] = h.h433[(i, j, k)];
+                        }
+                    }
+                } // end 22 loop
+
+                for i in 0..3 {
+                    for j in 0..=i {
+                        for k in 0..3 {
+                            h.h331[(i, j, k)] = c3331 * h31[(i, k)] * bp4[(j)]
+                                + c3333 * hp43[(j, i)] * v1[(k)]
+                                + (tg * v3[(i)]
+                                    - ctp * bp3[(i)]
+                                    - c3 * e23[(i)])
+                                    * h31[(j, k)]
+                                + tg * h31[(i, k)] * v3[(j)]
+                                + s2g * v3[(i)] * v3[(j)] * v1[(k)];
+                            h.h331[(j, i, k)] = h.h331[(i, j, k)];
+                            h.h441[(i, j, k)] = c4411 * h41[(i, k)] * bp3[(j)]
+                                + c4412 * hp43[(i, j)] * v1[(k)]
+                                + (tg * v4[(i)]
+                                    - ctp * bp4[(i)]
+                                    - c4 * e24[(i)])
+                                    * h41[(j, k)]
+                                + tg * h41[(i, k)] * v4[(j)]
+                                + s2g * v4[(i)] * v4[(j)] * v1[(k)];
+                            h.h441[(j, i, k)] = h.h441[(i, j, k)];
+                            h.h443[(i, j, k)] = c4411
+                                * (h43[(j, k)] * bp3[(i)]
+                                    + hp33[(i, k)] * v4[(j)]
+                                    + (c3 * e23[(k)] - ctp * bp3[(k)])
+                                        * (bp3[(i)] * v4[(j)]
+                                            + tg * hp43[(j, i)]))
+                                + c4431 * hp334[(i, k, j)]
+                                + c4412 * hp43[(j, i)] * v3[(k)]
+                                + h43[(i, k)]
+                                    * (tg * v4[(j)]
+                                        - ctp * bp4[(j)]
+                                        - c4 * e24[(j)])
+                                + v4[(i)]
+                                    * (tg * h43[(j, k)]
+                                        + s2g * v4[(j)] * v3[(k)]
+                                        - ctp * hp43[(j, k)]
+                                        + c2p * bp4[(j)] * bp3[(k)]);
+                            h.h443[(j, i, k)] = h.h443[(i, j, k)];
+                        }
+                    }
+                } // end 32 loop
+
+                let prod = Self::tripro();
+                for i in 0..3 {
+                    for j in 0..3 {
+                        for k in 0..3 {
+                            h.h431[(i, j, k)] = c4311
+                                * (prod[(k, j, i)]
+                                    + e21[(k)] * cp21[(i, j)]
+                                    + e24[(i)] * cp24[(j, k)]
+                                    - e24[(i)] * e21[(k)] * cp2124[(j)])
+                                + c4312
+                                    * v1[(k)]
+                                    * (e24[(i)] * cp2124[(j)] - cp21[(i, j)])
+                                + tg * h41[(i, k)] * v3[(j)]
+                                + s2g * v4[(i)] * v3[(j)] * v1[(k)]
+                                + h31[(j, k)] * (tg * v4[(i)] - ctp * bp4[(i)])
+                                + c4313 * e24[(i)] * bp4[(j)] * v1[(k)]
+                                + c3331 * h41[(i, k)] * bp4[(j)]
+                                + c3333 * hp44[(i, j)] * v1[(k)];
+                        }
+                    }
+                } // end 42
+
+                for i in 0..3 {
+                    for j in 0..3 {
+                        for k in 0..3 {
+                            h.h112[(i, j, k)] = -(h.h111[(i, j, k)]
+                                + h.h113[(i, j, k)]
+                                + h.h411[(k, i, j)]);
+                            h.h421[(i, j, k)] = -(h.h411[(i, j, k)]
+                                + h.h431[(i, j, k)]
+                                + h.h441[(i, j, k)]);
+                            h.h123[(i, j, k)] = -(h.h113[(i, j, k)]
+                                + h.h331[(j, k, i)]
+                                + h.h431[(j, k, i)]);
+                            h.h332[(i, j, k)] = -(h.h331[(i, j, k)]
+                                + h.h333[(i, j, k)]
+                                + h.h433[(k, i, j)]);
+                            h.h432[(i, j, k)] = -(h.h431[(i, j, k)]
+                                + h.h433[(i, j, k)]
+                                + h.h443[(i, k, j)]);
+                            h.h442[(i, j, k)] = -(h.h441[(i, j, k)]
+                                + h.h443[(i, j, k)]
+                                + h.h444[(i, j, k)]);
+                        }
+                    }
+                } // end 52
+
+                for i in 0..3 {
+                    for j in 0..3 {
+                        for k in 0..3 {
+                            h.h221[(i, j, k)] = -(h.h112[(i, k, j)]
+                                + h.h123[(k, j, i)]
+                                + h.h421[(i, j, k)]);
+                            h.h223[(i, j, k)] = -(h.h123[(i, j, k)]
+                                + h.h332[(i, k, j)]
+                                + h.h432[(i, k, j)]);
+                            h.h422[(i, j, k)] = -(h.h421[(i, j, k)]
+                                + h.h432[(i, k, j)]
+                                + h.h442[(i, k, j)]);
+                        }
+                    }
+                } // end 62
+
+                for i in 0..3 {
+                    for j in 0..=i {
+                        for k in 0..=j {
+                            h.h222[(i, j, k)] = -(h.h221[(i, j, k)]
+                                + h.h223[(i, j, k)]
+                                + h.h422[(k, i, j)]);
+                        }
+                    }
+                } // end 72
+
+                h.h222.fill3b();
+            }
         }
         h
+    }
+
+    /// the name suggests some kind of triple product, but I'm not really sure.
+    /// I think it's a Cartesian product of some kind maybe
+    fn tripro() -> Tensor3 {
+        let mut ret = Tensor3::zeros(3, 3, 3);
+        for k in 0..3 {
+            let mut vect = nalgebra::vector![0.0, 0.0, 0.0];
+            vect[k] = 1.0;
+            let rmat = Hmat::mat1(&vect);
+            for j in 0..3 {
+                for i in 0..3 {
+                    ret[(i, j, k)] = rmat[(i, j)];
+                }
+            }
+        }
+        ret
     }
 }

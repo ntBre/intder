@@ -293,12 +293,14 @@ impl Hmat {
                 let bp3 = &svec[3 * k..3 * k + 3];
                 let bp4 = &svec[3 * l..3 * l + 3];
 
+                // vect5 call
                 let svec = geom.s_vec(s);
                 let gamma = s.value(geom);
                 let v1 = &svec[3 * i..3 * i + 3];
-                let v2 = &svec[3 * j..3 * j + 3];
                 let v3 = &svec[3 * k..3 * k + 3];
                 let v4 = &svec[3 * l..3 * l + 3];
+
+                // hijs2 call
                 let Hmat {
                     h11: _,
                     h21: _,
@@ -311,6 +313,7 @@ impl Hmat {
                     h43: _,
                     h44: _,
                 } = Hmat::new(geom, &Siic::Bend(*k, *j, *l));
+
                 let v5 = e23.cross(&e24);
                 let v6 = e24.cross(&e21);
                 let cp31 = Self::mat1(&e24);
