@@ -7,7 +7,6 @@ use std::{
 pub mod geom;
 pub mod hmat;
 pub mod htens;
-pub mod tensor;
 
 use geom::Geom;
 use hmat::Hmat;

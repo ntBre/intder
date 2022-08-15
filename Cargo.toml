@@ -15,4 +15,5 @@ nalgebra = "0.30.1"
 approx = "0.5.1"
 psqs = { path = "/home/brent/Projects/psqs" }
 symm = { path = "/home/brent/Projects/symm" }
+tensor = { path = "/home/brent/Projects/tensor" }
 

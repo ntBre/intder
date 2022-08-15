@@ -3,9 +3,9 @@ use std::io::{BufRead, BufReader, Read};
 use approx::assert_abs_diff_eq;
 
 use intder::geom::*;
-use intder::tensor::tensor3::Tensor3;
 use intder::*;
 use nalgebra as na;
+use tensor::tensor3::Tensor3;
 
 const S: f64 = std::f64::consts::SQRT_2 / 2.;
 

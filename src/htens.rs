@@ -1,4 +1,5 @@
-use crate::{geom::Geom, hmat::Hmat, tensor::tensor3::Tensor3, Siic, Vec3};
+use crate::{geom::Geom, hmat::Hmat, Siic, Vec3};
+use tensor::tensor3::Tensor3;
 
 pub struct Htens {
     pub h111: Tensor3,
