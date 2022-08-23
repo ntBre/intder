@@ -14,7 +14,8 @@ use htens::Htens;
 use nalgebra as na;
 use regex::Regex;
 use symm::Irrep;
-use tensor::{Tensor3, Tensor4};
+use tensor::Tensor4;
+type Tensor3 = tensor::tensor3::Tensor3<f64>;
 
 /// from <https://physics.nist.gov/cgi-bin/cuu/Value?bohrrada0>
 pub const ANGBOHR: f64 = 0.5291_772_109;

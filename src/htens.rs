@@ -1,5 +1,6 @@
 use crate::{geom::Geom, hmat::Hmat, Siic, Vec3};
-use tensor::tensor3::Tensor3;
+
+type Tensor3 = tensor::tensor3::Tensor3<f64>;
 
 pub struct Htens {
     pub h111: Tensor3,
