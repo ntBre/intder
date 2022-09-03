@@ -253,6 +253,9 @@ dependencies = [
 [[package]]
 name = "tensor"
 version = "0.1.0"
+dependencies = [
+ "approx",
+]
 
 [[package]]
 name = "typenum"

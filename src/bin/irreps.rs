@@ -12,7 +12,6 @@ fn main() {
     }
     let mut mol = Molecule::from_slices(labels.clone(), &coords);
     mol.normalize();
-    mol.reorder();
     println!("{}", mol);
     let pg = mol.point_group_approx(1e-6);
     println!("Point group = {}", pg);
