@@ -37,10 +37,10 @@ name = "intder"
 version = "0.1.0"
 dependencies = [
  "approx",
- "nalgebra 0.31.1",
+ "nalgebra",
  "psqs",
  "regex",
- "symm",
+ "symm 0.1.0 (git+https://github.com/ntBre/symm)",
  "tensor",
 ]
 
@@ -64,22 +64,6 @@ name = "memchr"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2dffe52ecf27772e601905b7522cb4ef790d2cc203488bbd0e2fe85fcb74566d"
-
-[[package]]
-name = "nalgebra"
-version = "0.30.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4fb2d0de08694bed883320212c18ee3008576bfe8c306f4c3c4a58b4876998be"
-dependencies = [
- "approx",
- "matrixmultiply",
- "nalgebra-macros",
- "num-complex",
- "num-rational",
- "num-traits",
- "simba",
- "typenum",
-]
 
 [[package]]
 name = "nalgebra"
@@ -165,12 +149,12 @@ dependencies = [
 [[package]]
 name = "psqs"
 version = "0.1.0"
-source = "git+https://github.com/ntBre/psqs?rev=6568cf5#6568cf5bae75a1dbcdedeb927d57b899290c07c1"
+source = "git+https://github.com/ntBre/psqs#9cf5fce9ad3a60e491f2f0b36ce32e5bdc3c027f"
 dependencies = [
  "lazy_static",
- "nalgebra 0.31.1",
+ "nalgebra",
  "regex",
- "symm",
+ "symm 0.1.0 (git+https://github.com/ntBre/symm?rev=a636e24)",
 ]
 
 [[package]]
@@ -250,10 +234,20 @@ dependencies = [
 [[package]]
 name = "symm"
 version = "0.1.0"
-source = "git+https://github.com/ntBre/symm?rev=2d523057#2d5230578cd42b948a9d56dfe2027b0d2ea0e29c"
+source = "git+https://github.com/ntBre/symm?rev=a636e24#a636e249db52551856cefc98236c323fce4452a8"
 dependencies = [
  "approx",
- "nalgebra 0.30.1",
+ "nalgebra",
+ "serde",
+]
+
+[[package]]
+name = "symm"
+version = "0.1.0"
+source = "git+https://github.com/ntBre/symm#a636e249db52551856cefc98236c323fce4452a8"
+dependencies = [
+ "approx",
+ "nalgebra",
  "serde",
 ]
 
@@ -271,7 +265,7 @@ dependencies = [
 [[package]]
 name = "tensor"
 version = "0.1.0"
-source = "git+https://github.com/ntBre/tensor?rev=0d2913e#0d2913e9c99b5704a48cba0f265909283c7efa64"
+source = "git+https://github.com/ntBre/tensor#0d2913e9c99b5704a48cba0f265909283c7efa64"
 dependencies = [
  "approx",
 ]
