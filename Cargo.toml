@@ -10,10 +10,9 @@ name = "irreps"
 path = "src/bin/irreps.rs"
 
 [dependencies]
-regex = "1.5.5"
-nalgebra = "0.30.1"
 approx = "0.5.1"
-psqs = { path = "/home/brent/Projects/psqs" }
-symm = { path = "/home/brent/Projects/symm" }
-tensor = { path = "/home/brent/Projects/tensor" }
-
+nalgebra = "0.31.1"
+psqs = { git = "https://github.com/ntBre/psqs", rev =  "6568cf5" }
+regex = "1.5.5"
+symm = { git = "https://github.com/ntBre/symm", rev = "2d523057" }
+tensor = { git = "https://github.com/ntBre/tensor", rev = "0d2913e" }
