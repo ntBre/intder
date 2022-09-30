@@ -12,7 +12,7 @@ path = "src/bin/irreps.rs"
 [dependencies]
 approx = "0.5.1"
 nalgebra = "0.31.1"
-psqs = { git = "https://github.com/ntBre/psqs" }
+psqs = { path = "/home/brent/Projects/psqs" }
 regex = "1.5.5"
-symm = { git = "https://github.com/ntBre/symm" }
-tensor = { git = "https://github.com/ntBre/tensor" }
+symm = { path = "/home/brent/Projects/symm" }
+tensor = { path = "/home/brent/Projects/tensor" }
