@@ -18,7 +18,7 @@ use tensor::Tensor4;
 type Tensor3 = tensor::tensor3::Tensor3<f64>;
 
 /// from <https://physics.nist.gov/cgi-bin/cuu/Value?bohrrada0>
-pub const ANGBOHR: f64 = 0.5291_772_109;
+pub const ANGBOHR: f64 = 0.529_177_210_9;
 /// constants from the fortran version
 const HART: f64 = 4.3597482;
 // const DEBYE: f64 = 2.54176548;
@@ -34,7 +34,7 @@ type Vec3 = na::Vector3<f64>;
 pub type DMat = na::DMatrix<f64>;
 pub type DVec = na::DVector<f64>;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Siic {
     /// bond stretch between two atoms
     Stretch(usize, usize),
@@ -123,8 +123,7 @@ impl Siic {
                 let ea = d * ea;
                 let e2m = e23.cross(&e21);
                 let stheta = ea.dot(&e2m);
-                let w = f64::asin(stheta);
-                w
+                f64::asin(stheta)
             }
             // vect4
             Out(a, b, c, d) => {
@@ -150,7 +149,7 @@ impl Siic {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Atom {
     pub label: String,
     pub weight: usize,
@@ -270,7 +269,7 @@ impl Display for Intder {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct Intder {
     pub input_options: Vec<usize>,
     pub simple_internals: Vec<Siic>,
@@ -396,7 +395,7 @@ impl Intder {
         let mut in_disps = false;
         let mut disp_tmp = vec![];
         for line in reader.lines().flatten() {
-            if line.contains("# INTDER #") || line.len() == 0 {
+            if line.contains("# INTDER #") || line.is_empty() {
                 continue;
             } else if in_disps {
                 // build up tmp until we hit a zero just like with syics
@@ -419,7 +418,7 @@ impl Intder {
                 ));
             } else if syic.is_match(&line) {
                 // this has to come after the simple internals
-                assert!(intder.simple_internals.len() > 0);
+                assert!(!intder.simple_internals.is_empty());
                 let mut tmp = vec![0.0; intder.simple_internals.len()];
                 let mut sp = line.split_whitespace();
                 sp.next();
@@ -572,7 +571,7 @@ impl Intder {
     pub fn simple_values(&self, geom: &Geom) -> Vec<f64> {
         let mut ret = Vec::new();
         for s in &self.simple_internals {
-            ret.push(s.value(&geom));
+            ret.push(s.value(geom));
         }
         ret
     }
@@ -581,7 +580,7 @@ impl Intder {
     /// radians
     pub fn symmetry_values(&self, geom: &Geom) -> Vec<f64> {
         let mut ret = Vec::new();
-        let siics = self.simple_values(&geom);
+        let siics = self.simple_values(geom);
         for sic in &self.symmetry_internals {
             let mut sum = f64::default();
             for (i, s) in sic.iter().enumerate() {
@@ -777,7 +776,7 @@ impl Intder {
             // I thought this was nc x nc but actually nc x nsym
             let mut x = DMat::zeros(nc, nsym);
             let mut sr = DMat::zeros(nc, nc);
-            let h = Hmat::new(&self.geom, &s);
+            let h = Hmat::new(&self.geom, s);
             match s {
                 Stretch(a, b) => {
                     let l1 = 3 * a;
@@ -954,7 +953,7 @@ impl Intder {
         for s in &self.simple_internals {
             let mut y = Tensor3::zeros(nc, nc, nc);
             let mut sr = Tensor3::zeros(nc, nc, nc);
-            let h = Htens::new(&self.geom, &s);
+            let h = Htens::new(&self.geom, s);
             match s {
                 Stretch(a, b) => {
                     let l1 = 3 * a;
@@ -1168,16 +1167,14 @@ impl Intder {
                         f3[(j, j, p)] += vik * a[(i, p)];
                     }
                 }
+            } else if j != k {
+                for p in 0..nsx {
+                    f3[(i, i, p)] += vik * a[(k, p)];
+                    f3[(i, k, p)] += vik * a[(i, p)];
+                }
             } else {
-                if j != k {
-                    for p in 0..nsx {
-                        f3[(i, i, p)] += vik * a[(k, p)];
-                        f3[(i, k, p)] += vik * a[(i, p)];
-                    }
-                } else {
-                    for p in 0..nsx {
-                        f3[(i, i, p)] += vik * a[(i, p)];
-                    }
+                for p in 0..nsx {
+                    f3[(i, i, p)] += vik * a[(i, p)];
                 }
             }
             if k < j {
@@ -1312,45 +1309,39 @@ impl Intder {
                             f4[(j, k, k, q)] += vik * a[(i, q)];
                         }
                     }
+                } else if k != l {
+                    for q in 0..nsx {
+                        f4[(i, j, j, q)] += vik * a[(l, q)];
+                        f4[(i, j, l, q)] += vik * a[(j, q)];
+                        f4[(j, j, l, q)] += vik * a[(i, q)];
+                    }
                 } else {
-                    if k != l {
-                        for q in 0..nsx {
-                            f4[(i, j, j, q)] += vik * a[(l, q)];
-                            f4[(i, j, l, q)] += vik * a[(j, q)];
-                            f4[(j, j, l, q)] += vik * a[(i, q)];
-                        }
-                    } else {
-                        for q in 0..nsx {
-                            f4[(i, j, j, q)] += vik * a[(j, q)];
-                            f4[(j, j, j, q)] += vik * a[(i, q)];
-                        }
+                    for q in 0..nsx {
+                        f4[(i, j, j, q)] += vik * a[(j, q)];
+                        f4[(j, j, j, q)] += vik * a[(i, q)];
                     }
                 }
-            } else {
-                if j != k {
-                    if k != l {
-                        for q in 0..nsx {
-                            f4[(i, i, k, q)] += vik * a[(l, q)];
-                            f4[(i, i, l, q)] += vik * a[(k, q)];
-                            f4[(i, k, l, q)] += vik * a[(i, q)];
-                        }
-                    } else {
-                        for q in 0..nsx {
-                            f4[(i, i, k, q)] += vik * a[(k, q)];
-                            f4[(i, k, k, q)] += vik * a[(i, q)];
-                        }
+            } else if j != k {
+                if k != l {
+                    for q in 0..nsx {
+                        f4[(i, i, k, q)] += vik * a[(l, q)];
+                        f4[(i, i, l, q)] += vik * a[(k, q)];
+                        f4[(i, k, l, q)] += vik * a[(i, q)];
                     }
                 } else {
-                    if k != l {
-                        for q in 0..nsx {
-                            f4[(i, i, i, q)] += vik * a[(l, q)];
-                            f4[(i, i, l, q)] += vik * a[(i, q)];
-                        }
-                    } else {
-                        for q in 0..nsx {
-                            f4[(i, i, i, q)] += vik * a[(i, q)];
-                        }
+                    for q in 0..nsx {
+                        f4[(i, i, k, q)] += vik * a[(k, q)];
+                        f4[(i, k, k, q)] += vik * a[(i, q)];
                     }
+                }
+            } else if k != l {
+                for q in 0..nsx {
+                    f4[(i, i, i, q)] += vik * a[(l, q)];
+                    f4[(i, i, l, q)] += vik * a[(i, q)];
+                }
+            } else {
+                for q in 0..nsx {
+                    f4[(i, i, i, q)] += vik * a[(i, q)];
                 }
             }
             if l < k {
@@ -1415,16 +1406,14 @@ impl Intder {
                         f4[(j, j, p, q)] += vik * a[(i, p)];
                     }
                 }
+            } else if j != k {
+                for p in 0..=q {
+                    f4[(i, i, p, q)] += vik * a[(k, p)];
+                    f4[(i, k, p, q)] += vik * a[(i, p)];
+                }
             } else {
-                if j != k {
-                    for p in 0..=q {
-                        f4[(i, i, p, q)] += vik * a[(k, p)];
-                        f4[(i, k, p, q)] += vik * a[(i, p)];
-                    }
-                } else {
-                    for p in 0..=q {
-                        f4[(i, i, p, q)] += vik * a[(i, p)];
-                    }
+                for p in 0..=q {
+                    f4[(i, i, p, q)] += vik * a[(i, p)];
                 }
             }
             if q < nsx - 1 {
@@ -1564,7 +1553,7 @@ impl Intder {
         mut f3: Tensor3,
         mut f4: Tensor4,
         bs: &DMat,
-        xrs: &Vec<DMat>,
+        xrs: &[DMat],
     ) -> (Tensor3, Tensor4) {
         let ns = self.symmetry_internals.len();
         let nc = self.ncart() - 3 * self.ndum();
@@ -1619,7 +1608,7 @@ impl Intder {
         (f3, f4)
     }
 
-    fn xf3(&self, mut f4: Tensor4, bs: &DMat, xrs: &Vec<DMat>) -> Tensor4 {
+    fn xf3(&self, mut f4: Tensor4, bs: &DMat, xrs: &[DMat]) -> Tensor4 {
         let ns = self.nsym();
         let nc = self.ncart() - 3 * self.ndum();
         // might need to turn this into a Tensor3 and call FILL3B on it, but
@@ -1668,7 +1657,7 @@ impl Intder {
         f4
     }
 
-    fn yf2(&self, mut f4: Tensor4, bs: &DMat, yrs: &Vec<Tensor3>) -> Tensor4 {
+    fn yf2(&self, mut f4: Tensor4, bs: &DMat, yrs: &[Tensor3]) -> Tensor4 {
         let nc = self.ncart() - 3 * self.ndum();
         let ns = self.nsym();
         let xs = self.mat_fc2(ns);
@@ -1699,8 +1688,8 @@ impl Intder {
         &self,
         a: &DMat,
         bs: &DMat,
-        xr: &Vec<DMat>,
-        yr: &Vec<Tensor3>,
+        xr: &[DMat],
+        yr: &[Tensor3],
     ) -> (DMat, Vec<f64>, Vec<f64>) {
         let f2 = self.lintr_fc2(a);
         let (f3, f4) = self.xf2(self.lintr_fc3(a), self.lintr_fc4(a), bs, xr);
@@ -1755,7 +1744,7 @@ impl Intder {
 
     pub fn dump_fcs(dir: &str, f2: &DMat, f3: &[f64], f4: &[f64]) {
         let f2 = f2.as_slice();
-        let pairs = [(f2, "fort.15"), (&f3, "fort.30"), (&f4, "fort.40")];
+        let pairs = [(f2, "fort.15"), (f3, "fort.30"), (f4, "fort.40")];
         for p in pairs {
             let mut f = File::create(format!("{dir}/{}", p.1))
                 .expect("failed to create fort.15");
@@ -1769,6 +1758,7 @@ impl Intder {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn ahy4(
     nsx: usize,
     a_mat: &DMat,
@@ -1986,6 +1976,7 @@ fn hsry4(
 // NOTE: these functions were extracted automatically by the LSP, so their
 // interface could probably be cleaned up a bit if desired
 
+#[allow(clippy::too_many_arguments)]
 fn ahx4(
     nsym: usize,
     a_mat: &DMat,
@@ -2101,8 +2092,7 @@ fn ahy3(
                             let w1 = a_mat[(l3 + k, p)] * (v10 + v12)
                                 + a_mat[(l3 + k, n)] * (v11 + v14)
                                 + a_mat[(l3 + k, m)] * (v13 + v15);
-                            y[(m, n, p)] =
-                                y[(m, n, p)] + w1 * h.h123[(i, j, k)];
+                            y[(m, n, p)] += w1 * h.h123[(i, j, k)];
                         }
                     }
                 }

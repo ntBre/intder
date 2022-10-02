@@ -154,8 +154,8 @@ impl Hmat {
                 for j in 0..3 {
                     for i in 0..3 {
                         h.h11[(i, j)] = -h.h11[(i, j)] * w1;
-                        h.h31[(i, j)] = h.h31[(i, j)] * w2;
-                        h.h44[(i, j)] = h.h44[(i, j)] * w3;
+                        h.h31[(i, j)] *= w2;
+                        h.h44[(i, j)] *= w3;
                         h.h42[(i, j)] = -h.h42[(i, j)] * w4;
                     }
                 }
@@ -169,10 +169,10 @@ impl Hmat {
                     let w3 = 2.0 * (e34[i] / t34 + bp34[i] * xy);
                     let w4 = e23[i] / t23 - 2.0 * bp32[i] * xy;
                     for j in 0..3 {
-                        h.h11[(i, j)] = h.h11[(i, j)] - w1 * v1[j];
-                        h.h31[(i, j)] = h.h31[(i, j)] - w2 * v1[j];
-                        h.h44[(i, j)] = h.h44[(i, j)] - w3 * v4[j];
-                        h.h42[(j, i)] = h.h42[(j, i)] + w4 * v4[j];
+                        h.h11[(i, j)] -= w1 * v1[j];
+                        h.h31[(i, j)] -= w2 * v1[j];
+                        h.h44[(i, j)] -= w3 * v4[j];
+                        h.h42[(j, i)] += w4 * v4[j];
                     }
                 }
 
@@ -227,7 +227,7 @@ impl Hmat {
                 let tmp = geom.s_vec(s);
                 let v1 = &tmp[3 * i..3 * i + 3];
                 let v3 = &tmp[3 * k..3 * k + 3];
-                let th = s.value(&geom);
+                let th = s.value(geom);
                 let e21 = geom.unit(*j, *i);
                 let e23 = geom.unit(*j, *k);
                 let t21 = geom.dist(*j, *i);
@@ -357,19 +357,13 @@ impl Hmat {
                         h.h11[(j, i)] = h.h11[(i, j)];
                         h.h33[(i, j)] =
                             v3[(i)] * bp4[(j)] * c331 + hp43[(j, i)] * c332;
-                        h.h33[(i, j)] = h.h33[(i, j)]
-                            + v3[(j)]
-                                * (tg * v3[(i)]
-                                    - e23[(i)] * c23
-                                    - bp3[(i)] * ctp);
+                        h.h33[(i, j)] += v3[(j)]
+                            * (tg * v3[(i)] - e23[(i)] * c23 - bp3[(i)] * ctp);
                         h.h33[(j, i)] = h.h33[(i, j)];
                         h.h44[(i, j)] =
                             v4[(i)] * bp3[(j)] * c441 + hp43[(i, j)] * c442;
-                        h.h44[(i, j)] = h.h44[(i, j)]
-                            + v4[(j)]
-                                * (tg * v4[(i)]
-                                    - e24[(i)] * c24
-                                    - bp4[(i)] * ctp);
+                        h.h44[(i, j)] += v4[(j)]
+                            * (tg * v4[(i)] - e24[(i)] * c24 - bp4[(i)] * ctp);
                         h.h44[(j, i)] = h.h44[(i, j)];
                     }
                 }

@@ -12,10 +12,7 @@ fn parse_args<I: Iterator<Item = String>>(args: &mut I) -> Option<String> {
             hold.push(arg);
         }
     }
-    match hold.get(1) {
-        Some(s) => Some(String::from(s)),
-        None => None,
-    }
+    hold.get(1).map(String::from)
 }
 
 #[test]

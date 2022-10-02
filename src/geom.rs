@@ -2,7 +2,7 @@ use std::{fmt::Display, ops::Index};
 
 use crate::{DVec, Siic, Vec3, ANGBOHR};
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct Geom(pub Vec<Vec3>);
 
 impl Geom {
@@ -12,6 +12,11 @@ impl Geom {
 
     pub fn len(&self) -> usize {
         self.0.len()
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     pub fn push(&mut self, it: Vec3) {
@@ -208,16 +213,16 @@ impl From<&DVec> for Geom {
         Self(
             dvec.as_slice()
                 .chunks(3)
-                .map(|x| Vec3::from_row_slice(x))
+                .map(Vec3::from_row_slice)
                 .collect(),
         )
     }
 }
 
-impl Into<DVec> for Geom {
-    fn into(self) -> DVec {
-        let mut geom = Vec::with_capacity(self.len());
-        for c in &self {
+impl From<Geom> for DVec {
+    fn from(val: Geom) -> Self {
+        let mut geom = Vec::with_capacity(val.len());
+        for c in &val {
             geom.extend(&c);
         }
         DVec::from(geom)

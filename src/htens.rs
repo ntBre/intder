@@ -197,10 +197,10 @@ impl Htens {
                 }
             }
             // HIJKS6
+            #[allow(clippy::needless_range_loop)]
             Torsion(i, j, k, l) => {
                 let tmp = geom.s_vec(s);
                 let v1 = &tmp[3 * i..3 * i + 3];
-                let v2 = &tmp[3 * j..3 * j + 3];
                 let v4 = &tmp[3 * l..3 * l + 3];
                 // unit and non-unit vectors
                 let e21 = geom.unit(*j, *i);
@@ -261,11 +261,8 @@ impl Htens {
                     h.h411[(2, 1, k)] = -e23[k] * w6 + bp32[k] * c7;
                 } // end 10
 
-                let mut v2 = v2.to_vec();
                 for k in 0..3 {
-                    for m in 0..3 {
-                        v2[m] = 0.0;
-                    }
+                    let mut v2 = [0.0; 3];
                     v2[k] = 1.0;
                     let h22 = Hmat::mat1(&Vec3::from_row_slice(&v2));
                     for j in 0..3 {
@@ -336,7 +333,7 @@ impl Htens {
                             * (w1 * h44[(i, k)] + c6 * h11[(i, k)]
                                 - c10 * bp21[(i)] * bp21[(k)]);
                     }
-                    h43[(k, k)] = h43[(k, k)] - w2;
+                    h43[(k, k)] -= w2;
                 }
                 for k in 0..3 {
                     for j in 0..=k {
@@ -356,10 +353,10 @@ impl Htens {
                     }
                 }
                 for k in 0..3 {
+                    #[allow(clippy::needless_range_loop)]
                     for j in 0..3 {
                         for i in 0..3 {
-                            h.h113[(i, j, k)] =
-                                h.h113[(i, j, k)] - v1[(j)] * h43[(i, k)];
+                            h.h113[(i, j, k)] -= v1[(j)] * h43[(i, k)];
                         }
                     }
                 }
@@ -368,13 +365,12 @@ impl Htens {
                         h43[(j, k)] = w3 * h42[(j, k)] - w1 * h32[(k, j)]
                             + w2 * bp22[(j)] * bp23[(k)];
                     }
-                    h43[(k, k)] = h43[(k, k)] - c14;
+                    h43[(k, k)] -= c14;
                 }
                 for k in 0..3 {
                     for j in 0..3 {
                         for i in 0..3 {
-                            h.h123[(i, j, k)] =
-                                h.h123[(i, j, k)] + v1[(i)] * h43[(j, k)];
+                            h.h123[(i, j, k)] += v1[(i)] * h43[(j, k)];
                         }
                     }
                 } // end 142
@@ -409,7 +405,7 @@ impl Htens {
                     for i in 0..3 {
                         let w3 = -e23[(k)] * bp22[(i)] * w1
                             + e23[(k)] * w2 * (c15 * e23[(i)] - e21[(i)]);
-                        h43[(i, k)] = h43[(i, k)] + w3;
+                        h43[(i, k)] += w3;
                     }
                 } // end 156
 
@@ -694,7 +690,7 @@ impl Htens {
                 let tmp = geom.s_vec(s);
                 let v1 = &tmp[3 * i..3 * i + 3];
                 let v3 = &tmp[3 * k..3 * k + 3];
-                let th = s.value(&geom);
+                let th = s.value(geom);
                 let e21 = geom.unit(*j, *i);
                 let e23 = geom.unit(*j, *k);
                 let t21 = geom.dist(*j, *i);
@@ -720,16 +716,14 @@ impl Htens {
                         for i in 0..3 {
                             h.h221[(i, j, k)] = h11[(i, j)]
                                 * (v1[(k)] * tanth - e21[(k)] / t21);
-                            h.h221[(i, j, k)] = h.h221[(i, j, k)]
-                                + v1[(k)] * v1[(j)] * e21[(i)] * tanth / t21;
-                            h.h221[(i, j, k)] = h.h221[(i, j, k)]
-                                - (h11a[(i, j)] * v1[(k)]) / t21;
+                            h.h221[(i, j, k)] +=
+                                v1[(k)] * v1[(j)] * e21[(i)] * tanth / t21
+                                    - (h11a[(i, j)] * v1[(k)]) / t21;
                             h.h223[(i, j, k)] = h33[(i, j)]
                                 * (v3[(k)] * tanth - e23[(k)] / t23);
-                            h.h223[(i, j, k)] = h.h223[(i, j, k)]
-                                + v3[(k)] * v3[(j)] * e23[(i)] * tanth / t23;
-                            h.h223[(i, j, k)] = h.h223[(i, j, k)]
-                                - (h33a[(i, j)] * v3[(k)]) / t23;
+                            h.h223[(i, j, k)] +=
+                                v3[(k)] * v3[(j)] * e23[(i)] * tanth / t23;
+                            h.h223[(i, j, k)] -= (h33a[(i, j)] * v3[(k)]) / t23;
                         }
                     }
                 } // end 12
@@ -970,10 +964,8 @@ impl Htens {
                                         - hp44[(i, j)] * ctp
                                         + e24[(i)] * e24[(j)] * c4441);
                             if i == j {
-                                h.h333[(i, j, k)] =
-                                    h.h333[(i, j, k)] - v3[(k)] * c3335;
-                                h.h444[(i, j, k)] =
-                                    h.h444[(i, j, k)] - v4[(k)] * c4442;
+                                h.h333[(i, j, k)] -= v3[(k)] * c3335;
+                                h.h444[(i, j, k)] -= v4[(k)] * c4442;
                             }
                         }
                     }
