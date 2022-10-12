@@ -108,21 +108,16 @@ impl Siic {
             Lin1(a, b, c, d) => {
                 let e21 = geom.unit(*b, *a);
                 let e23 = geom.unit(*b, *c);
-                let ea = geom[*d];
-                let d = {
-                    let d = ea.dot(&ea);
-                    1.0 / d.sqrt()
-                };
-                let ea = d * ea;
+                let ea = geom[*d] / geom[*d].magnitude();
                 let e2m = e23.cross(&e21);
                 let stheta = ea.dot(&e2m);
                 f64::asin(stheta)
             }
             // vect4
             Out(a, b, c, d) => {
-                let e21 = geom.unit(*a, *b);
-                let e23 = geom.unit(*c, *b);
-                let e24 = geom.unit(*d, *b);
+                let e21 = geom.unit(*b, *a);
+                let e23 = geom.unit(*b, *c);
+                let e24 = geom.unit(*b, *d);
                 let v5 = e23.cross(&e24);
                 let w1 = e21.dot(&e23);
                 let w2 = e21.dot(&e24);
@@ -130,13 +125,11 @@ impl Siic {
                 let sphi = phi.sin();
                 let w = e21.dot(&v5);
                 let w = (w / sphi).asin();
-                let res = if w1 + w2 > 0.0 {
+                if w1 + w2 > 0.0 {
                     std::f64::consts::PI.copysign(w) - w
                 } else {
                     w
-                };
-                // TODO negative again for some reason
-                -res
+                }
             }
         }
     }
