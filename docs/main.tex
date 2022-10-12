@@ -113,7 +113,7 @@ three atoms, as shown in Fig.~\ref{fig:bend}.
 \end{figure}
 
 The value of the angle, $\theta$ is computed using Eqn.~\ref{eq:bend}, where
-$\vec{e_{ij}}$ represents the unit vector pointing from atom $i$ to atom $j$.
+$\vec{e}_{ij}$ represents the unit vector pointing from atom $i$ to atom $j$.
 
 \begin{equation}
   \label{eq:bend}
@@ -125,6 +125,60 @@ $\vec{e_{ij}}$ represents the unit vector pointing from atom $i$ to atom $j$.
 
 The torsional angle, referred to as \verb|TORS| in the input file, is the angle
 between the planes formed by the overlapping sets of atoms \verb|A|, \verb|B|,
-\verb|C|, and \verb|B|, \verb|C|, \verb|D|.
+\verb|C|, and \verb|B|, \verb|C|, \verb|D|, as shown in Fig.~\ref{fig:tors}.
+Vectors $\vec{v}_5$ and $\vec{v}_6$ are the vectors normal to the planes $ABC$
+and $BCD$, respectively, found by $\vec{e}_{BA} \times \vec{e}_{CB}$ and
+$\vec{e}_{DC} \times \vec{e}_{CB}$. To find the angle $\theta$ between these two
+normals, and thus between the planes, perform the following transformations:
+
+\begin{align}
+  w_2 &= \vec{e}_{BA} \cdot \vec{e}_{CB} \\
+  w_3 &= \vec{e}_{DC} \cdot \vec{e}_{CB} \\
+  s_2 &= \sqrt{1 - w_2^2} \\
+  s_3 &= \sqrt{1 - w_3^2} \\
+  w_4 &= \vec{e}_{BA} \cdot \vec{v}_{6} \\
+  w_5 &= -\vec{v}_5 \cdot \vec{v}_6 \\
+  w &= \frac{w_2}{s_2 s_3} \\
+  \theta_0 &= \asin w \\
+  \theta &= \begin{cases}
+              \theta_0 & w_3 \geq 0 \\
+              \pi - \theta_0 & w_3 < 0
+            \end{cases}
+\end{align}
+
+\begin{figure}[ht]
+  \centering
+  \caption{A torsion}
+  \label{fig:tors}
+
+  \begin{tikzpicture}
+    \node[draw,circle] (B) at (0,0) {B};
+    \node[draw,circle] (C) at (2,0) {C};
+    \node[draw,circle] (D) at (3,-2) {D};
+    \node[draw,circle] (A) at (-1,-2) {A};
+    \draw[thick] (B) -- (A) node[midway] (m) {};
+    \draw[thick] (C) -- (B) node[midway] (n) {};
+    \draw[thick] (D) -- (C) node[midway] (o) {};
+    \draw[thick, ->] (B) -- (m) node[midway, above left] {$\vec{e}_{BA}$};
+    \draw[thick, ->] (C) -- (n) node[midway, above] {$\vec{e}_{CB}$};
+    \draw[thick, ->] (D) -- (o) node[midway, above right] {$\vec{e}_{DC}$};
+    % vectors
+    \draw[thick, ->] (0,-1) -- (0,-0.5) node[midway, right] {$\vec{v_5}$};
+    \draw[thick, ->] (2,-1) -- (2,-0.5) node[midway, left] {$\vec{v_6}$};
+    % planes
+    \draw[dashed] (A) -- (C);
+    \draw[dashed] (B) -- (D);
+  \end{tikzpicture}
+\end{figure}
+
+\subsubsection{Lin1}
+\label{sec:lin1}
+
+TODO
+
+\subsubsection{Out}
+\label{sec:out}
+
+TODO
 
 \end{document}
