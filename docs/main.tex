@@ -84,11 +84,15 @@ the system. Given the exponential scaling of the number of points required to
 describe a quartic force field (QFF), or really any potential energy surface
 (PES), with the number atoms, this difference of 6 coordinates can have a large
 effect. As a result, using internal coordinates can lead to a substantial
-decrease in computational cost for such a PES. The types of simple-internal
-coordinates supported by INTDER are described in the following subsections.
+decrease in computational cost for such a PES.
 
 \subsection{Simple-Internal Coordinates}
 \label{sec:simple}
+
+Simple-internal coordinates are the basic building blocks of symmetry-internal
+coordinates, the major focus of the rest of the manual. The types of
+simple-internal coordinates supported by INTDER are described in the following
+subsections.
 
 \subsubsection{Stretch}
 \label{sec:stretch}
@@ -284,5 +288,119 @@ normals, and thus between the planes, perform the following transformations:
     \draw (n) node [left=0.3cm, above=0.25cm] {$\theta$};
   \end{tikzpicture}
 \end{figure}
+
+\subsection{Symmetry-Internal Coordinates}
+\label{sec:symm}
+
+With a solid foundation in simple-internal coordinates, symmetry-internal
+coordinates (SICs) require much less explanation. SICs are simply linear
+combinations of simple-internal coordinates that can be treated as a single
+unit. Common examples of SICs include the symmetric stretch in water, which is
+the positive combination (sum) of the O-H$_1$ stretch and the O-H$_2$ stretch;
+and the anti-symmetric stretch of water, which is the negative combination
+(difference) of the two O-H stretches. In the case of water, the third SIC only
+has a single component, the simple-internal bending coordinate. INTDER accepts
+linear combinations of any number of simple-internal coordinates, but as you may
+imagine, the generation of highly-symmetrical SIC systems becomes very
+difficult. Describing how to approach such a problem is beyond the scope of this
+manual, if not beyond the scope of its author's abilities. Such is the major
+weakness of SICs in general.
+
+\subsection{Input Format}
+\label{sec:coord-inp}
+
+The listing below shows an example of simple- and symmetry-internal coordinate
+input for the formaldehyde (H$_2$CO) molecule, followed by the geometry to help
+picture the meaning of these coordinates.
+
+\begin{lstlisting}
+STRE     1    2
+STRE     2    3
+STRE     2    4
+BEND     1    2    3
+BEND     1    2    4
+OUT      1    2    3    4
+    1   1   1.000000000
+    2   2   1.000000000   3   1.000000000
+    3   4   1.000000000   5   1.000000000
+    4   2   1.000000000   3  -1.000000000
+    5   4   1.000000000   5  -1.000000000
+    6   6   1.000000000
+    0
+      0.000000000        0.000000000       -1.137981497
+      0.000000000        0.000000000        1.140677167
+      0.000000000        1.771466895        2.235424580
+      0.000000000       -1.771466895        2.235424580
+\end{lstlisting}
+
+The first section defines the internal coordinates themselves, given in more
+descriptive notation below and with atom labels corresponding to
+Fig.~\ref{fig:h2co}. This format is straightforward: the name of the coordinate
+occurs in the first column, followed by the number of the atom in the Cartesian
+geometry that follows in the order described in the previous sections.
+
+\begin{figure}[ht]
+  \centering
+  \caption{Simple-internal coordinates of formaldehyde}
+  \label{fig:h2co}
+
+  \begin{tikzpicture}
+    \node[draw,circle] (A) at (0,-1.4) {H$_1$};
+    \node[draw,circle] (B) at (2,0) {C};
+    \node[draw,circle] (C) at (4,-1.4) {H$_2$};
+    \node[draw,circle] (D) at (2,3) {O};
+    \draw[thick] (A) -- (B) node[midway] (m) {};
+    \draw[thick] (B) -- (C) node[midway] (n) {};
+    \draw[thick] (B) -- (D) node[midway] (o) {};
+    \path (m) edge [bend left=90] node[left] {$S_4$} (o);
+    \path (n) edge [bend left=-90] node[right] {$S_5$} (o);
+    \draw[thick, ->] (B) -- (m) node[midway, above left] {$S_2$};
+    \draw[thick, ->] (B) -- (n) node[midway, above right] {$S_3$};
+    \draw[thick, ->] (B) -- (o) node[near end, left] {$S_1$};
+
+    \draw[dashed] (B) -- (2.7,3) node (x) {};
+    \path (x) edge [bend left=-90] node[right] {$S_6$} (D);
+  \end{tikzpicture}
+\end{figure}
+
+\begin{align}
+  S_1 &= r(\text{O}-\text{C}) \\
+  S_2 &= r(\text{C}-\text{H}_1) \\
+  S_3 &= r(\text{C}-\text{H}_2) \\
+  S_4 &= \angle(\text{O}-\text{C}-\text{H}_1) \\
+  S_5 &= \angle(\text{O}-\text{C}-\text{H}_2) \\
+  S_6 &= OUT(\text{O}-\text{CH}_2)
+\end{align}
+
+The second section defines the SICs as linear combinations of the
+simple-internals. The first column represents the SIC number, every pair of
+following columns represents a simple-internal coordinate and its coefficient.
+In practice all of these coefficients are 1.0, so this format is likely to
+change in the future. Positive coefficients, such as those for SIC 2 and SIC 3,
+are symmetric coordinates like the symmetric stretch for water discussed
+earlier. Similarly, negative coefficients, like the second components of SICs 4
+and 5, correspond to anti-symmetric coordinates where one simple-internal
+coordinate increases while the other decreases. An SIC number of 0 at the start
+of the line signals the end of the SIC section.
+
+SICs can also be written algebraically, as shown in the equations below. Note
+also the normalization constant that must be applied to give the whole SIC a
+magnitude of 1. This constant has the general form $\frac{\sqrt{N}}{N}$, where N
+is the number of simple-internal components, although the value for $N=2$ is
+typically written as $\frac{1}{\sqrt{2}}$, which does not emphasize this form.
+
+\begin{align}
+  L_1 &= r(\text{O}-\text{C}) \\
+  L_2 &= \frac{1}{\sqrt{2}}[r(\text{C}-\text{H}_1) + r(\text{C}-\text{H}_1)]\\
+  L_2 &= \frac{1}{\sqrt{2}}[\angle(\text{O}-\text{C}-\text{H}_1) + \angle(\text{O}-\text{C}-\text{H}_2)]\\
+  L_2 &= \frac{1}{\sqrt{2}}[r(\text{C}-\text{H}_1) - r(\text{C}-\text{H}_1)]\\
+  L_2 &= \frac{1}{\sqrt{2}}[\angle(\text{O}-\text{C}-\text{H}_1) - \angle(\text{O}-\text{C}-\text{H}_2)]\\
+  L_6 &= OUT(\text{O}-\text{CH}_2)
+\end{align}
+
+As a final note, the example input contains exactly the right format for the
+Fortran version of INTDER, but the Rust version is much more forgiving with
+spacing and alignment. As long as whitespace separates the fields of each line,
+the Rust version should parse it correctly.
 
 \end{document}
