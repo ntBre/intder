@@ -6,6 +6,35 @@
 
 \usepackage{tikz}
 
+% from https://tex.stackexchange.com/a/36607/207458
+\newcommand{\AxisRotator}[1][rotate=0]{%
+  \tikz [x=0.25cm,y=0.60cm,line width=.2ex,-stealth,#1] \draw (0,0) arc (-150:150:1 and 1);%
+}
+
+
+% from https://tex.stackexchange.com/a/21957/207458
+\usetikzlibrary{decorations}
+
+\pgfdeclaredecoration{triangle}{start}{
+  \state{start}[width=0.99\pgfdecoratedinputsegmentremainingdistance,next state=up from center]
+  {\pgfpathlineto{\pgfpointorigin}}
+  \state{up from center}[next state=do nothing]
+  {
+    \pgfpathlineto{\pgfqpoint{\pgfdecoratedinputsegmentremainingdistance}{\pgfdecorationsegmentamplitude}}
+    \pgfpathlineto{\pgfqpoint{\pgfdecoratedinputsegmentremainingdistance}{-\pgfdecorationsegmentamplitude}}
+    \pgfpathlineto{\pgfpointdecoratedpathfirst}
+  }
+  \state{do nothing}[width=\pgfdecorationsegmentlength,next state=do nothing]{
+    \pgfpathlineto{\pgfpointdecoratedinputsegmentfirst}
+    \pgfpathmoveto{\pgfpointdecoratedinputsegmentlast}
+  }
+}
+
+\tikzset{
+  triangle path/.style={decoration={triangle,amplitude=#1}, decorate},
+  triangle path/.default=1ex
+}
+
 \usepackage{listings}
 \lstset{
   basicstyle=\ttfamily\small,
@@ -120,6 +149,88 @@ $\vec{e}_{ij}$ represents the unit vector pointing from atom $i$ to atom $j$.
   \theta = \acos(\vec{e}_{BA} \cdot \vec{e}_{BC})
 \end{equation}
 
+\subsubsection{Linear bend}
+\label{sec:lin1}
+
+The linear angle bend, referred to as \verb|LIN1| in the input file, is similar
+to a regular bend, but atoms \verb|A|, \verb|B|, and \verb|C| are in a line, so
+specifying the angle between them requires a fourth atom, \verb|D|, which must
+be a dummy atom specified at the end of the geometry. Typically the coordinates
+of \verb|D| are chosen to align with the central atom \verb|B| along the axis of
+the molecule but to project along another axis, as shown in Fig.~\ref{fig:lin1}.
+
+\begin{figure}[ht]
+  \centering
+  \caption{A linear bend}
+  \label{fig:lin1}
+
+  \begin{tikzpicture}
+    \node[draw,circle] (A) at (0,0) {A};
+    \node[draw,circle] (B) at (2,0) {B};
+    \node[draw,circle] (C) at (4,0) {C};
+    \node[draw,circle] (D) at (2,2) {D};
+    \draw[thick] (A) -- (B) node[midway] (m) {};
+    \draw[thick] (B) -- (C) node[midway] (n) {};
+    \draw[thick, dashed] (B) -- (D) node[midway] (o) {};
+    \path (m) edge [bend left=-90] node[below] {$\theta$} (n);
+    \draw[thick, ->] (B) -- (m) node[midway, above] {$\vec{e}_{BA}$};
+    \draw[thick, ->] (B) -- (n) node[midway, above right] {$\vec{e}_{BC}$};
+    \draw[thick, ->] (B) -- (o) node[near end, right] {$\vec{e}_{a}$};
+  \end{tikzpicture}
+\end{figure}
+
+The value of the linear bend is computed using Eqn.~\ref{eq:lin1} where
+$\vec{e}_a$ is the unit vector in the Cartesian direction of the dummy atom.
+Nothing in the code actually checks that it aligns with atom \verb|B|, so the
+caller is responsible for making sure this is the case.
+
+\begin{equation}
+  \label{eq:lin1}
+  \theta = \asin \big( \vec{e}_a \cdot (\vec{e}_{BC} \times \vec{e}_{BA}) \big)
+\end{equation}
+
+\subsubsection{Out}
+\label{sec:out}
+
+The out-of-plane bend, referred to as \verb|OUT| in the input file, is the angle
+between atom \verb|A| and the plane formed by atoms \verb|B|, \verb|C|, and
+\verb|D|, as shown in Fig.~\ref{fig:out}.
+
+\begin{figure}[ht]
+  \centering
+  \caption{An out-of-plane bend}
+  \label{fig:out}
+
+  \begin{tikzpicture}
+    \node[draw,circle] (A) at (0,1) {A};
+    \node[draw,circle] (B) at (2,0) {B};
+    \node[draw,circle] (C) at (3,-1.4) {C};
+    \node[draw,circle] (D) at (3,1.4) {D};
+    \draw[fill=black,triangle path] (B) -- (A) node[midway] (m) {};
+    \draw[thick,dashed] (B) -- (0,0) node[midway] (s) {} ;
+    \draw[thick] (B) -- (C) node[midway] (n) {};
+    \draw[thick] (B) -- (D) node[midway] (o) {};
+    \path (m) edge [bend left=-90] node[left] {$\theta$} (s);
+    % \draw[thick, dashed] (B) -- (D) node[midway] (o) {};
+    % \path (m) edge [bend left=-90] node[below] {$\theta$} (n);
+    \draw[thick, ->] (B) -- (m) node[midway, above=.2cm] {$\vec{e}_{BA}$};
+    \draw[thick, ->] (B) -- (n) node[midway, above right] {$\vec{e}_{BC}$};
+    \draw[thick, ->] (B) -- (o) node[near end, right] {$\vec{e}_{BD}$};
+  \end{tikzpicture}
+\end{figure}
+
+The value of $\theta$ is computed with the equations below, with the caveat that
+if $w_1 + w_2$ is greater than zero, the value of theta is set to $\pi$ with the
+sign of $\theta$, minus $\theta$.
+
+\begin{align}
+  \vec{v}_5 &= \vec{e}_{BC} \times \vec{e}_{BD} \\
+  w_1 &= \vec{e}_{BA} \cdot \vec{e}_{BC} \\
+  w_2 &= \vec{e}_{BA} \cdot \vec{e}_{BD} \\
+  \phi &= \sin \big( \acos (\vec{e}_{BC} \cdot \vec{e}_{BD}) \big) \\
+  \theta &= \asin ( \vec{e}_{BA} \cdot \vec{v}_5 / \phi)
+\end{align}
+
 \subsubsection{Torsion}
 \label{sec:tors}
 
@@ -168,17 +279,10 @@ normals, and thus between the planes, perform the following transformations:
     % planes
     \draw[dashed] (A) -- (C);
     \draw[dashed] (B) -- (D);
+
+    \draw (n) node [left] {\AxisRotator[x=0.2cm,y=0.25cm,rotate=180]};
+    \draw (n) node [left=0.3cm, above=0.25cm] {$\theta$};
   \end{tikzpicture}
 \end{figure}
-
-\subsubsection{Lin1}
-\label{sec:lin1}
-
-TODO
-
-\subsubsection{Out}
-\label{sec:out}
-
-TODO
 
 \end{document}
