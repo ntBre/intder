@@ -54,8 +54,8 @@ impl Geom {
             Siic::Stretch(a, b) => {
                 let e_12 = self.unit(*a, *b);
                 for i in 0..3 {
-                    tmp[3 * a + i] = -e_12[i % 3];
-                    tmp[3 * b + i] = e_12[i % 3];
+                    tmp[3 * a + i] = -e_12[i];
+                    tmp[3 * b + i] = e_12[i];
                 }
             }
             Siic::Bend(a, b, c) => {
