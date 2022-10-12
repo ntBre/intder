@@ -4,6 +4,8 @@
 \usepackage{parskip}
 \usepackage{graphicx}
 
+\usepackage{tcolorbox}
+
 \usepackage{tikz}
 
 % from https://tex.stackexchange.com/a/36607/207458
@@ -53,6 +55,8 @@
   pdftitle={INTDER Manual},
   pdfpagemode=FullScreen,
 }
+
+\newcommand\e[1]{$\times 10^{#1}$}
 
 \title{Rust INTDER Manual}
 \date{}
@@ -402,5 +406,116 @@ As a final note, the example input contains exactly the right format for the
 Fortran version of INTDER, but the Rust version is much more forgiving with
 spacing and alignment. As long as whitespace separates the fields of each line,
 the Rust version should parse it correctly.
+
+\section{Displacements}
+\label{sec:disp}
+
+The next section of the input file depends on the type of calculation to be run.
+The two options are SIC displacements to be converted to Cartesian geometries
+and SIC force constants to be converted to Cartesian force constants. This
+section is concerned with the former, and the next section covers the latter.
+
+\subsection{Input Format}
+\label{sec:disp-inp}
+
+The basic form of displacement input is as shown in the listing below.
+
+\begin{lstlisting}
+DISP 413
+    0
+    1       -0.0200000000
+    0
+    1       -0.0150000000
+    2       -0.0050000000
+    0
+    1       -0.0150000000
+    3       -0.0050000000
+    0
+\end{lstlisting}
+
+The Fortran version looks for the number following \verb|DISP| to determine how
+many displacements to read, but the Rust version simply looks for \verb|DISP| to
+signal to start reading displacements and will continue until the end of the
+file. Following this, each displacement is given by zero or more SIC indices
+followed by the size of the displacement to take in that SIC. These
+displacements are expected to be in \AA{}ngstroms or radians, depending on the
+type of coordinate. The end of a single displacement is again signaled by a
+\verb|0| at the start of the line. The reason for saying ``zero or more SIC
+indices'' before is that an immediate zero (not necessarily immediate in the
+\verb|DISP| section, just without preceding SICs), as shown at the top of the
+previous listing, corresponds to a zero displacement or equilibrium geometry and
+is a valid input.
+
+With that in mind, this listing shows 4 displacements: the zero displacement,
+one composed of only a $-$0.02 \AA{} step in SIC 1, a combination of a $-$0.015
+\AA{} step in SIC 1 with a $-$0.005 \AA{} step in SIC 2, and a similar
+combination of SICs 1 and 3.
+
+\begin{tcolorbox}[title=Tip]
+  If you need to verify that the number of displacements in your INTDER input
+  file is correct, you can \verb|grep| for these 0 lines:
+
+  \begin{lstlisting}
+    $ grep -c `^    0$'
+  \end{lstlisting}
+
+  Just remember to subtract 1 for the instance in the SICs! This also assumes
+  that the file is formatted as expected by the Fortran version. If you need
+  more ``flexible'' formatting, you may need to adapt your regular expression to
+  something like
+
+  \begin{lstlisting}
+    $ grep -Ec `^\s+0\s*$'
+  \end{lstlisting}
+
+  Note also that now we need to pass the \verb|-E| flag to take advantage of
+  extended regular expressions that allow \verb|\s|, for example.
+\end{tcolorbox}
+
+\subsection{Mathematical Details}
+\label{sec:disp-math}
+
+For each of the displacements, $\vec{d}_i$ in the input, the initial set of SIC
+values, $\vec{L}_0$, is displaced to yield the desired SICs,
+$\vec{L}_d = \vec{L}_0 + \vec{d}_i$. Then, while the absolute value of the
+maximum deviation between the current SIC values $\vec{L}_i$ and $\vec{L}_d$ is
+greater than 1\e{-14}, the Cartesian coordinates are adjusted by an iterative
+process. First, the SIC $\vb B$ matrix is constructed. The corresponding $\vb D$
+matrix is just the product of $\vb B$ with its transpose:
+$\vb D = \vb B \vb B^\intercal$. Then the $\vb A$ matrix is simply
+$\vb A = \vb B^\intercal \vb D^{-1}$. This $\vb A$ matrix is multiplied by the
+difference between the desired and current SIC values to yield a step,
+$\vec{\delta}$, to be added to the Cartesian coordinates:
+$\vec{\delta} = \vb A * (\vec{L}_d - \vec{L}_i)$. Finally, the updated SIC
+values, $\vec{L}_{i+1}$, are computed from the resulting Cartesian geometry. As
+mentioned above, this process is repeated until convergence is reached or the
+maximum number of iterations (currently 20) is reached. While this process
+sounds straightforward at this level of abstraction, most of the effort goes
+into constructing the $\vb B$ matrix in the first place.
+
+The SIC $\vb B$ matrix (denoted \verb|BS| in the Fortran code and more aptly
+\verb|sym_b_matrix| in my Rust code) requires only a fairly simple
+transformation (via multiplication by the $\vb U$ matrix) from the
+simple-internal $\vb B$ matrix, so most of the effort in this section is
+actually focused on the simple-internal coordinates and their $\vb B$ matrix.
+The discussion will only return to the construction of $\vb U$ at the very end.
+
+The $\vb B$ matrix is an $N \times M$ matrix, where $N$ corresponds to the
+number of simple-internal coordinates, and $M$ is the number of Cartesian
+coordinates, or 3 times the number of atoms. Each row of $\vb B$ is the Wilson
+$s$-vector for the corresponding simple-internal coordinate. Rather, each row is
+conceptually a Wilson $s$-vector, but the actual form differs from that
+described by Wilson himself based on later developments in internal coordinate
+definitions. Like the coordinates themselves, each coordinate type has its own
+$s$-vector formulation and each of these is again described in the following
+subsections. Regardless of the specific formulation, the $s$-vectors simply
+describe the relationship between the simple-internal coordinates and the
+underlying Cartesian coordinates.
+
+\subsubsection{Stretch}
+\label{sec:bmat-stre}
+
+\section{Force Constants}
+\label{sec:fcs}
 
 \end{document}
