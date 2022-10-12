@@ -663,11 +663,13 @@ impl Intder {
         if unsafe { VERBOSE } {
             self.print_init();
         }
+        let sic0 = DVec::from(self.symmetry_values(&self.geom));
+        let cart0: DVec = self.geom.clone().into();
         let mut ret = Vec::new();
         for (i, disp) in self.disps.iter().enumerate() {
             // initialize sics and carts to those from the input file
-            let mut sic_current = DVec::from(self.symmetry_values(&self.geom));
-            let mut cart_current: DVec = self.geom.clone().into();
+            let mut sic_current = sic0.clone();
+            let mut cart_current: DVec = cart0.clone();
 
             // get a vector from the displacement from the input file
             let disp = DVec::from(disp.clone());
