@@ -88,20 +88,13 @@ impl Siic {
                 let v6 = e_43.cross(&e_32);
                 let w2 = e_21.dot(&e_32);
                 let w3 = e_43.dot(&e_32);
-                let cp2 = -w2;
-                let cp3 = -w3;
-                let sp2 = (1.0 - cp2 * cp2).sqrt();
-                let sp3 = (1.0 - cp3 * cp3).sqrt();
+                let sp2 = (1.0 - w2 * w2).sqrt();
+                let sp3 = (1.0 - w3 * w3).sqrt();
                 let w2 = e_21.dot(&v6);
                 let w3 = -v5.dot(&v6);
                 let w = w2 / (sp2 * sp3);
                 let w_size = w.abs() - 1.0;
-                let w = if w_size > 0.0 && w_size < 1e-12 {
-                    f64::copysign(1.0, w)
-                } else {
-                    w
-                }
-                .asin();
+                let w = w.clamp(-1.0, 1.0).asin();
                 if w.is_nan() {
                     panic!("nan calling sin on {}", w_size);
                 }
