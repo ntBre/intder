@@ -2,6 +2,7 @@ use std::{
     fmt::Display,
     fs::File,
     io::{BufRead, BufReader, Read, Write},
+    sync::Once,
 };
 
 pub mod geom;
@@ -25,6 +26,14 @@ const HART: f64 = 4.3597482;
 
 // flags
 pub static mut VERBOSE: bool = false;
+
+static START: Once = Once::new();
+pub fn is_verbose() -> bool {
+    unsafe {
+        START.call_once(|| VERBOSE = std::env::var("INTDER_DEBUG").is_ok());
+        VERBOSE
+    }
+}
 
 // TODO make these input or flag params
 const TOLDISP: f64 = 1e-14;
@@ -660,7 +669,7 @@ impl Intder {
     /// convert the displacements in `self.disps` from (symmetry) internal
     /// coordinates to Cartesian coordinates
     pub fn convert_disps(&self) -> Vec<DVec> {
-        if unsafe { VERBOSE } {
+        if is_verbose() {
             self.print_init();
         }
         let sic0 = DVec::from(self.symmetry_values(&self.geom));
@@ -675,7 +684,7 @@ impl Intder {
             let disp = DVec::from(disp.clone());
             let sic_desired = &sic_current + &disp;
 
-            if unsafe { VERBOSE } {
+            if is_verbose() {
                 println!("DISPLACEMENT{:5}\n", i);
                 println!("INTERNAL DISPLACEMENTS\n");
                 for (i, d) in disp.iter().enumerate() {
@@ -697,7 +706,7 @@ impl Intder {
                 let d = &b_sym * b_sym.transpose();
                 let a = Intder::a_matrix(&b_sym);
 
-                if unsafe { VERBOSE } {
+                if is_verbose() {
                     println!(
                         "ITER={:5} MAX INTERNAL DEVIATION = {:.4e}",
                         iter,
@@ -727,11 +736,11 @@ impl Intder {
                 iter += 1;
 
                 if MAX_ITER > 0 && iter > MAX_ITER {
-                    panic!("max iterations exceeded");
+                    panic!("max iterations exceeded on disp {i}");
                 }
             }
 
-            if unsafe { VERBOSE } {
+            if is_verbose() {
                 println!(
                     "ITER={:5} MAX INTERNAL DEVIATION = {:.4e}\n",
                     iter,
@@ -1717,7 +1726,7 @@ impl Intder {
     /// coordinates to Cartesian coordinates. returns (fc2, fc3, fc4) in the
     /// order printed in the fort.{15,30,40} files for spectro.
     pub fn convert_fcs(&self) -> (DMat, Vec<f64>, Vec<f64>) {
-        if unsafe { VERBOSE } {
+        if is_verbose() {
             self.print_init();
         }
         // let sics = DVec::from(self.symmetry_values(&self.geom));
