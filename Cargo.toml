@@ -11,6 +11,7 @@ path = "src/bin/irreps.rs"
 
 [dependencies]
 approx = "0.5.1"
+lazy_static = "1.4.0"
 nalgebra = "0.31.1"
 psqs = { path = "/home/brent/Projects/psqs" }
 regex = "1.5.5"

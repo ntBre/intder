@@ -49,6 +49,58 @@ fn test_load_pts() {
 }
 
 #[test]
+fn load_full_xyz() {
+    let got = Intder::load_file("testfiles/full_xyz.in");
+    let want = Intder {
+        input_options: vec![3, 3, 3, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 14],
+        simple_internals: vec![
+            Siic::Stretch(0, 1),
+            Siic::Stretch(1, 2),
+            Siic::Bend(0, 1, 2),
+        ],
+        symmetry_internals: vec![
+            vec![S, S, 0.],
+            vec![0., 0., 1.],
+            vec![S, -S, 0.],
+        ],
+        geom: Geom(vec![
+            na::Vector3::new(0.000000000000, 1.431390244079, 0.986041163966),
+            na::Vector3::new(0.000000000000, 0.000000000000, -0.124238450265),
+            na::Vector3::new(0.000000000000, -1.431390244079, 0.986041163966),
+        ]),
+        disps: vec![
+            vec![0.005, 0.0, 0.0],
+            vec![0.0, 0.005, 0.0],
+            vec![0.0, 0.0, 0.005],
+            vec![-0.005, -0.005, -0.01],
+            vec![-0.005, -0.005, 0.0],
+            vec![-0.005, -0.005, 0.010],
+            vec![-0.005, -0.010, 0.0],
+            vec![-0.005, -0.015, 0.0],
+            vec![0.0, 0.0, 0.0],
+        ],
+        atoms: vec![
+            Atom {
+                label: "H".to_string(),
+                weight: 1,
+            },
+            Atom {
+                label: "O".to_string(),
+                weight: 16,
+            },
+            Atom {
+                label: "H".to_string(),
+                weight: 1,
+            },
+        ],
+        fc2: vec![],
+        fc3: vec![],
+        fc4: vec![],
+    };
+    assert_eq!(got, want);
+}
+
+#[test]
 fn test_load_freqs() {
     let got = Intder::load_file("testfiles/h2o.freq.in");
     let want = Intder {

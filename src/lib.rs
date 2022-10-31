@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     fmt::Display,
     fs::File,
     io::{BufRead, BufReader, Read, Write},
@@ -12,6 +13,7 @@ pub mod htens;
 use geom::Geom;
 use hmat::Hmat;
 use htens::Htens;
+use lazy_static::lazy_static;
 use nalgebra as na;
 use regex::Regex;
 use symm::Irrep;
@@ -144,10 +146,24 @@ impl Siic {
     }
 }
 
+lazy_static! {
+    static ref DEFAULT_WEIGHTS: HashMap<&'static str, usize> =
+        HashMap::from([("H", 1), ("O", 16)]);
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Atom {
     pub label: String,
     pub weight: usize,
+}
+
+impl Atom {
+    pub fn new(label: impl Into<String>, weight: usize) -> Self {
+        Self {
+            label: label.into(),
+            weight,
+        }
+    }
 }
 
 impl Display for Intder {
@@ -448,8 +464,18 @@ impl Intder {
                         .map(|x| x.parse::<usize>().unwrap()),
                 );
             } else if geom.is_match(&line) {
-                if let [x, y, z] = line
-                    .split_whitespace()
+                let mut sp = line.split_ascii_whitespace().peekable();
+                if let Some(s) = sp.peek() {
+                    if let Some(c) = s.chars().next() {
+                        if c.is_alphabetic() {
+                            let atom = sp.next().unwrap();
+                            intder
+                                .atoms
+                                .push(Atom::new(atom, DEFAULT_WEIGHTS[atom]));
+                        }
+                    }
+                }
+                if let [x, y, z] = sp
                     .map(|x| x.parse::<f64>().unwrap())
                     .collect::<Vec<f64>>()[..]
                 {
