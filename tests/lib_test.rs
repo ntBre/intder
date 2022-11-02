@@ -474,7 +474,7 @@ fn test_convert_fcs() {
         },
     ];
     for test in tests {
-        let intder = Intder::load_file(&test.infile);
+        let intder = Intder::load_file(test.infile);
         let (fc2, fc3, fc4) = intder.convert_fcs();
 
         let want_fc2 = DMat::from_row_slice(

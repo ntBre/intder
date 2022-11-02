@@ -148,7 +148,14 @@ impl Siic {
 
 lazy_static! {
     static ref DEFAULT_WEIGHTS: HashMap<&'static str, usize> =
-        HashMap::from([("H", 1), ("O", 16)]);
+        HashMap::from([
+        //
+            ("H", 1),
+            ("He", 4),
+            ("C", 12),
+            ("N", 14),
+	    ("O", 16),
+	]);
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
