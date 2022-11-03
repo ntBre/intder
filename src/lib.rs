@@ -173,6 +173,16 @@ impl Atom {
     }
 }
 
+impl From<&symm::Atom> for Atom {
+    fn from(value: &symm::Atom) -> Self {
+        let label = value.label();
+        Self {
+            label: label.to_string(),
+            weight: DEFAULT_WEIGHTS[label],
+        }
+    }
+}
+
 impl Display for Intder {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use Siic::*;
