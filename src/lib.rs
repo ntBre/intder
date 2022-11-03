@@ -253,24 +253,18 @@ impl Display for Intder {
         } else {
             // assume freqs
             for (i, Atom { label, weight }) in self.atoms.iter().enumerate() {
-                match i {
-                    0 => write!(
-                        f,
-                        "{:11}",
-                        format!("{}{}", label.to_uppercase(), weight)
-                    ),
-                    1 => write!(
-                        f,
-                        "{:13}",
-                        format!("{}{}", label.to_uppercase(), weight)
-                    ),
-                    _ => write!(
-                        f,
-                        "{:12}",
-                        format!("{}{}", label.to_uppercase(), weight)
-                    ),
-                }?;
+                let width = match i {
+                    0 => 11,
+                    1 => 13,
+                    _ => 12,
+                };
+                write!(
+                    f,
+                    "{:>width$}",
+                    format!("{}{}", label.to_uppercase(), weight)
+                )?;
             }
+            writeln!(f)?;
             let nsic = self.symmetry_internals.len();
             for i in 1..=nsic {
                 for j in 1..=i {
