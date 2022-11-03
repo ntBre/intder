@@ -150,12 +150,12 @@ lazy_static! {
     static ref DEFAULT_WEIGHTS: HashMap<&'static str, usize> =
         HashMap::from([
         //
-            ("H", 1),
-            ("He", 4),
-            ("C", 12),
-            ("N", 14),
-	    ("O", 16),
-	]);
+        ("H", 1),
+        ("He", 4),
+        ("C", 12),
+        ("N", 14),
+        ("O", 16),
+    ]);
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -231,7 +231,7 @@ impl Display for Intder {
         writeln!(f, "{:5}", 0)?;
         write!(f, "{}", self.geom)?;
         if !self.disps.is_empty() {
-            writeln!(f, "DISP{:5}", self.disps.len())?;
+            writeln!(f, "DISP{:4}", self.disps.len())?;
             for disp in &self.disps {
                 for (i, d) in disp.iter().enumerate() {
                     if *d != 0.0 {
@@ -242,6 +242,25 @@ impl Display for Intder {
             }
         } else {
             // assume freqs
+            for (i, Atom { label, weight }) in self.atoms.iter().enumerate() {
+                match i {
+                    0 => write!(
+                        f,
+                        "{:11}",
+                        format!("{}{}", label.to_uppercase(), weight)
+                    ),
+                    1 => write!(
+                        f,
+                        "{:13}",
+                        format!("{}{}", label.to_uppercase(), weight)
+                    ),
+                    _ => write!(
+                        f,
+                        "{:12}",
+                        format!("{}{}", label.to_uppercase(), weight)
+                    ),
+                }?;
+            }
             let nsic = self.symmetry_internals.len();
             for i in 1..=nsic {
                 for j in 1..=i {
