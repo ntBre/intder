@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fmt::Display,
     fs::File,
     io::{BufRead, BufReader, Read, Write},
@@ -16,7 +16,7 @@ use htens::Htens;
 use lazy_static::lazy_static;
 use nalgebra as na;
 use regex::Regex;
-use symm::Irrep;
+use symm::{Axis, Irrep};
 use tensor::Tensor4;
 type Tensor3 = tensor::tensor3::Tensor3<f64>;
 
@@ -147,9 +147,8 @@ impl Siic {
 }
 
 lazy_static! {
-    static ref DEFAULT_WEIGHTS: HashMap<&'static str, usize> =
-        HashMap::from([
-        //
+    static ref DEFAULT_WEIGHTS: HashMap<&'static str, usize> = HashMap::from([
+        ("X", 0),
         ("H", 1),
         ("He", 4),
         ("C", 12),
@@ -1808,6 +1807,60 @@ impl Intder {
                 writeln!(f).unwrap();
             }
         }
+    }
+
+    /// detect the dummy atoms needed in `self` as the atoms extending from the
+    /// [LIN1]s and add two dummy atoms per LIN1, in the two directions
+    /// perpendicular to axis. I think this still assumes the molecule is linear
+    /// because it takes the `axis` coordinate of the real geometry and combines
+    /// that with 1.111111111 and 0.0 as the coordinate of the dummy atom. This
+    /// might work because this section of the molecule probably has to be on an
+    /// axis to use a LIN1, but it could be wrong. We could take the non-1.11111
+    /// coordinate from the real geometry as well
+    pub fn add_dummies(&mut self, axis: Axis) -> usize {
+        let dummies: HashSet<usize> = self
+            .simple_internals
+            .iter()
+            .filter_map(|sic| {
+                if let Siic::Lin1(_, b, _, _) = sic {
+                    Some(*b)
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        if dummies.is_empty() {
+            return 0;
+        }
+
+        // add the dummy atoms
+        let mut ndum = 0;
+        for dummy in dummies {
+            // atom the dummy attaches to
+            let real_coord = self.geom[dummy];
+            let nonzero = axis as usize;
+            let (a, b) = axis.not();
+            let mut coord = [0.0; 3];
+            // match the nonzero field in the real geometry
+            coord[nonzero] = real_coord[nonzero];
+            coord[a as usize] = 1.1111111111;
+            coord[b as usize] = 0.0;
+            self.geom.push(na::Vector3::from(coord));
+
+            let mut coord = [0.0; 3];
+            // match the nonzero field in the real geometry
+            coord[nonzero] = real_coord[nonzero];
+            coord[b as usize] = 1.1111111111;
+            coord[a as usize] = 0.0;
+            self.geom.push(na::Vector3::from(coord));
+
+            // push dummy atoms perpendicular in both directions
+
+            ndum += 2;
+        }
+        self.input_options[7] = ndum;
+        ndum
     }
 }
 
