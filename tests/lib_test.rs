@@ -1,3 +1,4 @@
+use std::f64::consts::PI;
 use std::io::{BufRead, BufReader, Read};
 
 use approx::assert_abs_diff_eq;
@@ -193,12 +194,12 @@ fn test_initial_values_simple() {
                 2.5945738184,
                 2.5945738184,
                 1.0819561376,
-                3.1415926536,
-                3.1415926536,
-                3.1415926536,
-                3.1415926536,
-                3.1415926536,
-                3.1415926536,
+                PI,
+                PI,
+                PI,
+                PI,
+                PI,
+                PI,
             ],
         ),
     ];
