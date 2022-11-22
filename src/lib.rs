@@ -678,15 +678,16 @@ impl Intder {
     /// Let D = BBᵀ and return A = BᵀD⁻¹
     pub fn a_matrix(b: &DMat) -> DMat {
         let d = b * b.transpose();
-        let chol = match na::Cholesky::new(d) {
-            Some(c) => c,
+        match na::Cholesky::new(d.clone()) {
+            Some(c) => b.transpose() * c.inverse(),
             None => {
                 // compute it again to avoid cloning on the happy path
-                println!("{:.8}", b * b.transpose());
-                panic!("cholesky decomposition failed");
+                eprintln!("{:.8}", b * b.transpose());
+                eprintln!("cholesky decomposition failed");
+                let c = na::LU::new(d);
+                b.transpose() * c.try_inverse().expect("lu decomposition failed")
             }
-        };
-        b.transpose() * chol.inverse()
+        }
     }
 
     /// print the initial geometry stuff
