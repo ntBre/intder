@@ -1,14 +1,14 @@
 use std::fs::File;
 use std::io::Write;
 
-use intder::{Intder, VERBOSE, is_verbose};
+use intder::{is_verbose, Intder, VERBOSE};
 
 fn parse_args<I: Iterator<Item = String>>(args: &mut I) -> Option<String> {
     let mut hold = Vec::new();
     for arg in args {
         if arg == "-v" {
-	    // call this and then set manually to override the env stuff
-	    let _ = is_verbose();
+            // call this and then set manually to override the env stuff
+            let _ = is_verbose();
             unsafe { VERBOSE = true };
         } else {
             hold.push(arg);
@@ -51,7 +51,7 @@ fn main() {
         None => Intder::load(std::io::stdin()),
     };
     if intder.input_options[14] != 0 {
-        let new_carts = intder.convert_disps();
+        let new_carts = intder.convert_disps().unwrap();
         let mut file07 =
             File::create("file07").expect("failed to create file07");
         for cart in new_carts {
@@ -59,7 +59,7 @@ fn main() {
             Intder::print_cart(&mut file07, &cart);
         }
     } else {
-        let (f2, f3, f4) = intder.convert_fcs();
+        let (f2, f3, f4) = intder.convert_fcs().unwrap();
         Intder::dump_fcs(".", &f2, &f3, &f4);
     }
 }

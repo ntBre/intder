@@ -355,6 +355,9 @@ pub fn fc4_index(i: usize, j: usize, k: usize, l: usize) -> usize {
         - 1
 }
 
+#[derive(Debug)]
+pub struct IntderError(pub String);
+
 impl Intder {
     pub fn new() -> Self {
         Intder {
@@ -676,17 +679,19 @@ impl Intder {
     }
 
     /// Let D = BBᵀ and return A = BᵀD⁻¹
-    pub fn a_matrix(b: &DMat) -> DMat {
+    pub fn a_matrix(b: &DMat) -> Result<DMat, IntderError> {
         let d = b * b.transpose();
         let chol = match na::Cholesky::new(d) {
             Some(c) => c,
             None => {
                 // compute it again to avoid cloning on the happy path
                 println!("{:.8}", b * b.transpose());
-                panic!("cholesky decomposition failed");
+                return Err(IntderError(
+                    "cholesky decomposition failed".to_owned(),
+                ));
             }
         };
-        b.transpose() * chol.inverse()
+        Ok(b.transpose() * chol.inverse())
     }
 
     /// print the initial geometry stuff
@@ -723,7 +728,7 @@ impl Intder {
 
     /// convert the displacements in `self.disps` from (symmetry) internal
     /// coordinates to Cartesian coordinates
-    pub fn convert_disps(&self) -> Vec<DVec> {
+    pub fn convert_disps(&self) -> Result<Vec<DVec>, IntderError> {
         if is_verbose() {
             self.print_init();
         }
@@ -759,7 +764,7 @@ impl Intder {
             while (&sic_current - &sic_desired).abs().max() > TOLDISP {
                 let b_sym = self.sym_b_matrix(&Geom::from(&cart_current));
                 let d = &b_sym * b_sym.transpose();
-                let a = Intder::a_matrix(&b_sym);
+                let a = Intder::a_matrix(&b_sym)?;
 
                 if is_verbose() {
                     println!(
@@ -807,7 +812,7 @@ impl Intder {
             }
             ret.push(cart_current);
         }
-        ret
+        Ok(ret)
     }
 
     /// returns X and SR matrices in symmetry internal coordinates
@@ -1780,18 +1785,20 @@ impl Intder {
     /// convert the force constants in `self.fc[234]` from (symmetry) internal
     /// coordinates to Cartesian coordinates. returns (fc2, fc3, fc4) in the
     /// order printed in the fort.{15,30,40} files for spectro.
-    pub fn convert_fcs(&self) -> (DMat, Vec<f64>, Vec<f64>) {
+    pub fn convert_fcs(
+        &self,
+    ) -> Result<(DMat, Vec<f64>, Vec<f64>), IntderError> {
         if is_verbose() {
             self.print_init();
         }
         // let sics = DVec::from(self.symmetry_values(&self.geom));
         let b_sym = self.sym_b_matrix(&self.geom);
-        let a = Intder::a_matrix(&b_sym);
+        let a = Intder::a_matrix(&b_sym)?;
         let (_xs, srs) = self.machx(&a);
         let (_ys, srsy) = self.machy(&a);
         let (f2, f3, f4) = self.lintr(&b_sym, &b_sym, &srs, &srsy);
 
-        (f2, f3, f4)
+        Ok((f2, f3, f4))
     }
 
     pub fn dump_fcs(dir: &str, f2: &DMat, f3: &[f64], f4: &[f64]) {

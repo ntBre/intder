@@ -336,7 +336,7 @@ fn test_a_matrix() {
         let intder = Intder::load_file(test.infile);
         let load = load_vec(test.vecfile);
         let want = DMat::from_row_slice(test.rows, test.cols, &load);
-        let got = Intder::a_matrix(&intder.sym_b_matrix(&intder.geom));
+        let got = Intder::a_matrix(&intder.sym_b_matrix(&intder.geom)).unwrap();
         assert_abs_diff_eq!(got, want, epsilon = test.eps);
     }
 }
@@ -396,7 +396,7 @@ fn test_convert_disps() {
     ];
     for test in tests {
         let intder = Intder::load_file(test.infile);
-        let got = intder.convert_disps();
+        let got = intder.convert_disps().unwrap();
         let want = load_geoms(test.wantfile);
         for i in 0..got.len() {
             assert_abs_diff_eq!(got[i], want[i], epsilon = 4e-8);
@@ -475,7 +475,7 @@ fn test_convert_fcs() {
     ];
     for test in tests {
         let intder = Intder::load_file(test.infile);
-        let (fc2, fc3, fc4) = intder.convert_fcs();
+        let (fc2, fc3, fc4) = intder.convert_fcs().unwrap();
 
         let want_fc2 = DMat::from_row_slice(
             test.sizes.0,
