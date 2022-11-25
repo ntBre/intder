@@ -397,7 +397,7 @@ fn test_convert_disps() {
     ];
     for test in tests {
         let intder = Intder::load_file(test.infile);
-        let got = intder.convert_disps();
+        let got = intder.convert_disps().unwrap();
         let want = load_geoms(test.wantfile);
         for i in 0..got.len() {
             assert_abs_diff_eq!(got[i], want[i], epsilon = 4e-8);

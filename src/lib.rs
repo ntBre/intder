@@ -363,6 +363,12 @@ pub fn fc4_index(i: usize, j: usize, k: usize, l: usize) -> usize {
         - 1
 }
 
+#[derive(Debug)]
+pub enum IntderError {
+    DispError(String),
+    FreqError,
+}
+
 impl Intder {
     pub fn new() -> Self {
         Intder {
@@ -693,7 +699,8 @@ impl Intder {
                 eprintln!("{:.8}", b * b.transpose());
                 eprintln!("cholesky decomposition failed");
                 let c = na::LU::new(d);
-                b.transpose() * c.try_inverse().expect("lu decomposition failed")
+                b.transpose()
+                    * c.try_inverse().expect("lu decomposition failed")
             }
         }
     }
@@ -732,7 +739,7 @@ impl Intder {
 
     /// convert the displacements in `self.disps` from (symmetry) internal
     /// coordinates to Cartesian coordinates
-    pub fn convert_disps(&self) -> Vec<DVec> {
+    pub fn convert_disps(&self) -> Result<Vec<DVec>, IntderError> {
         if is_verbose() {
             self.print_init();
         }
@@ -800,7 +807,9 @@ impl Intder {
                 iter += 1;
 
                 if MAX_ITER > 0 && iter > MAX_ITER {
-                    panic!("max iterations exceeded on disp {i}");
+                    return Err(IntderError::DispError(format!(
+                        "max iterations exceeded on disp {i}"
+                    )));
                 }
             }
 
@@ -816,7 +825,7 @@ impl Intder {
             }
             ret.push(cart_current);
         }
-        ret
+        Ok(ret)
     }
 
     /// returns X and SR matrices in symmetry internal coordinates

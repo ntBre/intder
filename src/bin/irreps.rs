@@ -27,7 +27,7 @@ fn main() {
     intder.geom = intder::geom::Geom::from(mol.clone());
     intder.geom.to_bohr();
     intder.disps = disps;
-    let disps = intder.convert_disps();
+    let disps = intder.convert_disps().unwrap();
     // convert displacements -> symm::Molecules and determine irrep
     let mut irreps = Vec::new();
     for (i, disp) in disps.iter().enumerate() {
