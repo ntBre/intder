@@ -224,7 +224,15 @@ impl Display for Intder {
                     k + 1,
                     l + 1
                 )?,
-                Out(_, _, _, _) => todo!(),
+                Out(i, j, k, l) => writeln!(
+                    f,
+                    "{:<5}{:5}{:5}{:5}{:5}",
+                    "OUT",
+                    i + 1,
+                    j + 1,
+                    k + 1,
+                    l + 1
+                )?,
             }
         }
         for (i, sic) in self.symmetry_internals.iter().enumerate() {
