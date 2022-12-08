@@ -23,7 +23,7 @@ type Tensor3 = tensor::tensor3::Tensor3<f64>;
 /// from <https://physics.nist.gov/cgi-bin/cuu/Value?bohrrada0>
 pub const ANGBOHR: f64 = 0.529_177_210_9;
 /// constants from the fortran version
-const HART: f64 = 4.3597482;
+pub const HART: f64 = 4.3597482;
 // const DEBYE: f64 = 2.54176548;
 
 // flags
