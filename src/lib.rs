@@ -1,6 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
-    fmt::Display,
+    fmt::{Display, Formatter},
     fs::File,
     io::{BufRead, BufReader, Read, Write},
     sync::Once,
@@ -62,10 +62,23 @@ pub enum Siic {
 
     /// bend of atom `i` out of the plane formed by atoms `j`, `k`, and `l`
     Out(usize, usize, usize, usize),
+
+    /// the x component of the c → d unit vector in the local coordinate system
+    /// in which the b → c vector defines the +z axis and the a atom lies in the
+    /// xz plane in the +x direction
+    Linx(usize, usize, usize, usize),
+
+    /// the y component of the c → d unit vector in the local coordinate system
+    /// in which the b → c vector defines the +z axis and the a atom lies in the
+    /// xz plane in the +x direction
+    Liny(usize, usize, usize, usize),
 }
 
 impl Display for Siic {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut lin_helper = |i, j, k, l, x| {
+            write!(f, "LIN{}({}-{}-{}-{})", x, i + 1, j + 1, k + 1, l + 1)
+        };
         match &self {
             Siic::Stretch(i, j) => write!(f, "r({}-{})", i + 1, j + 1),
             Siic::Bend(i, j, k) => {
@@ -74,12 +87,12 @@ impl Display for Siic {
             Siic::Torsion(i, j, k, l) => {
                 write!(f, "τ({}-{}-{}-{})", i + 1, j + 1, k + 1, l + 1)
             }
-            Siic::Lin1(i, j, k, l) => {
-                write!(f, "LIN({}-{}-{}-{})", i + 1, j + 1, k + 1, l + 1)
-            }
+            Siic::Lin1(i, j, k, l) => lin_helper(i, j, k, l, "1"),
             Siic::Out(i, j, k, l) => {
                 write!(f, "OUT({}-{}-{}-{})", i + 1, j + 1, k + 1, l + 1)
             }
+            Siic::Linx(i, j, k, l) => lin_helper(i, j, k, l, "X"),
+            Siic::Liny(i, j, k, l) => lin_helper(i, j, k, l, "Y"),
         }
     }
 }
@@ -142,6 +155,10 @@ impl Siic {
                     w
                 }
             }
+            // vect8
+            Linx(_, _, _, _) => todo!(),
+            // vect9
+            Liny(_, _, _, _) => todo!(),
         }
     }
 }
@@ -193,6 +210,9 @@ impl Display for Intder {
             write!(f, "{:5}", op)?;
         }
         writeln!(f)?;
+        let lin_helper = |i, j, k, l, x, f: &mut Formatter<'_>| {
+            writeln!(f, " LIN{x}{:5}{:5}{:5}{:5}", i + 1, j + 1, k + 1, l + 1)
+        };
         for siic in &self.simple_internals {
             match siic {
                 Stretch(i, j) => {
@@ -215,15 +235,7 @@ impl Display for Intder {
                     k + 1,
                     l + 1
                 )?,
-                Lin1(i, j, k, l) => writeln!(
-                    f,
-                    "{:<5}{:5}{:5}{:5}{:5}",
-                    "LIN1",
-                    i + 1,
-                    j + 1,
-                    k + 1,
-                    l + 1
-                )?,
+                Lin1(i, j, k, l) => lin_helper(i, j, k, l, "1", f)?,
                 Out(i, j, k, l) => writeln!(
                     f,
                     "{:<5}{:5}{:5}{:5}{:5}",
@@ -233,6 +245,8 @@ impl Display for Intder {
                     k + 1,
                     l + 1
                 )?,
+                Linx(i, j, k, l) => lin_helper(i, j, k, l, "X", f)?,
+                Liny(i, j, k, l) => lin_helper(i, j, k, l, "Y", f)?,
             }
         }
         for (i, sic) in self.symmetry_internals.iter().enumerate() {
@@ -971,6 +985,8 @@ impl Intder {
                     // AHX4
                     ahx4(nsym, a_mat, l1, l2, l3, l4, &mut x, &h);
                 }
+                Linx(_, _, _, _) => todo!(),
+                Liny(_, _, _, _) => todo!(),
             }
             for n in 0..nsym {
                 for m in 0..=n {
@@ -1073,9 +1089,7 @@ impl Intder {
                     let l1 = 3 * a;
                     let l2 = 3 * b;
                     let l3 = 3 * c;
-                    // HSRY3
                     hsry3(&mut sr, l1, &h, l2, l3);
-                    // AHY3
                     ahy3(nsx, a_mat, l1, l2, l3, &mut y, &h);
                 }
                 Torsion(a, b, c, d) => {
@@ -1083,18 +1097,14 @@ impl Intder {
                     let l2 = 3 * b;
                     let l3 = 3 * c;
                     let l4 = 3 * d;
-                    // HSRY4
                     hsry4(&mut sr, l1, &h, l2, l3, l4);
-                    // AHY4
                     ahy4(nsx, a_mat, l1, l2, l3, l4, &mut y, &h);
                 }
                 Lin1(a, b, c, _) => {
                     let l1 = 3 * a;
                     let l2 = 3 * b;
                     let l3 = 3 * c;
-                    // HSRY3
                     hsry3(&mut sr, l1, &h, l2, l3);
-                    // AHY3
                     ahy3(nsx, a_mat, l1, l2, l3, &mut y, &h);
                 }
                 Out(a, b, c, d) => {
@@ -1102,11 +1112,11 @@ impl Intder {
                     let l2 = 3 * b;
                     let l3 = 3 * c;
                     let l4 = 3 * d;
-                    // HSRY4
                     hsry4(&mut sr, l1, &h, l2, l3, l4);
-                    // AHY4
                     ahy4(nsx, a_mat, l1, l2, l3, l4, &mut y, &h);
                 }
+                Linx(_, _, _, _) => todo!(),
+                Liny(_, _, _, _) => todo!(),
             }
             y.fill3a(nsx);
             ys_sim.push(y);

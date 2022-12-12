@@ -402,6 +402,10 @@ impl Hmat {
                     }
                 }
             }
+	    // hijs8
+            Linx(_, _, _, _) => todo!(),
+	    // hijs9
+            Liny(_, _, _, _) => todo!(),
         }
         h
     }

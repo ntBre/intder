@@ -1133,6 +1133,10 @@ impl Htens {
 
                 h.h222.fill3b();
             }
+	    // hijks8
+            Linx(_, _, _, _) => todo!(),
+	    // hijks9
+            Liny(_, _, _, _) => todo!(),
         }
         h
     }

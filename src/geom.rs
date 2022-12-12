@@ -180,6 +180,8 @@ impl Geom {
                     tmp[3 * b + i] = -v1i - v3i - v4i;
                 }
             }
+            Siic::Linx(_, _, _, _) => todo!(),
+            Siic::Liny(_, _, _, _) => todo!(),
         }
         tmp
     }
