@@ -1,6 +1,6 @@
+use crate::{hmat::Hmat, DVec, Siic, Vec3, ANGBOHR};
+use nalgebra as na;
 use std::{fmt::Display, ops::Index};
-
-use crate::{DVec, Siic, Vec3, ANGBOHR};
 
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct Geom(pub Vec<Vec3>);
@@ -180,8 +180,44 @@ impl Geom {
                     tmp[3 * b + i] = -v1i - v3i - v4i;
                 }
             }
-            Siic::Linx(_, _, _, _) => todo!(),
-            Siic::Liny(_, _, _, _) => todo!(),
+            &Siic::Linx(a, b, c, d) => {
+                let e32 = self.unit(c, b);
+                let e34 = self.unit(c, d);
+                let t32 = self.dist(c, b);
+                let s = self.s_vec(&Siic::Bend(a, b, c));
+                let s3 = &s[3 * c..3 * c + 3];
+                let e3 = na::vector![s3[0], s3[1], s3[2]];
+                let w = -t32 * e34.dot(&e3);
+                let h1 = Hmat::new(self, &Siic::Stretch(c, d));
+                let h2 = Hmat::new(self, &Siic::Bend(a, b, c));
+                for i in 0..3 {
+                    tmp[3 * a + i] = 0.0;
+                    tmp[3 * d + i] = 0.0;
+                    tmp[3 * b + i] = w * e32[i] / t32;
+                    for j in 0..3 {
+                        tmp[3 * a + i] -= t32 * e34[j] * h2.h31[(j, i)];
+                        tmp[3 * b + i] -= t32 * e34[j] * h2.h32[(j, i)];
+                        tmp[3 * d + i] -= t32 * e3[j] * h1.h11[(j, i)];
+                    }
+                    tmp[3*c+i] = -tmp[3*a+i] - tmp[3*b+i] - tmp[3*d+i];
+                }
+            }
+            &Siic::Liny(a, b, c, d) => {
+                let out = &Siic::Out(d, c, b, a);
+                let tout = out.value(self);
+                let cosy = tout.cos();
+                let s = self.s_vec(out);
+                let e1 = &s[3 * a..3 * a + 3];
+                let e2 = &s[3 * b..3 * b + 3];
+                let e3 = &s[3 * c..3 * c + 3];
+                let e4 = &s[3 * d..3 * d + 3];
+                for i in 0..3 {
+                    tmp[3 * a + i] = -cosy * e1[i];
+                    tmp[3 * b + i] = -cosy * e2[i];
+                    tmp[3 * c + i] = -cosy * e3[i];
+                    tmp[3 * d + i] = -cosy * e4[i];
+                }
+            }
         }
         tmp
     }

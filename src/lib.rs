@@ -156,9 +156,16 @@ impl Siic {
                 }
             }
             // vect8
-            Linx(_, _, _, _) => todo!(),
+            Linx(a, b, c, d) => {
+                let e34 = geom.unit(*c, *d);
+                let t32 = geom.dist(*c, *b);
+                let s = geom.s_vec(&Self::Bend(*a, *b, *c));
+                let s3 = &s[3 * c..3 * c + 3];
+                let e3 = na::vector![s3[0], s3[1], s3[2]];
+                -t32 * e34.dot(&e3)
+            }
             // vect9
-            Liny(_, _, _, _) => todo!(),
+            Liny(a, b, c, d) => -Out(*d, *c, *b, *a).value(geom).sin(),
         }
     }
 }
@@ -411,34 +418,19 @@ impl Intder {
 
     /// helper function for parsing a single simple internal coordinate line
     fn parse_simple_internal(sp: Vec<&str>) -> Siic {
+        let vals: Vec<_> = sp
+            .iter()
+            .skip(1)
+            .map(|s| s.parse::<usize>().unwrap() - 1)
+            .collect();
         match sp[0] {
-            "STRE" => Siic::Stretch(
-                sp[1].parse::<usize>().unwrap() - 1,
-                sp[2].parse::<usize>().unwrap() - 1,
-            ),
-            "BEND" => Siic::Bend(
-                sp[1].parse::<usize>().unwrap() - 1,
-                sp[2].parse::<usize>().unwrap() - 1,
-                sp[3].parse::<usize>().unwrap() - 1,
-            ),
-            "TORS" => Siic::Torsion(
-                sp[1].parse::<usize>().unwrap() - 1,
-                sp[2].parse::<usize>().unwrap() - 1,
-                sp[3].parse::<usize>().unwrap() - 1,
-                sp[4].parse::<usize>().unwrap() - 1,
-            ),
-            "LIN1" => Siic::Lin1(
-                sp[1].parse::<usize>().unwrap() - 1,
-                sp[2].parse::<usize>().unwrap() - 1,
-                sp[3].parse::<usize>().unwrap() - 1,
-                sp[4].parse::<usize>().unwrap() - 1,
-            ),
-            "OUT" => Siic::Out(
-                sp[1].parse::<usize>().unwrap() - 1,
-                sp[2].parse::<usize>().unwrap() - 1,
-                sp[3].parse::<usize>().unwrap() - 1,
-                sp[4].parse::<usize>().unwrap() - 1,
-            ),
+            "STRE" => Siic::Stretch(vals[0], vals[1]),
+            "BEND" => Siic::Bend(vals[0], vals[1], vals[2]),
+            "TORS" => Siic::Torsion(vals[0], vals[1], vals[2], vals[3]),
+            "LIN1" => Siic::Lin1(vals[0], vals[1], vals[2], vals[3]),
+            "OUT" => Siic::Out(vals[0], vals[1], vals[2], vals[3]),
+            "LINX" => Siic::Linx(vals[0], vals[1], vals[2], vals[3]),
+            "LINY" => Siic::Liny(vals[0], vals[1], vals[2], vals[3]),
             e => {
                 panic!("unknown coordinate type '{}'", e);
             }
