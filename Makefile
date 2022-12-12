@@ -1,6 +1,9 @@
 BASE = /home/brent/Projects/intder
 TESTFLAGS = --test-threads=1 --nocapture
 
+clippy:
+	cargo clippy --tests
+
 test:
 	RUST_BACKTRACE=1 cargo test -- ${TESTFLAGS} ${ARGS}
 
