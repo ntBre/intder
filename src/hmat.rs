@@ -302,16 +302,9 @@ impl Hmat {
 
                 // hijs2 call
                 let Hmat {
-                    h11: _,
-                    h21: _,
                     h31: hp43,
-                    h22: _,
-                    h32: _,
                     h33: hp44,
-                    h41: _,
-                    h42: _,
-                    h43: _,
-                    h44: _,
+                    ..
                 } = Hmat::new(geom, &Siic::Bend(*k, *j, *l));
 
                 let v5 = e23.cross(&e24);

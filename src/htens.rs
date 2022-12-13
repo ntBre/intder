@@ -523,13 +523,10 @@ impl Htens {
                     h11,
                     h21,
                     h31,
-                    h41: _,
-                    h22: _,
-                    h32: _,
                     h42,
-                    h33: _,
                     h43,
                     h44,
+                    ..
                 } = Hmat::new(geom, s);
                 for k in 0..3 {
                     for j in 0..=k {
@@ -831,29 +828,20 @@ impl Htens {
                 // hijs2 call
                 let Hmat {
                     h11: hp33,
-                    h21: _,
                     h31: hp43,
-                    h22: _,
-                    h32: _,
                     h33: hp44,
-                    h41: _,
-                    h42: _,
-                    h43: _,
-                    h44: _,
+                    ..
                 } = Hmat::new(geom, &Siic::Bend(*k, *j, *l));
 
                 // hijs7 call
                 let Hmat {
                     h11,
-                    h21: _,
                     h31,
-                    h22: _,
-                    h32: _,
                     h33,
                     h41,
-                    h42: _,
                     h43,
                     h44,
+                    ..
                 } = Hmat::new(geom, s);
 
                 // hijks1 call
@@ -861,26 +849,9 @@ impl Htens {
 
                 // hijks2 call
                 let Htens {
-                    h111: _,
-                    h112: _,
                     h113: hp334,
-                    h123: _,
-                    h221: _,
-                    h222: _,
-                    h223: _,
                     h331: hp443,
-                    h332: _,
-                    h333: _,
-                    h411: _,
-                    h421: _,
-                    h422: _,
-                    h431: _,
-                    h432: _,
-                    h433: _,
-                    h441: _,
-                    h442: _,
-                    h443: _,
-                    h444: _,
+                    ..
                 } = Htens::new(geom, &Siic::Bend(*k, *j, *l));
 
                 let cp21 = Hmat::mat1(&e21);
