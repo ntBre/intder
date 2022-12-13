@@ -865,42 +865,9 @@ impl Intder {
                             sr[(l2 + i, l1 + j)] = -h.h11[(i, j)];
                         }
                     }
-                    // AHX2
-                    for n in 0..nsym {
-                        for m in 0..=n {
-                            for i in 0..3 {
-                                for j in 0..3 {
-                                    let w1 = (a_mat[(l1 + i, m)]
-                                        - a_mat[(l2 + i, m)])
-                                        * (a_mat[(l1 + j, n)]
-                                            - a_mat[(l2 + j, n)]);
-                                    x[(m, n)] += w1 * h.h11[(i, j)];
-                                }
-                            }
-                        }
-                    }
+                    ahx2(nsym, a_mat, l1, l2, &mut x, &h);
                 }
-                Bend(a, b, c) => {
-                    let l1 = 3 * a;
-                    let l2 = 3 * b;
-                    let l3 = 3 * c;
-                    for j in 0..3 {
-                        for i in 0..3 {
-                            sr[(l1 + i, l1 + j)] = h.h11[(i, j)];
-                            sr[(l2 + i, l1 + j)] = h.h21[(i, j)];
-                            sr[(l3 + i, l1 + j)] = h.h31[(i, j)];
-                            sr[(l1 + i, l2 + j)] = h.h21[(j, i)];
-                            sr[(l2 + i, l2 + j)] = h.h22[(i, j)];
-                            sr[(l3 + i, l2 + j)] = h.h32[(i, j)];
-                            sr[(l1 + i, l3 + j)] = h.h31[(j, i)];
-                            sr[(l2 + i, l3 + j)] = h.h32[(j, i)];
-                            sr[(l3 + i, l3 + j)] = h.h33[(i, j)];
-                        }
-                    }
-                    // AHX3
-                    ahx3(nsym, a_mat, l1, l2, l3, &mut x, &h);
-                }
-                Lin1(a, b, c, _) => {
+                Bend(a, b, c) | Lin1(a, b, c, _) => {
                     let l1 = 3 * a;
                     let l2 = 3 * b;
                     let l3 = 3 * c;
@@ -919,7 +886,10 @@ impl Intder {
                     }
                     ahx3(nsym, a_mat, l1, l2, l3, &mut x, &h);
                 }
-                Torsion(a, b, c, d) | Out(a, b, c, d) | Linx(a, b, c, d) | Liny(a, b, c, d) => {
+                Torsion(a, b, c, d)
+                | Out(a, b, c, d)
+                | Linx(a, b, c, d)
+                | Liny(a, b, c, d) => {
                     let l1 = 3 * a;
                     let l2 = 3 * b;
                     let l3 = 3 * c;
@@ -1847,6 +1817,27 @@ impl Intder {
         }
         self.input_options[7] = ndum;
         ndum
+    }
+}
+
+fn ahx2(
+    nsym: usize,
+    a_mat: &DMat,
+    l1: usize,
+    l2: usize,
+    x: &mut DMat,
+    h: &Hmat,
+) {
+    for n in 0..nsym {
+        for m in 0..=n {
+            for i in 0..3 {
+                for j in 0..3 {
+                    let w1 = (a_mat[(l1 + i, m)] - a_mat[(l2 + i, m)])
+                        * (a_mat[(l1 + j, n)] - a_mat[(l2 + j, n)]);
+                    x[(m, n)] += w1 * h.h11[(i, j)];
+                }
+            }
+        }
     }
 }
 
