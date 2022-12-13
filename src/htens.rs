@@ -1125,9 +1125,64 @@ impl Htens {
 
                 h.h222.fill3b();
             }
-	    // hijks8
-            Linx(_, _, _, _) => todo!(),
-	    // hijks9
+            // hijks8
+            &Linx(k1, k2, k3, k4) => {
+                let qb = geom.unit(k2, k3);
+                let r23 = geom.dist(k2, k3);
+                let qc = geom.unit(k4, k3);
+                let r34 = geom.dist(k4, k3);
+                let bend = Bend(k1, k2, k3);
+                let phi = bend.value(geom);
+                let s = geom.s_vec(&bend);
+                splat!(s, q1 => k1, q2 => k2, q3 => k3);
+                // hijs2
+                let Hmat {
+                    h11: q11,
+                    h21: q21,
+                    h31: q31,
+                    h22: q22,
+                    h32: q32,
+                    h33: q33,
+                    ..
+                } = Hmat::new(geom, &bend);
+                // hijks1 call
+                let Htens { h111: q444, .. } =
+                    Htens::new(geom, &Stretch(k4, k3));
+                let q4444 = h4th1(geom, k4, k3);
+                for i in 0..3 {
+                    for j in 0..3 {
+                        for k in 0..3 {
+                            h.h444[(i, j, k)] = 0.0;
+                            h.h441[(i, j, k)] = 0.0;
+                            h.h442[(i, j, k)] = 0.0;
+                            for l in 0..3 {
+                                h.h444[(i, j, k)] -=
+                                    r23 * q4444[(l, i, j, k)] * q3[(l)];
+                                h.h441[(i, j, k)] -=
+                                    r23 * q444[(l, i, j)] * q31[(l, k)];
+                                h.h442[(i, j, k)] -=
+                                    r23 * q444[(l, i, j)] * q32[(l, k)];
+                            }
+                        }
+                    }
+                }
+                let q44 = hijs1(geom, k4, k3);
+                let Htens {
+                    h111: q111,
+                    h112: q112,
+                    h113: q113,
+                    h123: q123,
+                    h221: q221,
+                    h222: q222,
+                    h223: q223,
+                    h331: q331,
+                    h332: q332,
+                    h333: q444,
+                    ..
+                } = hijks2(geom, k1, k2, k3);
+		todo!("call h4th2");
+            }
+            // hijks9
             Liny(_, _, _, _) => todo!(),
         }
         h
@@ -1149,4 +1204,30 @@ impl Htens {
         }
         ret
     }
+}
+
+fn h4th1(geom: &Geom, k1: usize, k2: usize) -> Tensor4 {
+    let (v1, t21) = geom.vect1(k1, k2);
+    let stretch = Siic::Stretch(k1, k2);
+    let h11 = Hmat::new(geom, &stretch).h11;
+    let h111 = Htens::new(geom, &stretch).h111;
+    let mut h1111 = Tensor4::zeros(3, 3, 3, 3);
+    for l in 0..3 {
+        for k in 0..=l {
+            for j in 0..=k {
+                for i in 0..=j {
+                    let f = h11[(i, l)] * h11[(k, j)]
+                        + h11[(j, l)] * h11[(k, i)]
+                        + h11[(i, j)] * h11[(k, l)]
+                        + v1[(i)] * h111[(j, k, l)]
+                        + v1[(j)] * h111[(i, k, l)]
+                        + v1[(k)] * h111[(i, j, l)]
+                        + v1[(l)] * h111[(i, j, k)];
+                    h1111[(i, j, k, l)] = -f / t21;
+                }
+            }
+        }
+    }
+    h1111.fill4a(3);
+    h1111
 }
