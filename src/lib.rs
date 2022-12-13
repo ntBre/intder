@@ -900,34 +900,6 @@ impl Intder {
                     // AHX3
                     ahx3(nsym, a_mat, l1, l2, l3, &mut x, &h);
                 }
-                Torsion(a, b, c, d) => {
-                    let l1 = 3 * a;
-                    let l2 = 3 * b;
-                    let l3 = 3 * c;
-                    let l4 = 3 * d;
-                    for j in 0..3 {
-                        for i in 0..3 {
-                            sr[(l1 + i, l1 + j)] = h.h11[(i, j)];
-                            sr[(l2 + i, l1 + j)] = h.h21[(i, j)];
-                            sr[(l3 + i, l1 + j)] = h.h31[(i, j)];
-                            sr[(l4 + i, l1 + j)] = h.h41[(i, j)];
-                            sr[(l1 + i, l2 + j)] = h.h21[(j, i)];
-                            sr[(l2 + i, l2 + j)] = h.h22[(i, j)];
-                            sr[(l3 + i, l2 + j)] = h.h32[(i, j)];
-                            sr[(l4 + i, l2 + j)] = h.h42[(i, j)];
-                            sr[(l1 + i, l3 + j)] = h.h31[(j, i)];
-                            sr[(l2 + i, l3 + j)] = h.h32[(j, i)];
-                            sr[(l3 + i, l3 + j)] = h.h33[(i, j)];
-                            sr[(l4 + i, l3 + j)] = h.h43[(i, j)];
-                            sr[(l1 + i, l4 + j)] = h.h41[(j, i)];
-                            sr[(l2 + i, l4 + j)] = h.h42[(j, i)];
-                            sr[(l3 + i, l4 + j)] = h.h43[(j, i)];
-                            sr[(l4 + i, l4 + j)] = h.h44[(i, j)];
-                        }
-                    }
-                    // AHX4
-                    ahx4(nsym, a_mat, l1, l2, l3, l4, &mut x, &h);
-                }
                 Lin1(a, b, c, _) => {
                     let l1 = 3 * a;
                     let l2 = 3 * b;
@@ -945,10 +917,9 @@ impl Intder {
                             sr[(l3 + i, l3 + j)] = h.h33[(i, j)];
                         }
                     }
-                    // AHX3
                     ahx3(nsym, a_mat, l1, l2, l3, &mut x, &h);
                 }
-                Out(a, b, c, d) => {
+                Torsion(a, b, c, d) | Out(a, b, c, d) | Linx(a, b, c, d) | Liny(a, b, c, d) => {
                     let l1 = 3 * a;
                     let l2 = 3 * b;
                     let l3 = 3 * c;
@@ -973,11 +944,8 @@ impl Intder {
                             sr[(l4 + i, l4 + j)] = h.h44[(i, j)];
                         }
                     }
-                    // AHX4
                     ahx4(nsym, a_mat, l1, l2, l3, l4, &mut x, &h);
                 }
-                Linx(_, _, _, _) => todo!(),
-                Liny(_, _, _, _) => todo!(),
             }
             for n in 0..nsym {
                 for m in 0..=n {
