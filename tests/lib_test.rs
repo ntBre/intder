@@ -477,6 +477,16 @@ fn test_convert_fcs() {
             sizes: (12, 364, 1365),
             eps: (2e-7, 7e-7, 3e-6),
         },
+        Test {
+            infile: "testfiles/halnh.freq.in",
+            fcs: (
+                "testfiles/halnh.15".to_string(),
+                "testfiles/halnh.30".to_string(),
+                "testfiles/halnh.40".to_string(),
+            ),
+            sizes: (12, 364, 1365),
+            eps: (2e-7, 7e-7, 3e-6),
+        },
     ];
     for test in tests {
         let intder = Intder::load_file(test.infile);
