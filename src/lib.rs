@@ -972,55 +972,20 @@ impl Intder {
                 Stretch(a, b) => {
                     let l1 = 3 * a;
                     let l2 = 3 * b;
-                    // HSRY2
-                    for k in 0..3 {
-                        for j in 0..3 {
-                            for i in 0..3 {
-                                let z = h.h111[(i, j, k)];
-                                sr[(l1 + i, l1 + j, l1 + k)] = z;
-                                sr[(l1 + i, l1 + j, l2 + k)] = -z;
-                                sr[(l1 + i, l2 + j, l1 + k)] = -z;
-                                sr[(l1 + i, l2 + j, l2 + k)] = z;
-                                sr[(l2 + i, l1 + j, l1 + k)] = -z;
-                                sr[(l2 + i, l1 + j, l2 + k)] = z;
-                                sr[(l2 + i, l2 + j, l1 + k)] = z;
-                                sr[(l2 + i, l2 + j, l2 + k)] = -z;
-                            }
-                        }
-                    }
-                    // AHY2
-                    for p in 0..nsx {
-                        for n in 0..=p {
-                            for m in 0..=n {
-                                for i in 0..3 {
-                                    for j in 0..3 {
-                                        for k in 0..3 {
-                                            let w1 = a_mat[(l1 + j, n)]
-                                                * (a_mat[(l1 + k, p)]
-                                                    - a_mat[(l2 + k, p)])
-                                                - a_mat[(l2 + j, n)]
-                                                    * (a_mat[(l1 + k, p)]
-                                                        - a_mat[(l2 + k, p)]);
-                                            let w1 = (a_mat[(l1 + i, m)]
-                                                - a_mat[(l2 + i, m)])
-                                                * w1;
-                                            y[(m, n, p)] +=
-                                                w1 * h.h111[(i, j, k)];
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    hsry2(&mut sr, &h, l1, l2);
+                    ahy2(nsx, a_mat, l1, l2, &mut y, &h);
                 }
-                Bend(a, b, c) => {
+                Bend(a, b, c) | Lin1(a, b, c, _) => {
                     let l1 = 3 * a;
                     let l2 = 3 * b;
                     let l3 = 3 * c;
                     hsry3(&mut sr, l1, &h, l2, l3);
                     ahy3(nsx, a_mat, l1, l2, l3, &mut y, &h);
                 }
-                Torsion(a, b, c, d) => {
+                Torsion(a, b, c, d)
+                | Out(a, b, c, d)
+                | Linx(a, b, c, d)
+                | Liny(a, b, c, d) => {
                     let l1 = 3 * a;
                     let l2 = 3 * b;
                     let l3 = 3 * c;
@@ -1028,23 +993,6 @@ impl Intder {
                     hsry4(&mut sr, l1, &h, l2, l3, l4);
                     ahy4(nsx, a_mat, l1, l2, l3, l4, &mut y, &h);
                 }
-                Lin1(a, b, c, _) => {
-                    let l1 = 3 * a;
-                    let l2 = 3 * b;
-                    let l3 = 3 * c;
-                    hsry3(&mut sr, l1, &h, l2, l3);
-                    ahy3(nsx, a_mat, l1, l2, l3, &mut y, &h);
-                }
-                Out(a, b, c, d) => {
-                    let l1 = 3 * a;
-                    let l2 = 3 * b;
-                    let l3 = 3 * c;
-                    let l4 = 3 * d;
-                    hsry4(&mut sr, l1, &h, l2, l3, l4);
-                    ahy4(nsx, a_mat, l1, l2, l3, l4, &mut y, &h);
-                }
-                Linx(_, _, _, _) => todo!(),
-                Liny(_, _, _, _) => todo!(),
             }
             y.fill3a(nsx);
             ys_sim.push(y);
@@ -1817,6 +1765,53 @@ impl Intder {
         }
         self.input_options[7] = ndum;
         ndum
+    }
+}
+
+fn hsry2(sr: &mut tensor::Tensor3<f64>, h: &Htens, l1: usize, l2: usize) {
+    for k in 0..3 {
+        for j in 0..3 {
+            for i in 0..3 {
+                let z = h.h111[(i, j, k)];
+                sr[(l1 + i, l1 + j, l1 + k)] = z;
+                sr[(l1 + i, l1 + j, l2 + k)] = -z;
+                sr[(l1 + i, l2 + j, l1 + k)] = -z;
+                sr[(l1 + i, l2 + j, l2 + k)] = z;
+                sr[(l2 + i, l1 + j, l1 + k)] = -z;
+                sr[(l2 + i, l1 + j, l2 + k)] = z;
+                sr[(l2 + i, l2 + j, l1 + k)] = z;
+                sr[(l2 + i, l2 + j, l2 + k)] = -z;
+            }
+        }
+    }
+}
+
+fn ahy2(
+    nsx: usize,
+    a_mat: &DMat,
+    l1: usize,
+    l2: usize,
+    y: &mut tensor::Tensor3<f64>,
+    h: &Htens,
+) {
+    for p in 0..nsx {
+        for n in 0..=p {
+            for m in 0..=n {
+                for i in 0..3 {
+                    for j in 0..3 {
+                        for k in 0..3 {
+                            let w1 = a_mat[(l1 + j, n)]
+                                * (a_mat[(l1 + k, p)] - a_mat[(l2 + k, p)])
+                                - a_mat[(l2 + j, n)]
+                                    * (a_mat[(l1 + k, p)] - a_mat[(l2 + k, p)]);
+                            let w1 =
+                                (a_mat[(l1 + i, m)] - a_mat[(l2 + i, m)]) * w1;
+                            y[(m, n, p)] += w1 * h.h111[(i, j, k)];
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
