@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::{geom::Geom, DMat, Siic, Vec3};
+use crate::{geom::Geom, htens::Htens, DMat, Siic, Vec3};
 
 use na::Matrix3;
 use nalgebra as na;
@@ -395,9 +395,80 @@ impl Hmat {
                     }
                 }
             }
-	    // hijs8
-            Linx(_, _, _, _) => todo!(),
-	    // hijs9
+            // hijs8
+            &Linx(i, j, k, l) => {
+                let e2 = geom.unit(k, j);
+                let e4 = geom.unit(k, l);
+                let t32 = geom.dist(j, k);
+                // vect2 call
+                let s = geom.s_vec(&Siic::Bend(i, j, k));
+                let q3 = na::vector![s[3 * k], s[3 * k + 1], s[3 * k + 2]];
+                let t = e4.dot(&q3);
+                let w = -t32 * t;
+                let stre = Siic::Stretch(l, k);
+                let bend = Siic::Bend(i, j, k);
+                let Hmat { h11: e44, .. } = Self::new(geom, &stre);
+                let Hmat {
+                    h31: q31, h32: q32, ..
+                } = Self::new(geom, &bend);
+                let Hmat { h11: e22, .. } =
+                    Self::new(geom, &Siic::Stretch(j, k));
+                let Htens { h111: q444, .. } = Htens::new(geom, &stre);
+                for j in 0..3 {
+                    for k in 0..3 {
+                        h.h44[(j, k)] = 0.0;
+                        for i in 0..3 {
+                            h.h44[(j, k)] -= t32 * q444[(i, j, k)] * q3[i];
+                        }
+                    }
+                }
+                let Htens {
+                    h113: q113,
+                    h123: q123,
+                    h223: q223,
+                    ..
+                } = Htens::new(geom, &bend);
+                for k in 0..3 {
+                    for j in 0..3 {
+                        h.h41[(j, k)] = 0.0;
+                        h.h42[(j, k)] = 0.0;
+                        h.h11[(j, k)] = 0.0;
+                        h.h21[(j, k)] = 0.0;
+                        // TODO something wrong with h22, but these parts are
+                        // all good. q223 looks good, q32 is good
+                        h.h22[(j, k)] = w * e22[(j, k)] / t32;
+                        for i in 0..3 {
+                            h.h11[(j, k)] -= t32 * e4[i] * q113[(j, k, i)];
+                            h.h21[(j, k)] -= e4[i]
+                                * (e2[j] * q31[(i, k)] + t32 * q123[(k, j, i)]);
+                            h.h22[(j, k)] -= e4[i]
+                                * (e2[j] * q32[(i, k)]
+                                    + e2[k] * q32[(i, j)]
+                                    + t32 * q223[(j, k, i)]);
+                            h.h41[(j, k)] -= t32 * e44[(i, j)] * q31[(i, k)];
+                            h.h42[(j, k)] -= e44[(i, j)]
+                                * (t32 * q32[(i, k)] + e2[k] * q3[i]);
+                        }
+                    }
+                }
+                for j in 0..3 {
+                    for k in 0..3 {
+                        h.h31[(j, k)] =
+                            -h.h11[(j, k)] - h.h21[(j, k)] - h.h41[(j, k)];
+                        h.h32[(j, k)] =
+                            -h.h21[(k, j)] - h.h22[(j, k)] - h.h42[(j, k)];
+                        h.h43[(j, k)] =
+                            -h.h41[(j, k)] - h.h42[(j, k)] - h.h44[(j, k)];
+                    }
+                }
+                for j in 0..3 {
+                    for k in 0..3 {
+                        h.h33[(j, k)] =
+                            -h.h31[(j, k)] - h.h32[(j, k)] - h.h43[(k, j)];
+                    }
+                }
+            }
+            // hijs9
             Liny(_, _, _, _) => todo!(),
         }
         h
