@@ -1,4 +1,10 @@
-use crate::{geom::Geom, hmat::Hmat, Siic, Vec3};
+use tensor::Tensor4;
+
+use crate::{
+    geom::Geom,
+    hmat::{hijs1, Hmat},
+    Siic, Vec3,
+};
 
 type Tensor3 = tensor::tensor3::Tensor3<f64>;
 
@@ -23,6 +29,21 @@ pub struct Htens {
     pub h442: Tensor3,
     pub h443: Tensor3,
     pub h444: Tensor3,
+}
+
+/// unpack (splat) an s vector into a series of slices. could also splat into
+/// na::vectors since I need that elsewhere
+macro_rules! splat {
+    ($s:expr, $($var:ident => $idx:expr$(,)*)*) => {
+	$(
+	    let $var = &$s[3*$idx..3*$idx+3];
+	)*
+    };
+}
+
+/// helper function for calling Htens::new with an [Siic::Bend]
+pub fn hijks2(geom: &Geom, i: usize, j: usize, k: usize) -> Htens {
+    Htens::new(geom, &Siic::Bend(i, j, k))
 }
 
 impl Htens {

@@ -19,6 +19,12 @@ pub struct Hmat {
     pub h44: DMat,
 }
 
+/// helper function for calling Hmat::new on `geom` with an [Siic::Stretch] made
+/// from atoms `i` and `j`
+pub fn hijs1(geom: &Geom, i: usize, j: usize) -> DMat {
+    Hmat::new(geom, &Siic::Stretch(i, j)).h11
+}
+
 impl Hmat {
     pub fn zeros() -> Self {
         Self {

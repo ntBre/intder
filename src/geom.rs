@@ -36,9 +36,15 @@ impl Geom {
         diff / diff.magnitude()
     }
 
-    /// distance between atoms i and j
+    /// distance between atoms i and j in angstroms, assuming `self` in bohr
     pub fn dist(&self, i: usize, j: usize) -> f64 {
         ANGBOHR * (self[j] - self[i]).magnitude()
+    }
+
+    /// return the unit vector from atom i to atom j and the distance between
+    /// the atoms
+    pub fn vect1(&self, i: usize, j: usize) -> (Vec3, f64) {
+	(self.unit(i, j), self.dist(i, j))
     }
 
     /// angle in radians between atoms i, j, and k, where j is the central atom
