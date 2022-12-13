@@ -841,8 +841,7 @@ impl Intder {
         let nsym = self.nsym();
         let u = self.u_mat();
         if nsym == 0 {
-            eprintln!("using only simple internals is unimplemented");
-            todo!();
+            todo!("using only simple internals is unimplemented");
         }
         // simple internal X and SR matrices
         let mut xs_sim = Vec::new();
@@ -1022,8 +1021,7 @@ impl Intder {
         let nc = self.ncart();
         let nsx = self.nsym();
         if nsx == 0 {
-            eprintln!("using only simple internals is unimplemented");
-            todo!();
+            todo!("using only simple internals is unimplemented");
         }
         let u = self.u_mat();
         let mut ys_sim = Vec::new();
