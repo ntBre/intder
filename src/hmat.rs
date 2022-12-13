@@ -434,8 +434,6 @@ impl Hmat {
                         h.h42[(j, k)] = 0.0;
                         h.h11[(j, k)] = 0.0;
                         h.h21[(j, k)] = 0.0;
-                        // TODO something wrong with h22, but these parts are
-                        // all good. q223 looks good, q32 is good
                         h.h22[(j, k)] = w * e22[(j, k)] / t32;
                         for i in 0..3 {
                             h.h11[(j, k)] -= t32 * e4[i] * q113[(j, k, i)];
@@ -469,7 +467,54 @@ impl Hmat {
                 }
             }
             // hijs9
-            Liny(_, _, _, _) => todo!(),
+            &Liny(k1, k2, k3, k4) => {
+                // vect5 call
+                let out = Siic::Out(k4, k3, k2, k1);
+                let tout = out.value(geom);
+                let s = geom.s_vec(&out);
+                let e1 = &s[3 * k1..3 * k1 + 3];
+                let e2 = &s[3 * k2..3 * k2 + 3];
+                let e3 = &s[3 * k3..3 * k3 + 3];
+                let e4 = &s[3 * k4..3 * k4 + 3];
+                let w = -tout.sin();
+                let cosy = tout.cos();
+                let Hmat {
+                    h11: q44,
+                    h21: q34,
+                    h31: q24,
+                    h41: q14,
+                    h22: q33,
+                    h32: q23,
+                    h42: q13,
+                    h33: q22,
+                    h43: q12,
+                    h44: q11,
+                } = Hmat::new(geom, &out);
+                for k in 0..3 {
+                    for j in 0..3 {
+                        h.h22[(j, k)] =
+                            -w * e2[(j)] * e2[(k)] - cosy * q22[(k, j)];
+                        h.h32[(j, k)] =
+                            -w * e3[(j)] * e2[(k)] - cosy * q23[(k, j)];
+                        h.h42[(j, k)] =
+                            -w * e4[(j)] * e2[(k)] - cosy * q24[(k, j)];
+                        h.h33[(j, k)] =
+                            -w * e3[(j)] * e3[(k)] - cosy * q33[(k, j)];
+                        h.h43[(j, k)] =
+                            -w * e4[(j)] * e3[(k)] - cosy * q34[(k, j)];
+                        h.h44[(j, k)] =
+                            -w * e4[(j)] * e4[(k)] - cosy * q44[(k, j)];
+                        h.h41[(j, k)] =
+                            -w * e4[(j)] * e1[(k)] - cosy * q14[(k, j)];
+                        h.h31[(j, k)] =
+                            -w * e3[(j)] * e1[(k)] - cosy * q13[(k, j)];
+                        h.h21[(j, k)] =
+                            -w * e2[(j)] * e1[(k)] - cosy * q12[(k, j)];
+                        h.h11[(j, k)] =
+                            -w * e1[(j)] * e1[(k)] - cosy * q11[(k, j)];
+                    }
+                }
+            }
         }
         h
     }
