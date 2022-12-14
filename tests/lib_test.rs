@@ -1,7 +1,7 @@
 use std::f64::consts::PI;
 use std::io::{BufRead, BufReader, Read};
 
-use approx::{assert_abs_diff_eq, abs_diff_ne};
+use approx::{abs_diff_ne, assert_abs_diff_eq};
 
 use intder::geom::*;
 use intder::*;
@@ -511,11 +511,23 @@ fn test_convert_fcs() {
             DMat::from_row_slice(test.sizes.2, 1, &load_vec(&test.fcs.2));
         let got_fc4 = DMat::from_row_slice(test.sizes.2, 1, &fc4);
         if abs_diff_ne!(got_fc4, want_fc4, epsilon = test.eps.2) {
-	    println!("got_fc4={:.8}", got_fc4);
-	    println!("want_fc4={:.8}", want_fc4);
-	    println!("diff={:.8}", &got_fc4 - &want_fc4);
-	    println!("max diff={:.2e}", (got_fc4 - want_fc4).abs().max());
-	    panic!("fc4 mismatch");
-	}
+            println!("max diff={:.2e}", (&got_fc4 - &want_fc4).abs().max());
+            for i in 1..=test.sizes.0 {
+                for j in 1..=i {
+                    for k in 1..=j {
+                        for l in 1..=k {
+                            println!(
+                                "{i:5}{j:5}{k:5}{l:5}{:20.12}{:20.12}{:20.12}",
+                                got_fc4[fc4_index(i, j, k, l)],
+                                want_fc4[fc4_index(i, j, k, l)],
+                                got_fc4[fc4_index(i, j, k, l)]
+                                    - want_fc4[fc4_index(i, j, k, l)]
+                            );
+                        }
+                    }
+                }
+            }
+            panic!("fc4 mismatch");
+        }
     }
 }
