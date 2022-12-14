@@ -1149,7 +1149,7 @@ impl Htens {
                 } = Hmat::new(geom, &bend);
                 // hijks1 call
                 let Htens { h111: q444, .. } =
-                    Htens::new(geom, &Stretch(k3, k4));
+                    Htens::new(geom, &Stretch(k4, k3));
                 let q4444 = h4th1(geom, k3, k4);
 
                 // 4
