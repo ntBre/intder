@@ -73,7 +73,7 @@ macro_rules! foreach {
 
 fn h5th1(geom: &Geom, k1: usize, k2: usize) -> Tensor5 {
     let mut h = Tensor5::zeros(3, 3, 3, 3, 3);
-    let (v1, t21) = geom.vect1(k1, k2);
+    let (v1, t21) = geom.vect1(k2, k1);
     let h11 = hijs1(geom, k1, k2);
     let h111 = hijks1(geom, k1, k2);
     let h1111 = h4th1(geom, k1, k2);
@@ -104,8 +104,42 @@ fn h5th1(geom: &Geom, k1: usize, k2: usize) -> Tensor5 {
         }
     }
     // I think you could do this at the end of the loops above, but not sure
-    for m in 0..3 {
-        h.data[m].fill4a(3);
+
+    // NOTE inlined fill4a because calling fill4a on each element of h.data
+    // fills the last four indices instead of the first four as needed.
+    let ny = 3;
+    for mo in 0..3 {
+        for q in 0..ny {
+            for p in 0..=q {
+                for n in 0..=p {
+                    for m in 0..=n {
+                        h[(n, m, p, q, mo)] = h[(m, n, p, q, mo)];
+                        h[(n, p, m, q, mo)] = h[(m, n, p, q, mo)];
+                        h[(n, p, q, m, mo)] = h[(m, n, p, q, mo)];
+                        h[(m, p, n, q, mo)] = h[(m, n, p, q, mo)];
+                        h[(p, m, n, q, mo)] = h[(m, n, p, q, mo)];
+                        h[(p, n, m, q, mo)] = h[(m, n, p, q, mo)];
+                        h[(p, n, q, m, mo)] = h[(m, n, p, q, mo)];
+                        h[(m, p, q, n, mo)] = h[(m, n, p, q, mo)];
+                        h[(p, m, q, n, mo)] = h[(m, n, p, q, mo)];
+                        h[(p, q, m, n, mo)] = h[(m, n, p, q, mo)];
+                        h[(p, q, n, m, mo)] = h[(m, n, p, q, mo)];
+                        h[(m, n, q, p, mo)] = h[(m, n, p, q, mo)];
+                        h[(n, m, q, p, mo)] = h[(m, n, p, q, mo)];
+                        h[(n, q, m, p, mo)] = h[(m, n, p, q, mo)];
+                        h[(n, q, p, m, mo)] = h[(m, n, p, q, mo)];
+                        h[(m, q, n, p, mo)] = h[(m, n, p, q, mo)];
+                        h[(q, m, n, p, mo)] = h[(m, n, p, q, mo)];
+                        h[(q, n, m, p, mo)] = h[(m, n, p, q, mo)];
+                        h[(q, n, p, m, mo)] = h[(m, n, p, q, mo)];
+                        h[(m, q, p, n, mo)] = h[(m, n, p, q, mo)];
+                        h[(q, m, p, n, mo)] = h[(m, n, p, q, mo)];
+                        h[(q, p, m, n, mo)] = h[(m, n, p, q, mo)];
+                        h[(q, p, n, m, mo)] = h[(m, n, p, q, mo)];
+                    }
+                }
+            }
+        }
     }
     h
 }
@@ -219,8 +253,8 @@ pub(crate) fn h4th2(geom: &Geom, k1: usize, k2: usize, k3: usize) -> Htens4 {
             }
         }
     }
-    let (v1, _) = geom.vect1(k1, k2);
-    let (v3, _) = geom.vect1(k3, k2);
+    let (v1, _) = geom.vect1(k2, k1);
+    let (v3, _) = geom.vect1(k2, k3);
     let h11 = hijs1(geom, k1, k2);
     let h33 = hijs1(geom, k3, k2);
     let h111 = hijks1(geom, k1, k2);
