@@ -10,6 +10,8 @@ use crate::{
 
 type Tensor3 = tensor::tensor3::Tensor3<f64>;
 
+mod display;
+
 pub struct Htens {
     pub h111: Tensor3,
     pub h112: Tensor3,
@@ -1135,9 +1137,9 @@ impl Htens {
             }
             // hijks8
             &Linx(k1, k2, k3, k4) => {
-                let qb = geom.unit(k2, k3);
+                let qb = geom.unit(k3, k2);
                 let r23 = geom.dist(k2, k3);
-                let qc = geom.unit(k4, k3);
+                let qc = geom.unit(k3, k4);
                 let bend = Bend(k1, k2, k3);
                 let s = geom.s_vec(&bend);
                 splat!(s, q3 => k3);
@@ -1147,8 +1149,8 @@ impl Htens {
                 } = Hmat::new(geom, &bend);
                 // hijks1 call
                 let Htens { h111: q444, .. } =
-                    Htens::new(geom, &Stretch(k4, k3));
-                let q4444 = h4th1(geom, k4, k3);
+                    Htens::new(geom, &Stretch(k3, k4));
+                let q4444 = h4th1(geom, k3, k4);
 
                 // 4
                 for i in 0..3 {
@@ -1195,10 +1197,10 @@ impl Htens {
                      h.h422[(i,j,k)]=0.0;
                      h.h411[(i,j,k)]=0.0;
                      for l in 0..3 {
-                         h.h111[(i,j,k)] -= r23*q1113[(i,j,k,l)]*qc[(l)];
-                         h.h112[(i,j,k)] -= r23*q1123[(i,j,k,l)]*qc[(l)];
-                         h.h221[(i,j,k)] -= r23*q1223[(k,j,i,l)]*qc[(l)];
-                         h.h222[(i,j,k)] -= r23*q2223[(i,j,k,l)]*qc[(l)];
+                         h.h111[(i,j,k)] -= r23*q1113[(i,j,k,l)]*qc[l];
+                         h.h112[(i,j,k)] -= r23*q1123[(i,j,k,l)]*qc[l];
+                         h.h221[(i,j,k)] -= r23*q1223[(k,j,i,l)]*qc[l];
+                         h.h222[(i,j,k)] -= r23*q2223[(i,j,k,l)]*qc[l];
                          h.h421[(i,j,k)] -= r23*q123[(k,j,l)]*q44[(l,i)];
                          h.h422[(i,j,k)] -= r23*q223[(j,k,l)]*q44[(l,i)];
                          h.h411[(i,j,k)] -= r23*q113[(j,k,l)]*q44[(l,i)];
@@ -1221,7 +1223,7 @@ impl Htens {
                 foreach!(i, j, k,
                      h.h442[(i, j, k)] += q44[(i, j)] * qb[(k)] / r23;
                      h.h421[(i, j, k)] += q41[(i, k)] * qb[(j)] / r23;
-                     h.h112[(i, j, k)] += q11[(i, j)] * qb[(k)] / r23;
+                     h.h112[(i, j, k)] += q11[(i, j)] * qb[k] / r23;
                      h.h222[(i, j, k)] += q22[(j, k)] * qb[(i)] / r23;
                      h.h222[(i, j, k)] +=
                      (q22[(i, k)] * qb[(j)] + q22[(i, j)] * qb[(k)]) / r23;
@@ -1420,7 +1422,7 @@ impl Htens {
 }
 
 pub(crate) fn h4th1(geom: &Geom, k1: usize, k2: usize) -> Tensor4 {
-    let (v1, t21) = geom.vect1(k1, k2);
+    let (v1, t21) = geom.vect1(k2, k1);
     let stretch = Siic::Stretch(k1, k2);
     let h11 = Hmat::new(geom, &stretch).h11;
     let h111 = Htens::new(geom, &stretch).h111;
