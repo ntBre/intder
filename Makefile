@@ -5,7 +5,7 @@ clippy:
 	cargo clippy --tests
 
 test:
-	RUST_BACKTRACE=1 cargo test -- ${TESTFLAGS} ${ARGS}
+	RUST_BACKTRACE=1 cargo test --test '*' -- ${TESTFLAGS} ${ARGS}
 
 run:
 	cargo run ../testfiles/intder.in
