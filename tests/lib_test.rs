@@ -1,7 +1,7 @@
 use std::f64::consts::PI;
 use std::io::{BufRead, BufReader, Read};
 
-use approx::assert_abs_diff_eq;
+use approx::{assert_abs_diff_eq, abs_diff_ne};
 
 use intder::geom::*;
 use intder::*;
@@ -394,10 +394,10 @@ fn test_convert_disps() {
             infile: "testfiles/h2co.in",
             wantfile: "testfiles/h2co.07",
         },
-	Test {
-	    infile: "testfiles/halnh.in",
-	    wantfile: "testfiles/halnh.07",
-	}
+        Test {
+            infile: "testfiles/halnh.in",
+            wantfile: "testfiles/halnh.07",
+        },
     ];
     for test in tests {
         let intder = Intder::load_file(test.infile);
@@ -509,10 +509,13 @@ fn test_convert_fcs() {
 
         let want_fc4 =
             DMat::from_row_slice(test.sizes.2, 1, &load_vec(&test.fcs.2));
-        assert_abs_diff_eq!(
-            DMat::from_row_slice(test.sizes.2, 1, &fc4),
-            want_fc4,
-            epsilon = test.eps.2
-        );
+        let got_fc4 = DMat::from_row_slice(test.sizes.2, 1, &fc4);
+        if abs_diff_ne!(got_fc4, want_fc4, epsilon = test.eps.2) {
+	    println!("got_fc4={:.8}", got_fc4);
+	    println!("want_fc4={:.8}", want_fc4);
+	    println!("diff={:.8}", &got_fc4 - &want_fc4);
+	    println!("max diff={:.2e}", (got_fc4 - want_fc4).abs().max());
+	    panic!("fc4 mismatch");
+	}
     }
 }

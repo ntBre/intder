@@ -9,6 +9,7 @@ use std::{
 pub mod geom;
 pub mod hmat;
 pub mod htens;
+pub mod htens4;
 
 use geom::Geom;
 use hmat::Hmat;

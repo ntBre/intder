@@ -1,8 +1,10 @@
 use tensor::Tensor4;
 
 use crate::{
+    foreach,
     geom::Geom,
     hmat::{hijs1, Hmat},
+    htens4::{h4th2, Htens4},
     Siic, Vec3,
 };
 
@@ -33,12 +35,18 @@ pub struct Htens {
 
 /// unpack (splat) an s vector into a series of slices. could also splat into
 /// na::vectors since I need that elsewhere
+#[macro_export]
 macro_rules! splat {
     ($s:expr, $($var:ident => $idx:expr$(,)*)*) => {
 	$(
 	    let $var = &$s[3*$idx..3*$idx+3];
 	)*
     };
+}
+
+/// helper function for calling Htens::new with an [Siic::Stretch]
+pub fn hijks1(geom: &Geom, k1: usize, k2: usize) -> Tensor3 {
+    Htens::new(geom, &Siic::Stretch(k1, k2)).h111
 }
 
 /// helper function for calling Htens::new with an [Siic::Bend]
@@ -72,11 +80,11 @@ impl Htens {
         }
     }
 
-    pub fn new(geom: &Geom, s: &Siic) -> Self {
+    pub fn new(geom: &Geom, siic: &Siic) -> Self {
         use Siic::*;
-        let hm = Hmat::new(geom, s);
+        let hm = Hmat::new(geom, siic);
         let mut h = Htens::zeros();
-        match s {
+        match siic {
             // HIJKS1
             Stretch(j, i) => {
                 let v1 = geom.unit(*i, *j);
@@ -97,7 +105,7 @@ impl Htens {
             // HIJKS2
             Bend(i, j, k) => {
                 // copied from h_mat Bend
-                let tmp = geom.s_vec(s);
+                let tmp = geom.s_vec(siic);
                 let v1 = &tmp[3 * i..3 * i + 3];
                 let v3 = &tmp[3 * k..3 * k + 3];
                 let e21 = geom.unit(*j, *i);
@@ -108,7 +116,7 @@ impl Htens {
                 let h33a = Hmat::new(geom, &Stretch(*k, *j)).h11;
                 let phi = geom.angle(*i, *j, *k);
                 // end copy
-                let hijs2 = Hmat::new(geom, s);
+                let hijs2 = Hmat::new(geom, siic);
                 let h111a = Self::new(geom, &Stretch(*i, *j)).h111;
                 let h333a = Self::new(geom, &Stretch(*k, *j)).h111;
                 let sphi = phi.sin();
@@ -220,7 +228,7 @@ impl Htens {
             // HIJKS6
             #[allow(clippy::needless_range_loop)]
             Torsion(i, j, k, l) => {
-                let tmp = geom.s_vec(s);
+                let tmp = geom.s_vec(siic);
                 let v1 = &tmp[3 * i..3 * i + 3];
                 let v4 = &tmp[3 * l..3 * l + 3];
                 // unit and non-unit vectors
@@ -548,7 +556,7 @@ impl Htens {
                     h43,
                     h44,
                     ..
-                } = Hmat::new(geom, s);
+                } = Hmat::new(geom, siic);
                 for k in 0..3 {
                     for j in 0..=k {
                         for i in 0..=j {
@@ -705,17 +713,17 @@ impl Htens {
             }
             // HIJKS3
             Lin1(i, j, k, _) => {
-                let tmp = geom.s_vec(s);
+                let tmp = geom.s_vec(siic);
                 let v1 = &tmp[3 * i..3 * i + 3];
                 let v3 = &tmp[3 * k..3 * k + 3];
-                let th = s.value(geom);
+                let th = siic.value(geom);
                 let e21 = geom.unit(*j, *i);
                 let e23 = geom.unit(*j, *k);
                 let t21 = geom.dist(*j, *i);
                 let t23 = geom.dist(*j, *k);
                 let h11a = Hmat::new(geom, &Stretch(*i, *j)).h11;
                 let h33a = Hmat::new(geom, &Stretch(*k, *j)).h11;
-                let hijs3 = Hmat::new(geom, s);
+                let hijs3 = Hmat::new(geom, siic);
                 let h11 = hijs3.h11;
                 let h31 = hijs3.h31;
                 let h33 = hijs3.h33;
@@ -837,8 +845,8 @@ impl Htens {
                 let bp4 = &svec[3 * l..3 * l + 3];
 
                 // vect5 call
-                let svec = geom.s_vec(s);
-                let gamma = s.value(geom);
+                let svec = geom.s_vec(siic);
+                let gamma = siic.value(geom);
                 let v1 = &svec[3 * i..3 * i + 3];
                 let v3 = &svec[3 * k..3 * k + 3];
                 let v4 = &svec[3 * l..3 * l + 3];
@@ -863,7 +871,7 @@ impl Htens {
                     h43,
                     h44,
                     ..
-                } = Hmat::new(geom, s);
+                } = Hmat::new(geom, siic);
 
                 // hijks1 call
                 let ht111 = Htens::new(geom, &Siic::Stretch(*i, *j)).h111;
@@ -1130,25 +1138,19 @@ impl Htens {
                 let qb = geom.unit(k2, k3);
                 let r23 = geom.dist(k2, k3);
                 let qc = geom.unit(k4, k3);
-                let r34 = geom.dist(k4, k3);
                 let bend = Bend(k1, k2, k3);
-                let phi = bend.value(geom);
                 let s = geom.s_vec(&bend);
-                splat!(s, q1 => k1, q2 => k2, q3 => k3);
+                splat!(s, q3 => k3);
                 // hijs2
                 let Hmat {
-                    h11: q11,
-                    h21: q21,
-                    h31: q31,
-                    h22: q22,
-                    h32: q32,
-                    h33: q33,
-                    ..
+                    h31: q31, h32: q32, ..
                 } = Hmat::new(geom, &bend);
                 // hijks1 call
                 let Htens { h111: q444, .. } =
                     Htens::new(geom, &Stretch(k4, k3));
                 let q4444 = h4th1(geom, k4, k3);
+
+                // 4
                 for i in 0..3 {
                     for j in 0..3 {
                         for k in 0..3 {
@@ -1166,24 +1168,235 @@ impl Htens {
                         }
                     }
                 }
+
                 let q44 = hijs1(geom, k4, k3);
                 let Htens {
-                    h111: q111,
-                    h112: q112,
                     h113: q113,
                     h123: q123,
-                    h221: q221,
-                    h222: q222,
                     h223: q223,
-                    h331: q331,
-                    h332: q332,
-                    h333: q444,
                     ..
                 } = hijks2(geom, k1, k2, k3);
-		todo!("call h4th2");
+
+                let Htens4 {
+                    h1113: q1113,
+                    h1123: q1123,
+                    h1223: q1223,
+                    h2223: q2223,
+                    ..
+                } = h4th2(geom, k1, k2, k3);
+
+                // 5
+                foreach!(i, j, k,
+                     h.h111[(i,j,k)]=0.0;
+                     h.h112[(i,j,k)]=0.0;
+                     h.h221[(i,j,k)]=0.0;
+                     h.h222[(i,j,k)]=0.0;
+                     h.h421[(i,j,k)]=0.0;
+                     h.h422[(i,j,k)]=0.0;
+                     h.h411[(i,j,k)]=0.0;
+                     for l in 0..3 {
+                         h.h111[(i,j,k)] -= r23*q1113[(i,j,k,l)]*qc[(l)];
+                         h.h112[(i,j,k)] -= r23*q1123[(i,j,k,l)]*qc[(l)];
+                         h.h221[(i,j,k)] -= r23*q1223[(k,j,i,l)]*qc[(l)];
+                         h.h222[(i,j,k)] -= r23*q2223[(i,j,k,l)]*qc[(l)];
+                         h.h421[(i,j,k)] -= r23*q123[(k,j,l)]*q44[(l,i)];
+                         h.h422[(i,j,k)] -= r23*q223[(j,k,l)]*q44[(l,i)];
+                         h.h411[(i,j,k)] -= r23*q113[(j,k,l)]*q44[(l,i)];
+
+                     };
+                );
+
+                // hijs8 call
+                let Hmat {
+                    h11: q11,
+                    h21: q21,
+                    h41: q41,
+                    h22: q22,
+                    h42: q42,
+                    h44: q44,
+                    ..
+                } = Hmat::new(geom, siic);
+
+                // 12
+                foreach!(i, j, k,
+                     h.h442[(i, j, k)] += q44[(i, j)] * qb[(k)] / r23;
+                     h.h421[(i, j, k)] += q41[(i, k)] * qb[(j)] / r23;
+                     h.h112[(i, j, k)] += q11[(i, j)] * qb[(k)] / r23;
+                     h.h222[(i, j, k)] += q22[(j, k)] * qb[(i)] / r23;
+                     h.h222[(i, j, k)] +=
+                     (q22[(i, k)] * qb[(j)] + q22[(i, j)] * qb[(k)]) / r23;
+                     h.h221[(i, j, k)] +=
+                     (q21[(i, k)] * qb[(j)] + q21[(j, k)] * qb[(i)]) / r23;
+                     h.h422[(i, j, k)] +=
+                     (q42[(i, k)] * qb[(j)] + q42[(i, j)] * qb[(k)]) / r23;
+                );
+
+                // vect8 call
+                splat!(geom.s_vec(siic), q1 => k1, q2 => k2, q4 => k4);
+                let w = siic.value(geom);
+                let q22 = hijs1(geom, k2, k3);
+                let q222 = hijks1(geom, k2, k3);
+
+                // 22
+                foreach!(i, j, k,
+                        h.h422[(i, j, k)] += q22[(j, k)] * q4[(i)] / r23;
+                        h.h422[(i, j, k)] -= 2.0 * qb[(j)] * qb[(k)] * q4[(i)] / r23 / r23;
+                        h.h221[(i, j, k)] += q22[(i, j)] * q1[(k)] / r23;
+                        h.h221[(i, j, k)] -= 2.0 * qb[(i)] * qb[(j)] * q1[(k)] / r23 / r23;
+                        h.h222[(i, j, k)] += (q22[(i, j)] * q2[(k)] + q22[(j, k)] * q2[(i)]) / r23;
+                        h.h222[(i, j, k)] += q22[(i, k)] * q2[(j)] / r23;
+                        h.h222[(i, j, k)] = h.h222[(i, j, k)]
+                            + 6.0 * w * qb[(i)] * qb[(j)] * qb[(k)] / r23 / r23 / r23
+                            - (qb[(i)] * qb[(j)] * q2[(k)]
+                                + qb[(j)] * qb[(k)] * q2[(i)]
+                                + qb[(i)] * qb[(k)] * q2[(j)])
+                                * 2.0
+                                / r23
+                                / r23
+                            + w * q222[(i, j, k)] / r23
+                            - 2.0
+                                * w
+                                * (q22[(i, j)] * qb[(k)]
+                                    + q22[(i, k)] * qb[(j)]
+                                    + q22[(j, k)] * qb[(i)])
+                                / r23
+                                / r23;
+                );
+
+                // 32
+                foreach!(i, j, k,
+                     h.h223[(i,j,k)]=-h.h222[(i,j,k)]-h.h221[(i,j,k)]-h.h422[(k,i,j)];
+                     h.h113[(i,j,k)]=-h.h112[(i,j,k)]-h.h111[(i,j,k)]-h.h411[(k,i,j)];
+                     h.h123[(i,j,k)]=-h.h112[(i,k,j)]-h.h221[(k,j,i)]-h.h421[(k,j,i)];
+                     h.h443[(i,j,k)]=-h.h442[(i,j,k)]-h.h441[(i,j,k)]-h.h444[(i,j,k)];
+                     h.h431[(i,j,k)]=-h.h421[(i,j,k)]-h.h411[(i,j,k)]-h.h441[(i,j,k)];
+                     h.h432[(i,j,k)]=-h.h422[(i,j,k)]-h.h421[(i,k,j)]-h.h442[(i,j,k)];
+                );
+
+                // 42
+                foreach!(k, i, j,
+                     h.h331[(i,j,k)]=-h.h431[(i,j,k)]-h.h123[(k,i,j)]-h.h113[(i,k,j)];
+                     h.h332[(i,j,k)]=-h.h432[(i,j,k)]-h.h223[(i,k,j)]-h.h123[(i,k,j)];
+                     h.h433[(i,j,k)]=-h.h431[(i,j,k)]-h.h432[(i,j,k)]-h.h443[(k,i,j)];
+                );
+
+                // 52
+                foreach!(k, i, j,
+                     h.h333[(i,j,k)]=-h.h433[(i,j,k)]-h.h331[(j,k,i)]-h.h332[(j,k,i)];
+                );
             }
             // hijks9
-            Liny(_, _, _, _) => todo!(),
+            &Liny(k1, k2, k3, k4) => {
+                let out = Siic::Out(k4, k3, k2, k1);
+                let sout = geom.s_vec(&out);
+                splat!(sout, e4 => k4, e3 => k3, e2 => k2);
+                let tout = out.value(geom);
+                let w = -tout.sin();
+                let cosy = tout.cos();
+
+                // hijs7 call
+                let Hmat {
+                    h11: q44,
+                    h21: q34,
+                    h31: q24,
+                    h22: q33,
+                    h32: q23,
+                    h33: q22,
+                    ..
+                } = Hmat::new(geom, &out);
+
+                // hijks7 call
+                let Htens {
+                    h111: q444,
+                    h112: q443,
+                    h221: q334,
+                    h222: q333,
+                    h113: q442,
+                    h123: q432,
+                    h223: q332,
+                    h331: q224,
+                    h332: q223,
+                    h333: q222,
+                    ..
+                } = Htens::new(geom, &out);
+
+                // 1
+                foreach!(k, i, j,
+                        h.h222[(i, j, k)] = cosy * e2[(i)] * e2[(j)] * e2[(k)]
+                            - cosy * q222[(i, j, k)]
+                            - w * (e2[(i)] * q22[(j, k)]
+                                + e2[(j)] * q22[(i, k)]
+                                + e2[(k)] * q22[(i, j)]);
+                        h.h223[(i, j, k)] = cosy * e2[(i)] * e2[(j)] * e3[(k)]
+                            - cosy * q223[(i, j, k)]
+                            - w * (e2[(i)] * q23[(j, k)]
+                                + e2[(j)] * q23[(i, k)]
+                                + e3[(k)] * q22[(i, j)]);
+                        h.h422[(i, j, k)] = cosy * e4[(i)] * e2[(j)] * e2[(k)]
+                            - cosy * q224[(j, k, i)]
+                            - w * (e2[(k)] * q24[(j, i)]
+                                + e2[(j)] * q24[(k, i)]
+                                + e4[(i)] * q22[(j, k)]);
+                        h.h333[(i, j, k)] = cosy * e3[(i)] * e3[(j)] * e3[(k)]
+                            - cosy * q333[(i, j, k)]
+                            - w * (e3[(k)] * q33[(j, i)]
+                                + e3[(j)] * q33[(k, i)]
+                                + e3[(i)] * q33[(j, k)]);
+                        h.h433[(i, j, k)] = cosy * e4[(i)] * e3[(j)] * e3[(k)]
+                            - cosy * q334[(j, k, i)]
+                            - w * (e3[(k)] * q34[(j, i)]
+                                + e3[(j)] * q34[(k, i)]
+                                + e4[(i)] * q33[(j, k)]);
+                        h.h332[(i, j, k)] = cosy * e3[(i)] * e3[(j)] * e2[(k)]
+                            - cosy * q332[(i, j, k)]
+                            - w * (e3[(i)] * q23[(k, j)]
+                                + e3[(j)] * q23[(k, i)]
+                                + e2[(k)] * q33[(i, j)]);
+                        h.h432[(i, j, k)] = cosy * e4[(i)] * e3[(j)] * e2[(k)]
+                            - cosy * q432[(i, j, k)]
+                            - w * (e4[(i)] * q23[(k, j)]
+                                + e3[(j)] * q24[(k, i)]
+                                + e2[(k)] * q34[(j, i)]);
+                        h.h444[(i, j, k)] = cosy * e4[(i)] * e4[(j)] * e4[(k)]
+                            - cosy * q444[(i, j, k)]
+                            - w * (e4[(i)] * q44[(k, j)]
+                                + e4[(j)] * q44[(k, i)]
+                                + e4[(k)] * q44[(i, j)]);
+                        h.h443[(i, j, k)] = cosy * e4[(i)] * e4[(j)] * e3[(k)]
+                            - cosy * q443[(i, j, k)]
+                            - w * (e4[(i)] * q34[(k, j)]
+                                + e4[(j)] * q34[(k, i)]
+                                + e3[(k)] * q44[(i, j)]);
+                        h.h442[(i, j, k)] = cosy * e4[(i)] * e4[(j)] * e2[(k)]
+                            - cosy * q442[(i, j, k)]
+                            - w * (e4[(i)] * q24[(k, j)]
+                                + e4[(j)] * q24[(k, i)]
+                                + e2[(k)] * q44[(i, j)]);
+                );
+
+                // 2
+                foreach!(k, i, j,
+                h.h221[(i,j,k)]=-h.h222[(i,j,k)]-h.h223[(i,j,k)]-h.h422[(k,i,j)];
+                h.h331[(i,j,k)]=-h.h332[(i,j,k)]-h.h333[(i,j,k)]-h.h433[(k,i,j)];
+                h.h123[(i,j,k)]=-h.h332[(i,k,j)]-h.h223[(i,j,k)]-h.h432[(i,k,j)];
+                h.h441[(i,j,k)]=-h.h442[(i,j,k)]-h.h443[(i,j,k)]-h.h444[(i,j,k)];
+                h.h431[(i,j,k)]=-h.h432[(i,j,k)]-h.h433[(i,k,j)]-h.h443[(i,k,j)];
+                h.h421[(i,j,k)]=-h.h422[(i,j,k)]-h.h432[(i,k,j)]-h.h442[(i,k,j)];
+                   );
+
+                // 3
+                foreach!(k, i, j,
+                h.h112[(i,j,k)]=-h.h421[(i,k,j)]-h.h123[(j,k,i)]-h.h221[(i,k,j)];
+                h.h113[(i,j,k)]=-h.h431[(i,k,j)]-h.h331[(i,k,j)]-h.h123[(j,i,k)];
+                h.h411[(i,j,k)]=-h.h441[(i,j,k)]-h.h431[(i,j,k)]-h.h421[(i,j,k)];
+                );
+
+                // 4
+                foreach!(k, i, j,
+                     h.h111[(i,j,k)]=-h.h411[(k,i,j)]-h.h113[(i,j,k)]-h.h112[(i,j,k)];
+
+                );
+            }
         }
         h
     }
@@ -1206,7 +1419,7 @@ impl Htens {
     }
 }
 
-fn h4th1(geom: &Geom, k1: usize, k2: usize) -> Tensor4 {
+pub(crate) fn h4th1(geom: &Geom, k1: usize, k2: usize) -> Tensor4 {
     let (v1, t21) = geom.vect1(k1, k2);
     let stretch = Siic::Stretch(k1, k2);
     let h11 = Hmat::new(geom, &stretch).h11;

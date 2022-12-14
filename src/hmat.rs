@@ -25,6 +25,10 @@ pub fn hijs1(geom: &Geom, i: usize, j: usize) -> DMat {
     Hmat::new(geom, &Siic::Stretch(i, j)).h11
 }
 
+pub fn hijs2(geom: &Geom, i: usize, j: usize, k: usize) -> Hmat {
+    Hmat::new(geom, &Siic::Bend(i, j, k))
+}
+
 impl Hmat {
     pub fn zeros() -> Self {
         Self {
