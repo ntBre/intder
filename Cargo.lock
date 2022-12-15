@@ -244,6 +244,7 @@ dependencies = [
  "nalgebra",
  "rayon",
  "regex",
+ "serde",
  "symm",
 ]
 
