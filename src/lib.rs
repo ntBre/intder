@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
     fmt::{Display, Formatter},
@@ -46,7 +47,7 @@ type Vec3 = na::Vector3<f64>;
 pub type DMat = na::DMatrix<f64>;
 pub type DVec = na::DVector<f64>;
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub enum Siic {
     /// bond stretch between two atoms
     Stretch(usize, usize),
@@ -195,7 +196,7 @@ lazy_static! {
     ]);
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct Atom {
     pub label: String,
     pub weight: usize,
@@ -352,7 +353,7 @@ impl Display for Intder {
     }
 }
 
-#[derive(Debug, Default, PartialEq, Clone)]
+#[derive(Debug, Default, PartialEq, Clone, Serialize, Deserialize)]
 pub struct Intder {
     pub input_options: Vec<usize>,
     pub simple_internals: Vec<Siic>,

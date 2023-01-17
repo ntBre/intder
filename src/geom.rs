@@ -1,8 +1,9 @@
 use crate::{hmat::Hmat, DVec, Siic, Vec3, ANGBOHR};
 use nalgebra as na;
+use serde::{Deserialize, Serialize};
 use std::{fmt::Display, ops::Index};
 
-#[derive(Debug, Default, PartialEq, Clone)]
+#[derive(Debug, Default, PartialEq, Clone, Serialize, Deserialize)]
 pub struct Geom(pub Vec<Vec3>);
 
 impl Geom {
