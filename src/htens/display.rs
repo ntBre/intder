@@ -25,6 +25,6 @@ impl Display for Htens {
         write!(f, "h443={:8}", self.h443)?;
         write!(f, "h444={:8}", self.h444)?;
 
-	Ok(())
+        Ok(())
     }
 }

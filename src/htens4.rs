@@ -149,12 +149,7 @@ pub(crate) fn h4th2(geom: &Geom, k1: usize, k2: usize, k3: usize) -> Htens4 {
     let phi = bend.value(geom);
     let s = geom.s_vec(&bend);
     splat!(s, v1 => k1, v3 => k3);
-    let Hmat {
-        h11,
-        h31,
-        h33,
-        ..
-    } = hijs2(geom, k1, k2, k3);
+    let Hmat { h11, h31, h33, .. } = hijs2(geom, k1, k2, k3);
     let Htens {
         h111,
         h113,
@@ -311,4 +306,3 @@ pub(crate) fn h4th2(geom: &Geom, k1: usize, k2: usize, k3: usize) -> Htens4 {
 
     h
 }
-

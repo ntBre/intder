@@ -45,7 +45,7 @@ impl Geom {
     /// return the unit vector from atom i to atom j and the distance between
     /// the atoms
     pub fn vect1(&self, i: usize, j: usize) -> (Vec3, f64) {
-	(self.unit(i, j), self.dist(i, j))
+        (self.unit(i, j), self.dist(i, j))
     }
 
     /// angle in radians between atoms i, j, and k, where j is the central atom
@@ -206,7 +206,8 @@ impl Geom {
                         tmp[3 * b + i] -= t32 * e34[j] * h2.h32[(j, i)];
                         tmp[3 * d + i] -= t32 * e3[j] * h1.h11[(j, i)];
                     }
-                    tmp[3*c+i] = -tmp[3*a+i] - tmp[3*b+i] - tmp[3*d+i];
+                    tmp[3 * c + i] =
+                        -tmp[3 * a + i] - tmp[3 * b + i] - tmp[3 * d + i];
                 }
             }
             &Siic::Liny(a, b, c, d) => {
