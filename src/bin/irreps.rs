@@ -12,9 +12,9 @@ fn main() {
     }
     let mut mol = Molecule::from_slices(labels.clone(), &coords);
     mol.normalize();
-    println!("{}", mol);
+    println!("{mol}");
     let pg = mol.point_group_approx(1e-6);
-    println!("Point group = {}", pg);
+    println!("Point group = {pg}");
     // load the initial intder
     let nsic = intder.symmetry_internals.len();
     // generate a displacement for each SIC

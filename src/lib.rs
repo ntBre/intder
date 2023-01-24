@@ -122,7 +122,7 @@ impl Siic {
                 let w_size = w.abs() - 1.0;
                 let w = w.clamp(-1.0, 1.0).asin();
                 if w.is_nan() {
-                    panic!("nan calling sin on {}", w_size);
+                    panic!("nan calling sin on {w_size}");
                 }
                 if w3 < 0.0 {
                     std::f64::consts::PI - w
@@ -229,7 +229,7 @@ impl Display for Intder {
             if i == 16 {
                 writeln!(f)?;
             }
-            write!(f, "{:5}", op)?;
+            write!(f, "{op:5}")?;
         }
         writeln!(f)?;
         let lin_helper = |i, j, k, l, x, f: &mut Formatter<'_>| {
@@ -337,11 +337,7 @@ impl Display for Intder {
                         for l in 1..=k {
                             if let Some(v) = self.fc4.get(fc4_index(i, j, k, l))
                             {
-                                writeln!(
-                                    f,
-                                    "{:5}{:5}{:5}{:5}{:20.12}",
-                                    i, j, k, l, v
-                                )?;
+                                writeln!(f, "{i:5}{j:5}{k:5}{l:5}{v:20.12}")?;
                             }
                         }
                     }
@@ -424,7 +420,7 @@ impl Intder {
         let f = match File::open(infile) {
             Ok(f) => f,
             Err(_) => {
-                eprintln!("failed to open infile '{}'", infile);
+                eprintln!("failed to open infile '{infile}'");
                 std::process::exit(1);
             }
         };
@@ -447,7 +443,7 @@ impl Intder {
             "LINX" => Siic::Linx(vals[0], vals[1], vals[2], vals[3]),
             "LINY" => Siic::Liny(vals[0], vals[1], vals[2], vals[3]),
             e => {
-                panic!("unknown coordinate type '{}'", e);
+                panic!("unknown coordinate type '{e}'");
             }
         }
     }
@@ -483,7 +479,7 @@ impl Intder {
                 disp_tmp[sp[0].parse::<usize>().unwrap() - 1] = match sp.get(1)
                 {
                     Some(s) => s,
-                    None => panic!("line '{}' too short", line),
+                    None => panic!("line '{line}' too short"),
                 }
                 .parse::<f64>()
                 .unwrap();
@@ -602,7 +598,7 @@ impl Intder {
     pub fn print_geom(&self) {
         for atom in &self.geom {
             for c in &atom {
-                print!("{:20.10}", c);
+                print!("{c:20.10}");
             }
             println!();
         }
@@ -615,7 +611,7 @@ impl Intder {
             if let Siic::Bend(_, _, _) = self.simple_internals[i] {
                 println!("{:5}{:>18.10}", i, v.to_degrees());
             } else {
-                println!("{:5}{:>18.10}", i, v);
+                println!("{i:5}{v:>18.10}");
             }
         }
     }
@@ -623,7 +619,7 @@ impl Intder {
     /// print the symmetry internal coordinate values
     pub fn print_symmetry_values(&self, vals: &[f64]) {
         for (i, v) in vals.iter().enumerate() {
-            println!("{:5}{:>18.10}", i, v);
+            println!("{i:5}{v:>18.10}");
         }
     }
 
@@ -777,7 +773,7 @@ impl Intder {
             let sic_desired = &sic_current + &disp;
 
             if is_verbose() {
-                println!("DISPLACEMENT{:5}\n", i);
+                println!("DISPLACEMENT{i:5}\n");
                 println!("INTERNAL DISPLACEMENTS\n");
                 for (i, d) in disp.iter().enumerate() {
                     if *d != 0.0 {
@@ -805,7 +801,7 @@ impl Intder {
                         (&sic_current - &sic_desired).abs().max()
                     );
                     println!("B*BT MATRIX FOR (SYMMETRY) INTERNAL COORDINATES");
-                    println!("{:.6}", d);
+                    println!("{d:.6}");
 
                     println!(
                         "DETERMINANT OF B*BT MATRIX={:8.4}",
@@ -814,7 +810,7 @@ impl Intder {
 
                     println!();
                     println!("A MATRIX FOR (SYMMETRY) INTERNAL COORDINATES");
-                    println!("{:.8}", a);
+                    println!("{a:.8}");
                     println!();
                 }
 
@@ -1721,7 +1717,7 @@ impl Intder {
                 .expect("failed to create fort.15");
             for chunk in p.0.chunks(3) {
                 for c in chunk {
-                    write!(f, " {:>19.10}", c).unwrap();
+                    write!(f, " {c:>19.10}").unwrap();
                 }
                 writeln!(f).unwrap();
             }
