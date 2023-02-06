@@ -92,11 +92,11 @@ fn h5th1(geom: &Geom, k1: usize, k2: usize) -> Tensor5 {
                             + h11[(j, m)] * h111[(k, i, l)];
                         let d = h11[(k, m)] * h111[(i, j, l)]
                             + h11[(l, m)] * h111[(k, i, j)];
-                        let e = v1[(i)] * h1111[(j, k, l, m)]
-                            + v1[(j)] * h1111[(i, k, l, m)]
-                            + v1[(k)] * h1111[(i, j, l, m)];
-                        let f = v1[(l)] * h1111[(i, j, k, m)]
-                            + v1[(m)] * h1111[(i, j, k, l)];
+                        let e = v1[i] * h1111[(j, k, l, m)]
+                            + v1[j] * h1111[(i, k, l, m)]
+                            + v1[k] * h1111[(i, j, l, m)];
+                        let f = v1[l] * h1111[(i, j, k, m)]
+                            + v1[m] * h1111[(i, j, k, l)];
                         h[(i, j, k, l, m)] = -(a + b + c + d + e + f) / t21;
                     }
                 }
@@ -164,86 +164,81 @@ pub(crate) fn h4th2(geom: &Geom, k1: usize, k2: usize, k3: usize) -> Htens4 {
         for k in 0..3 {
             for j in 0..3 {
                 for i in 0..3 {
-                    h.h1111[(i, j, k, l)] =
-                        v1[(i)] * v1[(j)] * v1[(k)] * v1[(l)]
-                            - h111[(j, k, l)] * v1[(i)]
-                            - h111[(i, j, k)] * v1[(l)]
-                            - h111[(i, j, l)] * v1[(k)]
-                            - h111[(i, k, l)] * v1[(j)]
-                            - h11[(i, j)] * h11[(k, l)]
-                            - h11[(i, l)] * h11[(k, j)]
-                            - h11[(i, k)] * h11[(j, l)];
+                    h.h1111[(i, j, k, l)] = v1[i] * v1[j] * v1[k] * v1[l]
+                        - h111[(j, k, l)] * v1[i]
+                        - h111[(i, j, k)] * v1[l]
+                        - h111[(i, j, l)] * v1[k]
+                        - h111[(i, k, l)] * v1[j]
+                        - h11[(i, j)] * h11[(k, l)]
+                        - h11[(i, l)] * h11[(k, j)]
+                        - h11[(i, k)] * h11[(j, l)];
                     h.h1111[(i, j, k, l)] = h.h1111[(i, j, k, l)] * cotp
-                        + h11[(i, j)] * v1[(k)] * v1[(l)]
-                        + h11[(i, k)] * v1[(j)] * v1[(l)]
-                        + h11[(i, l)] * v1[(j)] * v1[(k)]
-                        + h11[(j, k)] * v1[(i)] * v1[(l)]
-                        + h11[(j, l)] * v1[(k)] * v1[(i)]
-                        + h11[(k, l)] * v1[(j)] * v1[(i)];
-                    h.h1113[(i, j, k, l)] =
-                        v1[(i)] * v1[(j)] * v1[(k)] * v3[(l)]
-                            - h113[(j, k, l)] * v1[(i)]
-                            - h111[(i, j, k)] * v3[(l)]
-                            - h113[(i, j, l)] * v1[(k)]
-                            - h113[(i, k, l)] * v1[(j)]
-                            - h11[(i, j)] * h31[(l, k)]
-                            - h31[(l, i)] * h11[(k, j)]
-                            - h11[(i, k)] * h31[(l, j)];
+                        + h11[(i, j)] * v1[k] * v1[l]
+                        + h11[(i, k)] * v1[j] * v1[l]
+                        + h11[(i, l)] * v1[j] * v1[k]
+                        + h11[(j, k)] * v1[i] * v1[l]
+                        + h11[(j, l)] * v1[k] * v1[i]
+                        + h11[(k, l)] * v1[j] * v1[i];
+                    h.h1113[(i, j, k, l)] = v1[i] * v1[j] * v1[k] * v3[l]
+                        - h113[(j, k, l)] * v1[i]
+                        - h111[(i, j, k)] * v3[l]
+                        - h113[(i, j, l)] * v1[k]
+                        - h113[(i, k, l)] * v1[j]
+                        - h11[(i, j)] * h31[(l, k)]
+                        - h31[(l, i)] * h11[(k, j)]
+                        - h11[(i, k)] * h31[(l, j)];
                     h.h1113[(i, j, k, l)] = h.h1113[(i, j, k, l)] * cotp
-                        + h11[(i, j)] * v1[(k)] * v3[(l)]
-                        + h11[(i, k)] * v1[(j)] * v3[(l)]
-                        + h31[(l, i)] * v1[(j)] * v1[(k)]
-                        + h11[(j, k)] * v1[(i)] * v3[(l)]
-                        + h31[(l, j)] * v1[(k)] * v1[(i)]
-                        + h31[(l, k)] * v1[(j)] * v1[(i)];
-                    h.h1133[(i, j, k, l)] =
-                        v1[(i)] * v1[(j)] * v3[(k)] * v3[(l)]
-                            - h331[(l, k, j)] * v1[(i)]
-                            - h113[(i, j, k)] * v3[(l)]
-                            - h113[(i, j, l)] * v3[(k)]
-                            - h331[(l, k, i)] * v1[(j)]
-                            - h11[(i, j)] * h33[(l, k)]
-                            - h31[(l, i)] * h31[(k, j)]
-                            - h31[(k, i)] * h31[(l, j)];
+                        + h11[(i, j)] * v1[k] * v3[l]
+                        + h11[(i, k)] * v1[j] * v3[l]
+                        + h31[(l, i)] * v1[j] * v1[k]
+                        + h11[(j, k)] * v1[i] * v3[l]
+                        + h31[(l, j)] * v1[k] * v1[i]
+                        + h31[(l, k)] * v1[j] * v1[i];
+                    h.h1133[(i, j, k, l)] = v1[i] * v1[j] * v3[k] * v3[l]
+                        - h331[(l, k, j)] * v1[i]
+                        - h113[(i, j, k)] * v3[l]
+                        - h113[(i, j, l)] * v3[k]
+                        - h331[(l, k, i)] * v1[j]
+                        - h11[(i, j)] * h33[(l, k)]
+                        - h31[(l, i)] * h31[(k, j)]
+                        - h31[(k, i)] * h31[(l, j)];
                     h.h1133[(i, j, k, l)] = h.h1133[(i, j, k, l)] * cotp
-                        + h11[(i, j)] * v3[(k)] * v3[(l)]
-                        + h31[(k, i)] * v1[(j)] * v3[(l)]
-                        + h31[(l, i)] * v1[(j)] * v3[(k)]
-                        + h31[(k, j)] * v1[(i)] * v3[(l)]
-                        + h31[(l, j)] * v3[(k)] * v1[(i)]
-                        + h33[(l, k)] * v1[(j)] * v1[(i)];
-                    h.h1333[(i, j, k, l)] =
-                        v1[(i)] * v3[(j)] * v3[(k)] * v3[(l)]
-                            - h333[(l, k, j)] * v1[(i)]
-                            - h331[(k, j, i)] * v3[(l)]
-                            - h331[(l, j, i)] * v3[(k)]
-                            - h331[(l, k, i)] * v3[(j)]
-                            - h31[(j, i)] * h33[(l, k)]
-                            - h31[(l, i)] * h33[(k, j)]
-                            - h31[(k, i)] * h33[(l, j)];
+                        + h11[(i, j)] * v3[k] * v3[l]
+                        + h31[(k, i)] * v1[j] * v3[l]
+                        + h31[(l, i)] * v1[j] * v3[k]
+                        + h31[(k, j)] * v1[i] * v3[l]
+                        + h31[(l, j)] * v3[k] * v1[i]
+                        + h33[(l, k)] * v1[j] * v1[i];
+                    h.h1333[(i, j, k, l)] = v1[i] * v3[j] * v3[k] * v3[l]
+                        - h333[(l, k, j)] * v1[i]
+                        - h331[(k, j, i)] * v3[l]
+                        - h331[(l, j, i)] * v3[k]
+                        - h331[(l, k, i)] * v3[j]
+                        - h31[(j, i)] * h33[(l, k)]
+                        - h31[(l, i)] * h33[(k, j)]
+                        - h31[(k, i)] * h33[(l, j)];
                     h.h1333[(i, j, k, l)] = h.h1333[(i, j, k, l)] * cotp
-                        + h31[(j, i)] * v3[(k)] * v3[(l)]
-                        + h31[(k, i)] * v3[(j)] * v3[(l)]
-                        + h31[(l, i)] * v3[(j)] * v3[(k)]
-                        + h33[(k, j)] * v1[(i)] * v3[(l)]
-                        + h33[(l, j)] * v3[(k)] * v1[(i)]
-                        + h33[(l, k)] * v3[(j)] * v1[(i)];
-                    h.h3333[(i, j, k, l)] =
-                        v3[(i)] * v3[(j)] * v3[(k)] * v3[(l)]
-                            - h333[(l, k, j)] * v3[(i)]
-                            - h333[(k, j, i)] * v3[(l)]
-                            - h333[(l, j, i)] * v3[(k)]
-                            - h333[(l, k, i)] * v3[(j)]
-                            - h33[(j, i)] * h33[(l, k)]
-                            - h33[(l, i)] * h33[(k, j)]
-                            - h33[(k, i)] * h33[(l, j)];
+                        + h31[(j, i)] * v3[k] * v3[l]
+                        + h31[(k, i)] * v3[j] * v3[l]
+                        + h31[(l, i)] * v3[j] * v3[k]
+                        + h33[(k, j)] * v1[i] * v3[l]
+                        + h33[(l, j)] * v3[k] * v1[i]
+                        + h33[(l, k)] * v3[j] * v1[i];
+                    h.h3333[(i, j, k, l)] = v3[i] * v3[j] * v3[k] * v3[l]
+                        - h333[(l, k, j)] * v3[i]
+                        - h333[(k, j, i)] * v3[l]
+                        - h333[(l, j, i)] * v3[k]
+                        - h333[(l, k, i)] * v3[j]
+                        - h33[(j, i)] * h33[(l, k)]
+                        - h33[(l, i)] * h33[(k, j)]
+                        - h33[(k, i)] * h33[(l, j)];
                     h.h3333[(i, j, k, l)] = h.h3333[(i, j, k, l)] * cotp
-                        + h33[(j, i)] * v3[(k)] * v3[(l)]
-                        + h33[(k, i)] * v3[(j)] * v3[(l)]
-                        + h33[(l, i)] * v3[(j)] * v3[(k)]
-                        + h33[(k, j)] * v3[(i)] * v3[(l)]
-                        + h33[(l, j)] * v3[(k)] * v3[(i)]
-                        + h33[(l, k)] * v3[(j)] * v3[(i)];
+                        + h33[(j, i)] * v3[k] * v3[l]
+                        + h33[(k, i)] * v3[j] * v3[l]
+                        + h33[(l, i)] * v3[j] * v3[k]
+                        + h33[(k, j)] * v3[i] * v3[l]
+                        + h33[(l, j)] * v3[k] * v3[i]
+                        + h33[(l, k)] * v3[j] * v3[i];
                 }
             }
         }
@@ -265,7 +260,7 @@ pub(crate) fn h4th2(geom: &Geom, k1: usize, k2: usize, k3: usize) -> Htens4 {
                 for j in 0..3 {
                     for i in 0..3 {
                         h.h1111[(i, j, k, l)] -=
-                            cscp * q11111[(m, i, j, k, l)] * v3[(m)];
+                            cscp * q11111[(m, i, j, k, l)] * v3[m];
                         h.h1113[(i, j, k, l)] -=
                             cscp * q1111[(m, i, j, k)] * h33[(l, m)];
                         h.h1133[(i, j, k, l)] -=
@@ -273,7 +268,7 @@ pub(crate) fn h4th2(geom: &Geom, k1: usize, k2: usize, k3: usize) -> Htens4 {
                         h.h1333[(i, j, k, l)] -=
                             cscp * h11[(m, i)] * q3333[(j, k, l, m)];
                         h.h3333[(i, j, k, l)] -=
-                            cscp * v1[(m)] * q33333[(i, j, k, l, m)];
+                            cscp * v1[m] * q33333[(i, j, k, l, m)];
                     }
                 }
             }

@@ -267,17 +267,15 @@ impl Hmat {
                 let w2 = 1.0 / t23;
                 for j in 0..3 {
                     for i in 0..3 {
-                        h.h11[(i, j)] = (-h11a[(i, j)] * w1
-                            + v1[(i)] * v1[(j)])
+                        h.h11[(i, j)] = (-h11a[(i, j)] * w1 + v1[i] * v1[j])
                             * tanth
-                            - (e21[(i)] * v1[(j)] + v1[(i)] * e21[(j)]) * w1;
+                            - (e21[i] * v1[j] + v1[i] * e21[j]) * w1;
                         h.h31[(i, j)] =
-                            (h.h22[(j, i)] / costh - v3[(i)] * e21[(j)]) / t21
-                                + v3[(i)] * v1[(j)] * tanth;
-                        h.h33[(i, j)] = (-h33a[(i, j)] * w2
-                            + v3[(i)] * v3[(j)])
+                            (h.h22[(j, i)] / costh - v3[i] * e21[j]) / t21
+                                + v3[i] * v1[j] * tanth;
+                        h.h33[(i, j)] = (-h33a[(i, j)] * w2 + v3[i] * v3[j])
                             * tanth
-                            - (e23[(i)] * v3[(j)] + v3[(i)] * e23[(j)]) * w2;
+                            - (e23[i] * v3[j] + v3[i] * e23[j]) * w2;
                         h.h21[(i, j)] = -(h.h11[(i, j)] + h.h31[(i, j)]);
                         h.h32[(i, j)] = -(h.h31[(i, j)] + h.h33[(i, j)]);
                     }
@@ -350,47 +348,44 @@ impl Hmat {
                 let c436 = c435 * tg;
                 for j in 0..3 {
                     for i in j..3 {
-                        h.h11[(i, j)] = v1[(j)]
-                            * (tg * v1[(i)] - e21[(i)] * c21)
-                            - v1[(i)] * e21[(j)] * c21;
-                        h.h11[(i, j)] += e21[(i)] * e21[(j)] * c11;
+                        h.h11[(i, j)] = v1[j] * (tg * v1[i] - e21[i] * c21)
+                            - v1[i] * e21[j] * c21;
+                        h.h11[(i, j)] += e21[i] * e21[j] * c11;
                         if i == j {
                             h.h11[(i, j)] -= c11
                         }
                         h.h11[(j, i)] = h.h11[(i, j)];
                         h.h33[(i, j)] =
-                            v3[(i)] * bp4[(j)] * c331 + hp43[(j, i)] * c332;
-                        h.h33[(i, j)] += v3[(j)]
-                            * (tg * v3[(i)] - e23[(i)] * c23 - bp3[(i)] * ctp);
+                            v3[i] * bp4[j] * c331 + hp43[(j, i)] * c332;
+                        h.h33[(i, j)] +=
+                            v3[j] * (tg * v3[i] - e23[i] * c23 - bp3[i] * ctp);
                         h.h33[(j, i)] = h.h33[(i, j)];
                         h.h44[(i, j)] =
-                            v4[(i)] * bp3[(j)] * c441 + hp43[(i, j)] * c442;
-                        h.h44[(i, j)] += v4[(j)]
-                            * (tg * v4[(i)] - e24[(i)] * c24 - bp4[(i)] * ctp);
+                            v4[i] * bp3[j] * c441 + hp43[(i, j)] * c442;
+                        h.h44[(i, j)] +=
+                            v4[j] * (tg * v4[i] - e24[i] * c24 - bp4[i] * ctp);
                         h.h44[(j, i)] = h.h44[(i, j)];
                     }
                 }
                 for j in 0..3 {
-                    let xj = tg * v1[(j)] - e21[(j)] * c21;
+                    let xj = tg * v1[j] - e21[j] * c21;
                     for i in 0..3 {
-                        h.h31[(i, j)] = v3[(i)] * xj - cp31[(i, j)] * c311;
+                        h.h31[(i, j)] = v3[i] * xj - cp31[(i, j)] * c311;
                         h.h31[(i, j)] = h.h31[(i, j)]
-                            - e23[(i)] * v5[(j)] * c311
-                            - bp3[(i)] * v5[(j)] * c313;
-                        h.h41[(i, j)] = v4[(i)] * xj + cp41[(i, j)] * c411;
+                            - e23[i] * v5[j] * c311
+                            - bp3[i] * v5[j] * c313;
+                        h.h41[(i, j)] = v4[i] * xj + cp41[(i, j)] * c411;
                         h.h41[(i, j)] = h.h41[(i, j)]
-                            - e24[(i)] * v5[(j)] * c411
-                            - bp4[(i)] * v5[(j)] * c313;
+                            - e24[i] * v5[j] * c411
+                            - bp4[i] * v5[j] * c313;
                         h.h21[(i, j)] =
                             -(h.h11[(i, j)] + h.h31[(i, j)] + h.h41[(i, j)]);
-                        h.h43[(i, j)] = (cp43[(j, i)] - e24[(i)] * v6[(j)])
-                            * c431
-                            + v3[(j)] * v4[(i)] * c432;
+                        h.h43[(i, j)] = (cp43[(j, i)] - e24[i] * v6[j]) * c431
+                            + v3[j] * v4[i] * c432;
+                        h.h43[(i, j)] = h.h43[(i, j)] - v3[j] * bp4[i] * ctp
+                            + e24[i] * bp4[j] * c434;
                         h.h43[(i, j)] = h.h43[(i, j)]
-                            - v3[(j)] * bp4[(i)] * ctp
-                            + e24[(i)] * bp4[(j)] * c434;
-                        h.h43[(i, j)] = h.h43[(i, j)]
-                            + v4[(i)] * bp4[(j)] * c435
+                            + v4[i] * bp4[j] * c435
                             + hp44[(i, j)] * c436;
                     }
                 }
@@ -502,26 +497,16 @@ impl Hmat {
                 } = Hmat::new(geom, &out);
                 for k in 0..3 {
                     for j in 0..3 {
-                        h.h22[(j, k)] =
-                            -w * e2[(j)] * e2[(k)] - cosy * q22[(k, j)];
-                        h.h32[(j, k)] =
-                            -w * e3[(j)] * e2[(k)] - cosy * q23[(k, j)];
-                        h.h42[(j, k)] =
-                            -w * e4[(j)] * e2[(k)] - cosy * q24[(k, j)];
-                        h.h33[(j, k)] =
-                            -w * e3[(j)] * e3[(k)] - cosy * q33[(k, j)];
-                        h.h43[(j, k)] =
-                            -w * e4[(j)] * e3[(k)] - cosy * q34[(k, j)];
-                        h.h44[(j, k)] =
-                            -w * e4[(j)] * e4[(k)] - cosy * q44[(k, j)];
-                        h.h41[(j, k)] =
-                            -w * e4[(j)] * e1[(k)] - cosy * q14[(k, j)];
-                        h.h31[(j, k)] =
-                            -w * e3[(j)] * e1[(k)] - cosy * q13[(k, j)];
-                        h.h21[(j, k)] =
-                            -w * e2[(j)] * e1[(k)] - cosy * q12[(k, j)];
-                        h.h11[(j, k)] =
-                            -w * e1[(j)] * e1[(k)] - cosy * q11[(k, j)];
+                        h.h22[(j, k)] = -w * e2[j] * e2[k] - cosy * q22[(k, j)];
+                        h.h32[(j, k)] = -w * e3[j] * e2[k] - cosy * q23[(k, j)];
+                        h.h42[(j, k)] = -w * e4[j] * e2[k] - cosy * q24[(k, j)];
+                        h.h33[(j, k)] = -w * e3[j] * e3[k] - cosy * q33[(k, j)];
+                        h.h43[(j, k)] = -w * e4[j] * e3[k] - cosy * q34[(k, j)];
+                        h.h44[(j, k)] = -w * e4[j] * e4[k] - cosy * q44[(k, j)];
+                        h.h41[(j, k)] = -w * e4[j] * e1[k] - cosy * q14[(k, j)];
+                        h.h31[(j, k)] = -w * e3[j] * e1[k] - cosy * q13[(k, j)];
+                        h.h21[(j, k)] = -w * e2[j] * e1[k] - cosy * q12[(k, j)];
+                        h.h11[(j, k)] = -w * e1[j] * e1[k] - cosy * q11[(k, j)];
                     }
                 }
             }
