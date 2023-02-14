@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
+    error::Error,
     fmt::{Display, Formatter},
     fs::File,
     io::{BufRead, BufReader, Read, Write},
@@ -400,6 +401,14 @@ pub enum IntderError {
     DispError(String),
     FreqError,
 }
+
+impl Display for IntderError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self:?}")
+    }
+}
+
+impl Error for IntderError {}
 
 impl Intder {
     pub fn new() -> Self {
