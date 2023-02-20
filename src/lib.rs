@@ -659,17 +659,16 @@ impl Intder {
     /// currently returns a vector of simple internal values in Ångstroms or
     /// radians
     pub fn simple_values(&self, geom: &Geom) -> Vec<f64> {
-        let mut ret = Vec::new();
-        for s in &self.simple_internals {
-            ret.push(s.value(geom));
-        }
-        ret
+        self.simple_internals
+            .iter()
+            .map(|s| s.value(geom))
+            .collect()
     }
 
     /// currently returns a vector of symmetry internal values in Ångstroms or
     /// radians
     pub fn symmetry_values(&self, geom: &Geom) -> Vec<f64> {
-        let mut ret = Vec::new();
+        let mut ret = Vec::with_capacity(self.symmetry_internals.len());
         let siics = self.simple_values(geom);
         for sic in &self.symmetry_internals {
             let mut sum = f64::default();
@@ -683,15 +682,13 @@ impl Intder {
 
     /// return the B matrix in simple internal coordinates
     pub fn b_matrix(&self, geom: &Geom) -> DMat {
-        let mut b_mat = Vec::new();
+        let rows = self.simple_internals.len();
+        let cols = 3 * geom.len();
+        let mut b_mat = Vec::with_capacity(rows * cols);
         for ic in &self.simple_internals {
             b_mat.extend(geom.s_vec(ic));
         }
-        DMat::from_row_slice(
-            self.simple_internals.len(),
-            3 * geom.len(),
-            &b_mat,
-        )
+        DMat::from_row_slice(rows, cols, &b_mat)
     }
 
     /// return the U matrix, used for converting from simple internals to
@@ -701,11 +698,11 @@ impl Intder {
     pub fn u_mat(&self) -> DMat {
         let r = self.symmetry_internals.len();
         let c = self.simple_internals.len();
-        let mut u = Vec::new();
-        for i in 0..r {
-            u.extend(&self.symmetry_internals[i].clone());
-        }
-        DMat::from_row_slice(r, c, &u)
+        DMat::from_row_iterator(
+            r,
+            c,
+            self.symmetry_internals.iter().flatten().cloned(),
+        )
     }
 
     /// return the symmetry internal coordinate B matrix by computing the simple
@@ -1042,7 +1039,7 @@ impl Intder {
 
         // convert SR to symmetry internals
         let srs_sym = {
-            let mut ret = Vec::new();
+            let mut ret = Vec::with_capacity(nsx);
             for r in 0..nsx {
                 let mut sr_sic = Tensor3::zeros(nc, nc, nc);
                 for (i, sr) in srs_sim.iter().enumerate() {
@@ -1065,7 +1062,7 @@ impl Intder {
 
     /// flatten fc2 so it can be accessed as the Fortran code expects
     fn flatten_fc2(&self, nsy: usize) -> DVec {
-        let mut v = Vec::new();
+        let mut v = Vec::with_capacity(nsy * nsy);
         for i in 0..nsy {
             for j in 0..nsy {
                 // multiply by a coefficient here if you need to convert

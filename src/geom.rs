@@ -236,21 +236,22 @@ impl From<psqs::geom::Geom> for Geom {
     /// is not Cartesian
     fn from(geom: psqs::geom::Geom) -> Self {
         let geom = geom.xyz().unwrap();
-        let mut ret = Vec::new();
-        for atom in geom {
-            ret.push(Vec3::from_row_slice(&atom.coord()));
-        }
-        Self(ret)
+        Self(
+            geom.iter()
+                .map(|atom| Vec3::from_row_slice(&atom.coord()))
+                .collect(),
+        )
     }
 }
 
 impl From<symm::Molecule> for Geom {
     fn from(geom: symm::Molecule) -> Self {
-        let mut ret = Vec::new();
-        for atom in geom.atoms {
-            ret.push(Vec3::from_row_slice(&atom.coord()));
-        }
-        Self(ret)
+        Self(
+            geom.atoms
+                .iter()
+                .map(|atom| Vec3::from_row_slice(&atom.coord()))
+                .collect(),
+        )
     }
 }
 
