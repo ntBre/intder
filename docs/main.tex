@@ -293,6 +293,38 @@ normals, and thus between the planes, perform the following transformations:
   \end{tikzpicture}
 \end{figure}
 
+\subsubsection{LINX/LINY}
+\label{sec:linxy}
+
+LINX and LINY are the $x$ and $y$ components of the C $\rightarrow$ D unit
+vector in the local coordinate system where the B $\rightarrow$ C vector defines
+the $+z$ axis and A lies in the $xz$ plane in the $+x$ direction, as shown in
+Fig.~\ref{fig:linxy}.
+
+\begin{figure}[ht]
+  \centering
+  \caption{LINX and LINY}
+  \label{fig:linxy}
+
+  \begin{tikzpicture}
+    \node[draw,circle] (A) at (1,-2) {A};
+    \node[draw,circle] (B) at (0,0) {B};
+    \node[draw,circle] (C) at (1,2) {C};
+    \node[draw,circle] (D) at (0,4) {D};
+    \draw[thick] (B) -- (A) node[midway] (m) {};
+    \draw[thick] (C) -- (B) node[midway] (n) {};
+    \draw[thick] (D) -- (C) node[midway] (o) {};
+    \draw[thick] (D) -- (o) node[midway] (p) {};
+    \draw[thick, ->] (B) -- (C) node[midway, right] {$+z$};
+    \draw[thick, ->] (C) -- (p) node[midway, above right] {$\vec{e}_{CD}$};
+    \draw[thick, ->] (B) -- (2,-1) node[midway, right] {$+x$};
+    \draw[dashed] (C) -- (-0,2.5) node[midway, below] { $r_x$ };
+    \draw[dashed, ->] (-0,2.5) -- (p) node[midway, above left] { $r_y$ };
+  \end{tikzpicture}
+\end{figure}
+
+The values are computed using TODO
+
 \subsection{Symmetry-Internal Coordinates}
 \label{sec:symm}
 
@@ -318,23 +350,23 @@ input for the formaldehyde (H$_2$CO) molecule, followed by the geometry to help
 picture the meaning of these coordinates.
 
 \begin{lstlisting}
-STRE     1    2
-STRE     2    3
-STRE     2    4
-BEND     1    2    3
-BEND     1    2    4
-OUT      1    2    3    4
-    1   1   1.000000000
-    2   2   1.000000000   3   1.000000000
-    3   4   1.000000000   5   1.000000000
-    4   2   1.000000000   3  -1.000000000
-    5   4   1.000000000   5  -1.000000000
-    6   6   1.000000000
-    0
-      0.000000000        0.000000000       -1.137981497
-      0.000000000        0.000000000        1.140677167
-      0.000000000        1.771466895        2.235424580
-      0.000000000       -1.771466895        2.235424580
+  STRE     1    2
+  STRE     2    3
+  STRE     2    4
+  BEND     1    2    3
+  BEND     1    2    4
+  OUT      1    2    3    4
+  1   1   1.000000000
+  2   2   1.000000000   3   1.000000000
+  3   4   1.000000000   5   1.000000000
+  4   2   1.000000000   3  -1.000000000
+  5   4   1.000000000   5  -1.000000000
+  6   6   1.000000000
+  0
+  0.000000000        0.000000000       -1.137981497
+  0.000000000        0.000000000        1.140677167
+  0.000000000        1.771466895        2.235424580
+  0.000000000       -1.771466895        2.235424580
 \end{lstlisting}
 
 The first section defines the internal coordinates themselves, given in more
@@ -421,16 +453,16 @@ section is concerned with the former, and the next section covers the latter.
 The basic form of displacement input is as shown in the listing below.
 
 \begin{lstlisting}
-DISP 413
-    0
-    1       -0.0200000000
-    0
-    1       -0.0150000000
-    2       -0.0050000000
-    0
-    1       -0.0150000000
-    3       -0.0050000000
-    0
+  DISP 413
+  0
+  1       -0.0200000000
+  0
+  1       -0.0150000000
+  2       -0.0050000000
+  0
+  1       -0.0150000000
+  3       -0.0050000000
+  0
 \end{lstlisting}
 
 The Fortran version looks for the number following \verb|DISP| to determine how
