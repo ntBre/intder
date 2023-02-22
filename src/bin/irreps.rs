@@ -10,7 +10,7 @@ fn main() {
     for atom in &intder.geom {
         coords.extend(atom.as_slice());
     }
-    let mut mol = Molecule::from_slices(labels.clone(), &coords);
+    let mut mol = Molecule::from_slices(&labels, &coords);
     mol.normalize();
     println!("{mol}");
     let pg = mol.point_group_approx(1e-6);
@@ -32,7 +32,7 @@ fn main() {
     let mut irreps = Vec::new();
     for (i, disp) in disps.iter().enumerate() {
         let disp = disp.as_slice();
-        let m = Molecule::from_slices(labels.clone(), disp);
+        let m = Molecule::from_slices(&labels, disp);
         let irrep = match m.irrep_approx(&pg, 1e-6) {
             Ok(rep) => rep,
             Err(e) => {
