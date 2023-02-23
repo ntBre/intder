@@ -115,10 +115,7 @@ impl Geom {
                 let t21 = self.dist(*b, *a);
                 let t23 = self.dist(*c, *b);
                 let ea = self[*d];
-                let d = {
-                    let d = ea.dot(&ea);
-                    1.0 / d.sqrt()
-                };
+                let d = 1.0 / ea.dot(&ea).sqrt();
                 let ea = d * ea;
                 let e2m = e23.cross(&e21);
                 let stheta = ea.dot(&e2m);
