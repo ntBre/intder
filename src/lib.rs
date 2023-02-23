@@ -851,8 +851,8 @@ impl Intder {
         Ok(ret)
     }
 
-    /// returns X and SR matrices in symmetry internal coordinates
-    pub fn machx(&self, a_mat: &DMat) -> (Vec<DMat>, Vec<DMat>) {
+    /// return the SR matrix in symmetry internal coordinates
+    pub fn machx(&self, a_mat: &DMat) -> Vec<DMat> {
         use Siic::*;
         let nc = self.ncart();
         let nsym = self.nsym();
@@ -943,19 +943,7 @@ impl Intder {
             srs_sim.push(sr);
         }
         // TODO if nsym = 0, just return the sim versions
-        let mut xs_sym = Vec::new();
         let mut srs_sym = Vec::new();
-        for r in 0..nsym {
-            let mut x_sic = DMat::zeros(nc, nsym);
-            for (i, x) in xs_sim.iter().enumerate() {
-                for n in 0..nsym {
-                    for m in 0..nsym {
-                        x_sic[(m, n)] += u[(r, i)] * x[(m, n)];
-                    }
-                }
-            }
-            xs_sym.push(x_sic);
-        }
         for r in 0..nsym {
             let mut sr_sic = DMat::zeros(nc, nc);
             for (i, sr) in srs_sim.iter().enumerate() {
@@ -967,7 +955,7 @@ impl Intder {
             }
             srs_sym.push(sr_sic);
         }
-        (xs_sym, srs_sym)
+        srs_sym
     }
 
     /// returns the Y and SR matrices in symmetry internal coordinates
@@ -1708,7 +1696,7 @@ impl Intder {
         // let sics = DVec::from(self.symmetry_values(&self.geom));
         let b_sym = self.sym_b_matrix(&self.geom);
         let a = Intder::a_matrix(&b_sym);
-        let (_xs, srs) = self.machx(&a);
+        let srs = self.machx(&a);
         let (_ys, srsy) = self.machy(&a);
         let (f2, f3, f4) = self.lintr(&b_sym, &b_sym, &srs, &srsy);
 
