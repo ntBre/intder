@@ -89,23 +89,21 @@ impl Geom {
                 let t_43 = self.dist(*d, *c);
                 let v5 = e_21.cross(&e_32);
                 let v6 = e_43.cross(&e_32);
-                let w2 = e_21.dot(&e_32);
-                let w3 = e_43.dot(&e_32);
-                let cp2 = -w2;
-                let cp3 = -w3;
-                let sp2 = (1.0 - cp2 * cp2).sqrt();
-                let sp3 = (1.0 - cp3 * cp3).sqrt();
+                let cp2 = -e_21.dot(&e_32);
+                let cp3 = -e_43.dot(&e_32);
+                let sp2 = 1.0 - cp2 * cp2;
+                let sp3 = 1.0 - cp3 * cp3;
                 // terminal atoms
-                let w1 = 1.0 / (t_21 * sp2 * sp2);
-                let w2 = 1.0 / (t_43 * sp3 * sp3);
+                let w1 = 1.0 / (t_21 * sp2);
+                let w2 = 1.0 / (t_43 * sp3);
                 for i in 0..3 {
                     tmp[3 * a + i] = -w1 * v5[i];
                     tmp[3 * d + i] = -w2 * v6[i];
                 }
                 let w3 = (t_32 - t_21 * cp2) * w1 / t_32;
-                let w4 = cp3 / (t_32 * sp3 * sp3);
+                let w4 = cp3 / (t_32 * sp3);
                 let w5 = (t_32 - t_43 * cp3) * w2 / t_32;
-                let w6 = cp2 / (t_32 * sp2 * sp2);
+                let w6 = cp2 / (t_32 * sp2);
                 for i in 0..3 {
                     tmp[3 * b + i] = w3 * v5[i] + w4 * v6[i];
                     tmp[3 * c + i] = w5 * v6[i] + w6 * v5[i];
