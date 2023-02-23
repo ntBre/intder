@@ -16,5 +16,5 @@ nalgebra = "0.31.1"
 psqs = { path = "/home/brent/Projects/psqs" }
 regex = "1.5.5"
 serde = "1.0.152"
-symm = { path = "/home/brent/Projects/symm" }
+symm = { git = "https://github.com/ntBre/symm" }
 tensor = { path = "/home/brent/Projects/tensor" }
