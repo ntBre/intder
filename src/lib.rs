@@ -852,7 +852,7 @@ impl Intder {
     }
 
     /// return the SR matrix in symmetry internal coordinates
-    pub fn machx(&self, a_mat: &DMat) -> Vec<DMat> {
+    pub fn machx(&self) -> Vec<DMat> {
         use Siic::*;
         let nc = self.ncart();
         let nsym = self.nsym();
@@ -861,12 +861,10 @@ impl Intder {
             todo!("using only simple internals is unimplemented");
         }
         // simple internal X and SR matrices
-        let mut xs_sim = Vec::new();
         let mut srs_sim = Vec::new();
         // let nsim = self.simple_internals.len();
         for s in &self.simple_internals {
             // I thought this was nc x nc but actually nc x nsym
-            let mut x = DMat::zeros(nc, nsym);
             let mut sr = DMat::zeros(nc, nc);
             let h = Hmat::new(&self.geom, s);
             match s {
@@ -882,7 +880,6 @@ impl Intder {
                             sr[(l2 + i, l1 + j)] = -h.h11[(i, j)];
                         }
                     }
-                    ahx2(nsym, a_mat, l1, l2, &mut x, &h);
                 }
                 Bend(a, b, c) | Lin1(a, b, c, _) => {
                     let l1 = 3 * a;
@@ -901,7 +898,6 @@ impl Intder {
                             sr[(l3 + i, l3 + j)] = h.h33[(i, j)];
                         }
                     }
-                    ahx3(nsym, a_mat, l1, l2, l3, &mut x, &h);
                 }
                 Torsion(a, b, c, d)
                 | Out(a, b, c, d)
@@ -931,15 +927,8 @@ impl Intder {
                             sr[(l4 + i, l4 + j)] = h.h44[(i, j)];
                         }
                     }
-                    ahx4(nsym, a_mat, l1, l2, l3, l4, &mut x, &h);
                 }
             }
-            for n in 0..nsym {
-                for m in 0..=n {
-                    x[(n, m)] = x[(m, n)];
-                }
-            }
-            xs_sim.push(x);
             srs_sim.push(sr);
         }
         // TODO if nsym = 0, just return the sim versions
@@ -1820,27 +1809,6 @@ fn ahy2(
     }
 }
 
-fn ahx2(
-    nsym: usize,
-    a_mat: &DMat,
-    l1: usize,
-    l2: usize,
-    x: &mut DMat,
-    h: &Hmat,
-) {
-    for n in 0..nsym {
-        for m in 0..=n {
-            for i in 0..3 {
-                for j in 0..3 {
-                    let w1 = (a_mat[(l1 + i, m)] - a_mat[(l2 + i, m)])
-                        * (a_mat[(l1 + j, n)] - a_mat[(l2 + j, n)]);
-                    x[(m, n)] += w1 * h.h11[(i, j)];
-                }
-            }
-        }
-    }
-}
-
 #[allow(clippy::too_many_arguments)]
 fn ahy4(
     nsx: usize,
@@ -2059,56 +2027,6 @@ fn hsry4(
 // NOTE: these functions were extracted automatically by the LSP, so their
 // interface could probably be cleaned up a bit if desired
 
-#[allow(clippy::too_many_arguments)]
-fn ahx4(
-    nsym: usize,
-    a_mat: &DMat,
-    l1: usize,
-    l2: usize,
-    l3: usize,
-    l4: usize,
-    x: &mut DMat,
-    h: &Hmat,
-) {
-    for n in 0..nsym {
-        for m in 0..=n {
-            for i in 0..3 {
-                for j in 0..3 {
-                    let w1 = a_mat[(l1 + i, m)] * a_mat[(l1 + j, n)];
-                    let w2 = a_mat[(l2 + i, m)] * a_mat[(l2 + j, n)];
-                    let w3 = a_mat[(l3 + i, m)] * a_mat[(l3 + j, n)];
-                    let w4 = a_mat[(l4 + i, m)] * a_mat[(l4 + j, n)];
-                    x[(m, n)] = x[(m, n)]
-                        + w1 * h.h11[(i, j)]
-                        + w2 * h.h22[(i, j)]
-                        + w3 * h.h33[(i, j)]
-                        + w4 * h.h44[(i, j)];
-                    let w1 = a_mat[(l2 + i, m)] * a_mat[(l1 + j, n)]
-                        + a_mat[(l1 + j, m)] * a_mat[(l2 + i, n)];
-                    let w2 = a_mat[(l3 + i, m)] * a_mat[(l1 + j, n)]
-                        + a_mat[(l1 + j, m)] * a_mat[(l3 + i, n)];
-                    let w3 = a_mat[(l4 + i, m)] * a_mat[(l1 + j, n)]
-                        + a_mat[(l1 + j, m)] * a_mat[(l4 + i, n)];
-                    x[(m, n)] = x[(m, n)]
-                        + w1 * h.h21[(i, j)]
-                        + w2 * h.h31[(i, j)]
-                        + w3 * h.h41[(i, j)];
-                    let w1 = a_mat[(l3 + i, m)] * a_mat[(l2 + j, n)]
-                        + a_mat[(l2 + j, m)] * a_mat[(l3 + i, n)];
-                    let w2 = a_mat[(l4 + i, m)] * a_mat[(l2 + j, n)]
-                        + a_mat[(l2 + j, m)] * a_mat[(l4 + i, n)];
-                    let w3 = a_mat[(l4 + i, m)] * a_mat[(l3 + j, n)]
-                        + a_mat[(l3 + j, m)] * a_mat[(l4 + i, n)];
-                    x[(m, n)] = x[(m, n)]
-                        + w1 * h.h32[(i, j)]
-                        + w2 * h.h42[(i, j)]
-                        + w3 * h.h43[(i, j)];
-                }
-            }
-        }
-    }
-}
-
 fn ahy3(
     nsx: usize,
     a_mat: &DMat,
@@ -2215,40 +2133,6 @@ fn hsry3(sr: &mut Tensor3, l1: usize, h: &Htens, l2: usize, l3: usize) {
                 sr[(l3 + i, l3 + j, l1 + k)] = h.h331[(i, j, k)];
                 sr[(l3 + i, l3 + j, l2 + k)] = h.h332[(i, j, k)];
                 sr[(l3 + i, l3 + j, l3 + k)] = h.h333[(i, j, k)];
-            }
-        }
-    }
-}
-
-fn ahx3(
-    nsym: usize,
-    a_mat: &DMat,
-    l1: usize,
-    l2: usize,
-    l3: usize,
-    x: &mut DMat,
-    h: &Hmat,
-) {
-    for n in 0..nsym {
-        for m in 0..=n {
-            for i in 0..3 {
-                for j in 0..3 {
-                    let w1 = a_mat[(l1 + i, m)] * a_mat[(l1 + j, n)];
-                    let w2 = a_mat[(l2 + i, m)] * a_mat[(l2 + j, n)];
-                    let w3 = a_mat[(l3 + i, m)] * a_mat[(l3 + j, n)];
-                    x[(m, n)] += w1 * h.h11[(i, j)]
-                        + w2 * h.h22[(i, j)]
-                        + w3 * h.h33[(i, j)];
-                    let w1 = a_mat[(l2 + i, m)] * a_mat[(l1 + j, n)]
-                        + a_mat[(l1 + j, m)] * a_mat[(l2 + i, n)];
-                    let w2 = a_mat[(l3 + i, m)] * a_mat[(l1 + j, n)]
-                        + a_mat[(l1 + j, m)] * a_mat[(l3 + i, n)];
-                    let w3 = a_mat[(l3 + i, m)] * a_mat[(l2 + j, n)]
-                        + a_mat[(l2 + j, m)] * a_mat[(l3 + i, n)];
-                    x[(m, n)] += w1 * h.h21[(i, j)]
-                        + w2 * h.h31[(i, j)]
-                        + w3 * h.h32[(i, j)];
-                }
             }
         }
     }
