@@ -947,8 +947,8 @@ impl Intder {
         srs_sym
     }
 
-    /// returns the Y and SR matrices in symmetry internal coordinates
-    pub fn machy(&self, a_mat: &DMat) -> (Vec<Tensor3>, Vec<Tensor3>) {
+    /// returns the SR matrix in symmetry internal coordinates
+    pub fn machy(&self) -> Vec<Tensor3> {
         use Siic::*;
         let nc = self.ncart();
         let nsx = self.nsym();
@@ -956,10 +956,8 @@ impl Intder {
             todo!("using only simple internals is unimplemented");
         }
         let u = self.u_mat();
-        let mut ys_sim = Vec::new();
         let mut srs_sim = Vec::new();
         for s in &self.simple_internals {
-            let mut y = Tensor3::zeros(nc, nc, nc);
             let mut sr = Tensor3::zeros(nc, nc, nc);
             let h = Htens::new(&self.geom, s);
             match s {
@@ -967,14 +965,12 @@ impl Intder {
                     let l1 = 3 * a;
                     let l2 = 3 * b;
                     hsry2(&mut sr, &h, l1, l2);
-                    ahy2(nsx, a_mat, l1, l2, &mut y, &h);
                 }
                 Bend(a, b, c) | Lin1(a, b, c, _) => {
                     let l1 = 3 * a;
                     let l2 = 3 * b;
                     let l3 = 3 * c;
                     hsry3(&mut sr, l1, &h, l2, l3);
-                    ahy3(nsx, a_mat, l1, l2, l3, &mut y, &h);
                 }
                 Torsion(a, b, c, d)
                 | Out(a, b, c, d)
@@ -985,56 +981,29 @@ impl Intder {
                     let l3 = 3 * c;
                     let l4 = 3 * d;
                     hsry4(&mut sr, l1, &h, l2, l3, l4);
-                    ahy4(nsx, a_mat, l1, l2, l3, l4, &mut y, &h);
                 }
             }
-            y.fill3a(nsx);
-            ys_sim.push(y);
             srs_sim.push(sr);
         }
 
-        // convert Y to symmetry internals
-        let ys_sym = {
-            let mut ys_sym = Vec::new();
-            for r in 0..nsx {
-                let mut y_sic = Tensor3::zeros(nc, nc, nc);
-                for (i, y) in ys_sim.iter().enumerate() {
-                    let w1 = u[(r, i)];
-                    for p in 0..nsx {
-                        for n in 0..=p {
-                            for m in 0..=n {
-                                y_sic[(m, n, p)] += w1 * y[(m, n, p)];
-                            }
-                        }
-                    }
-                }
-                y_sic.fill3a(nsx);
-                ys_sym.push(y_sic);
-            }
-            ys_sym
-        };
-
         // convert SR to symmetry internals
-        let srs_sym = {
-            let mut ret = Vec::with_capacity(nsx);
-            for r in 0..nsx {
-                let mut sr_sic = Tensor3::zeros(nc, nc, nc);
-                for (i, sr) in srs_sim.iter().enumerate() {
-                    let w1 = u[(r, i)];
-                    for p in 0..nc {
-                        for n in 0..=p {
-                            for m in 0..=n {
-                                sr_sic[(m, n, p)] += w1 * sr[(m, n, p)];
-                            }
+        let mut ret = Vec::with_capacity(nsx);
+        for r in 0..nsx {
+            let mut sr_sic = Tensor3::zeros(nc, nc, nc);
+            for (i, sr) in srs_sim.iter().enumerate() {
+                let w1 = u[(r, i)];
+                for p in 0..nc {
+                    for n in 0..=p {
+                        for m in 0..=n {
+                            sr_sic[(m, n, p)] += w1 * sr[(m, n, p)];
                         }
                     }
                 }
-                sr_sic.fill3a(nc);
-                ret.push(sr_sic);
             }
-            ret
-        };
-        (ys_sym, srs_sym)
+            sr_sic.fill3a(nc);
+            ret.push(sr_sic);
+        }
+        ret
     }
 
     /// flatten fc2 so it can be accessed as the Fortran code expects
@@ -1684,9 +1653,8 @@ impl Intder {
         }
         // let sics = DVec::from(self.symmetry_values(&self.geom));
         let b_sym = self.sym_b_matrix(&self.geom);
-        let a = Intder::a_matrix(&b_sym);
-        let srs = self.machx(&a);
-        let (_ys, srsy) = self.machy(&a);
+        let srs = self.machx();
+        let srsy = self.machy();
         let (f2, f3, f4) = self.lintr(&b_sym, &b_sym, &srs, &srsy);
 
         (f2, f3, f4)
@@ -1780,170 +1748,6 @@ fn hsry2(sr: &mut tensor::Tensor3<f64>, h: &Htens, l1: usize, l2: usize) {
     }
 }
 
-fn ahy2(
-    nsx: usize,
-    a_mat: &DMat,
-    l1: usize,
-    l2: usize,
-    y: &mut tensor::Tensor3<f64>,
-    h: &Htens,
-) {
-    for p in 0..nsx {
-        for n in 0..=p {
-            for m in 0..=n {
-                for i in 0..3 {
-                    for j in 0..3 {
-                        for k in 0..3 {
-                            let w1 = a_mat[(l1 + j, n)]
-                                * (a_mat[(l1 + k, p)] - a_mat[(l2 + k, p)])
-                                - a_mat[(l2 + j, n)]
-                                    * (a_mat[(l1 + k, p)] - a_mat[(l2 + k, p)]);
-                            let w1 =
-                                (a_mat[(l1 + i, m)] - a_mat[(l2 + i, m)]) * w1;
-                            y[(m, n, p)] += w1 * h.h111[(i, j, k)];
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-fn ahy4(
-    nsx: usize,
-    a_mat: &DMat,
-    l1: usize,
-    l2: usize,
-    l3: usize,
-    l4: usize,
-    y: &mut Tensor3,
-    h: &Htens,
-) {
-    for p in 0..nsx {
-        for n in 0..=p {
-            for m in 0..=n {
-                for i in 0..3 {
-                    for j in 0..3 {
-                        let v1 = a_mat[(l1 + i, m)] * a_mat[(l1 + j, n)];
-                        let v2 = a_mat[(l2 + i, m)] * a_mat[(l2 + j, n)];
-                        let v3 = a_mat[(l3 + i, m)] * a_mat[(l3 + j, n)];
-                        let v4 = a_mat[(l4 + i, m)] * a_mat[(l4 + j, n)];
-                        let v5 = a_mat[(l1 + i, m)] * a_mat[(l1 + j, p)];
-                        let v6 = a_mat[(l1 + i, n)] * a_mat[(l1 + j, p)];
-                        let v7 = a_mat[(l2 + i, m)] * a_mat[(l2 + j, p)];
-                        let v8 = a_mat[(l2 + i, n)] * a_mat[(l2 + j, p)];
-                        let v9 = a_mat[(l3 + i, m)] * a_mat[(l3 + j, p)];
-                        let v10 = a_mat[(l3 + i, n)] * a_mat[(l3 + j, p)];
-                        let v11 = a_mat[(l4 + i, m)] * a_mat[(l4 + j, p)];
-                        let v12 = a_mat[(l4 + i, n)] * a_mat[(l4 + j, p)];
-                        let v13 = a_mat[(l1 + i, m)] * a_mat[(l2 + j, n)];
-                        let v14 = a_mat[(l1 + i, m)] * a_mat[(l2 + j, p)];
-                        let v15 = a_mat[(l1 + i, n)] * a_mat[(l2 + j, m)];
-                        let v16 = a_mat[(l1 + i, n)] * a_mat[(l2 + j, p)];
-                        let v17 = a_mat[(l1 + i, p)] * a_mat[(l2 + j, m)];
-                        let v18 = a_mat[(l1 + i, p)] * a_mat[(l2 + j, n)];
-                        let v19 = a_mat[(l4 + i, m)] * a_mat[(l2 + j, n)];
-                        let v20 = a_mat[(l4 + i, m)] * a_mat[(l2 + j, p)];
-                        let v21 = a_mat[(l4 + i, n)] * a_mat[(l2 + j, m)];
-                        let v22 = a_mat[(l4 + i, n)] * a_mat[(l2 + j, p)];
-                        let v23 = a_mat[(l4 + i, p)] * a_mat[(l2 + j, m)];
-                        let v24 = a_mat[(l4 + i, p)] * a_mat[(l2 + j, n)];
-                        let v25 = a_mat[(l4 + i, m)] * a_mat[(l3 + j, n)];
-                        let v26 = a_mat[(l4 + i, m)] * a_mat[(l3 + j, p)];
-                        let v27 = a_mat[(l4 + i, n)] * a_mat[(l3 + j, m)];
-                        let v28 = a_mat[(l4 + i, n)] * a_mat[(l3 + j, p)];
-                        let v29 = a_mat[(l4 + i, p)] * a_mat[(l3 + j, m)];
-                        let v30 = a_mat[(l4 + i, p)] * a_mat[(l3 + j, n)];
-                        for k in 0..3 {
-                            let w1 = v1 * a_mat[(l1 + k, p)];
-                            let w2 = v2 * a_mat[(l2 + k, p)];
-                            let w3 = v3 * a_mat[(l3 + k, p)];
-                            let w4 = v4 * a_mat[(l4 + k, p)];
-                            y[(m, n, p)] = y[(m, n, p)]
-                                + w1 * h.h111[(i, j, k)]
-                                + w2 * h.h222[(i, j, k)];
-                            y[(m, n, p)] = y[(m, n, p)]
-                                + w3 * h.h333[(i, j, k)]
-                                + w4 * h.h444[(i, j, k)];
-                            let w1 = v1 * a_mat[(l2 + k, p)]
-                                + v5 * a_mat[(l2 + k, n)]
-                                + v6 * a_mat[(l2 + k, m)];
-                            let w2 = v1 * a_mat[(l3 + k, p)]
-                                + v5 * a_mat[(l3 + k, n)]
-                                + v6 * a_mat[(l3 + k, m)];
-                            let w3 = v3 * a_mat[(l2 + k, p)]
-                                + v9 * a_mat[(l2 + k, n)]
-                                + v10 * a_mat[(l2 + k, m)];
-                            let w4 = v3 * a_mat[(l1 + k, p)]
-                                + v9 * a_mat[(l1 + k, n)]
-                                + v10 * a_mat[(l1 + k, m)];
-                            let w5 = v2 * a_mat[(l1 + k, p)]
-                                + v7 * a_mat[(l1 + k, n)]
-                                + v8 * a_mat[(l1 + k, m)];
-                            let w6 = v2 * a_mat[(l3 + k, p)]
-                                + v7 * a_mat[(l3 + k, n)]
-                                + v8 * a_mat[(l3 + k, m)];
-                            let w7 = v1 * a_mat[(l4 + k, p)]
-                                + v5 * a_mat[(l4 + k, n)]
-                                + v6 * a_mat[(l4 + k, m)];
-                            let w8 = v2 * a_mat[(l4 + k, p)]
-                                + v7 * a_mat[(l4 + k, n)]
-                                + v8 * a_mat[(l4 + k, m)];
-                            let w9 = v3 * a_mat[(l4 + k, p)]
-                                + v9 * a_mat[(l4 + k, n)]
-                                + v10 * a_mat[(l4 + k, m)];
-                            let w10 = v4 * a_mat[(l1 + k, p)]
-                                + v11 * a_mat[(l1 + k, n)]
-                                + v12 * a_mat[(l1 + k, m)];
-                            let w11 = v4 * a_mat[(l2 + k, p)]
-                                + v11 * a_mat[(l2 + k, n)]
-                                + v12 * a_mat[(l2 + k, m)];
-                            let w12 = v4 * a_mat[(l3 + k, p)]
-                                + v11 * a_mat[(l3 + k, n)]
-                                + v12 * a_mat[(l3 + k, m)];
-                            y[(m, n, p)] = y[(m, n, p)]
-                                + w1 * h.h112[(i, j, k)]
-                                + w2 * h.h113[(i, j, k)]
-                                + w3 * h.h332[(i, j, k)];
-                            y[(m, n, p)] = y[(m, n, p)]
-                                + w4 * h.h331[(i, j, k)]
-                                + w5 * h.h221[(i, j, k)]
-                                + w6 * h.h223[(i, j, k)];
-                            y[(m, n, p)] = y[(m, n, p)]
-                                + w7 * h.h411[(k, i, j)]
-                                + w8 * h.h422[(k, i, j)]
-                                + w9 * h.h433[(k, i, j)];
-                            y[(m, n, p)] = y[(m, n, p)]
-                                + w10 * h.h441[(i, j, k)]
-                                + w11 * h.h442[(i, j, k)]
-                                + w12 * h.h443[(i, j, k)];
-                            let w1 = a_mat[(l3 + k, p)] * (v13 + v15)
-                                + a_mat[(l3 + k, n)] * (v14 + v17)
-                                + a_mat[(l3 + k, m)] * (v16 + v18);
-                            let w2 = a_mat[(l1 + k, p)] * (v19 + v21)
-                                + a_mat[(l1 + k, n)] * (v20 + v23)
-                                + a_mat[(l1 + k, m)] * (v22 + v24);
-                            let w3 = a_mat[(l1 + k, p)] * (v25 + v27)
-                                + a_mat[(l1 + k, n)] * (v26 + v29)
-                                + a_mat[(l1 + k, m)] * (v28 + v30);
-                            let w4 = a_mat[(l2 + k, p)] * (v25 + v27)
-                                + a_mat[(l2 + k, n)] * (v26 + v29)
-                                + a_mat[(l2 + k, m)] * (v28 + v30);
-                            y[(m, n, p)] = y[(m, n, p)]
-                                + w1 * h.h123[(i, j, k)]
-                                + w2 * h.h421[(i, j, k)];
-                            y[(m, n, p)] = y[(m, n, p)]
-                                + w3 * h.h431[(i, j, k)]
-                                + w4 * h.h432[(i, j, k)];
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
 fn hsry4(
     sr: &mut Tensor3,
     l1: usize,
@@ -2026,81 +1830,6 @@ fn hsry4(
 
 // NOTE: these functions were extracted automatically by the LSP, so their
 // interface could probably be cleaned up a bit if desired
-
-fn ahy3(
-    nsx: usize,
-    a_mat: &DMat,
-    l1: usize,
-    l2: usize,
-    l3: usize,
-    y: &mut Tensor3,
-    h: &Htens,
-) {
-    for p in 0..nsx {
-        for n in 0..=p {
-            for m in 0..=n {
-                for i in 0..3 {
-                    for j in 0..3 {
-                        let v1 = a_mat[(l1 + i, m)] * a_mat[(l1 + j, n)];
-                        let v2 = a_mat[(l2 + i, m)] * a_mat[(l2 + j, n)];
-                        let v3 = a_mat[(l3 + i, m)] * a_mat[(l3 + j, n)];
-                        let v4 = a_mat[(l1 + i, m)] * a_mat[(l1 + j, p)];
-                        let v5 = a_mat[(l1 + i, n)] * a_mat[(l1 + j, p)];
-                        let v6 = a_mat[(l2 + i, m)] * a_mat[(l2 + j, p)];
-                        let v7 = a_mat[(l2 + i, n)] * a_mat[(l2 + j, p)];
-                        let v8 = a_mat[(l3 + i, m)] * a_mat[(l3 + j, p)];
-                        let v9 = a_mat[(l3 + i, n)] * a_mat[(l3 + j, p)];
-                        let v10 = a_mat[(l1 + i, m)] * a_mat[(l2 + j, n)];
-                        let v11 = a_mat[(l1 + i, m)] * a_mat[(l2 + j, p)];
-                        let v12 = a_mat[(l1 + i, n)] * a_mat[(l2 + j, m)];
-                        let v13 = a_mat[(l1 + i, n)] * a_mat[(l2 + j, p)];
-                        let v14 = a_mat[(l1 + i, p)] * a_mat[(l2 + j, m)];
-                        let v15 = a_mat[(l1 + i, p)] * a_mat[(l2 + j, n)];
-                        for k in 0..3 {
-                            let w1 = v1 * a_mat[(l1 + k, p)];
-                            let w2 = v2 * a_mat[(l2 + k, p)];
-                            let w3 = v3 * a_mat[(l3 + k, p)];
-                            y[(m, n, p)] = y[(m, n, p)]
-                                + w1 * h.h111[(i, j, k)]
-                                + w2 * h.h222[(i, j, k)]
-                                + w3 * h.h333[(i, j, k)];
-                            let w1 = v1 * a_mat[(l2 + k, p)]
-                                + v4 * a_mat[(l2 + k, n)]
-                                + v5 * a_mat[(l2 + k, m)];
-                            let w2 = v1 * a_mat[(l3 + k, p)]
-                                + v4 * a_mat[(l3 + k, n)]
-                                + v5 * a_mat[(l3 + k, m)];
-                            let w3 = v3 * a_mat[(l2 + k, p)]
-                                + v8 * a_mat[(l2 + k, n)]
-                                + v9 * a_mat[(l2 + k, m)];
-                            let w4 = v3 * a_mat[(l1 + k, p)]
-                                + v8 * a_mat[(l1 + k, n)]
-                                + v9 * a_mat[(l1 + k, m)];
-                            let w5 = v2 * a_mat[(l1 + k, p)]
-                                + v6 * a_mat[(l1 + k, n)]
-                                + v7 * a_mat[(l1 + k, m)];
-                            let w6 = v2 * a_mat[(l3 + k, p)]
-                                + v6 * a_mat[(l3 + k, n)]
-                                + v7 * a_mat[(l3 + k, m)];
-                            y[(m, n, p)] = y[(m, n, p)]
-                                + w1 * h.h112[(i, j, k)]
-                                + w2 * h.h113[(i, j, k)]
-                                + w3 * h.h332[(i, j, k)];
-                            y[(m, n, p)] = y[(m, n, p)]
-                                + w4 * h.h331[(i, j, k)]
-                                + w5 * h.h221[(i, j, k)]
-                                + w6 * h.h223[(i, j, k)];
-                            let w1 = a_mat[(l3 + k, p)] * (v10 + v12)
-                                + a_mat[(l3 + k, n)] * (v11 + v14)
-                                + a_mat[(l3 + k, m)] * (v13 + v15);
-                            y[(m, n, p)] += w1 * h.h123[(i, j, k)];
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
 
 fn hsry3(sr: &mut Tensor3, l1: usize, h: &Htens, l2: usize, l3: usize) {
     for k in 0..3 {
