@@ -1218,7 +1218,8 @@ impl Htens {
                 );
 
                 // vect8 call
-                splat!(geom.s_vec(siic), q1 => k1, q2 => k2, q4 => k4);
+                let s = geom.s_vec(siic);
+                splat!(s, q1 => k1, q2 => k2, q4 => k4);
                 let w = siic.value(geom);
                 let q22 = hijs1(geom, k2, k3);
                 let q222 = hijks1(geom, k2, k3);
