@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::{geom::Geom, htens::Htens, DMat, DVec, Siic, Vec3};
+use crate::{dsplat, geom::Geom, htens::Htens, DMat, Siic, Vec3};
 
 use na::Matrix3;
 use nalgebra as na;
@@ -60,10 +60,8 @@ impl Hmat {
             }
             // from HIJS2
             Bend(i, j, k) => {
-                let tmp = geom.s_vec(s);
-                // unpack the s vector
-                let v1 = DVec::from_row_slice(&tmp[3 * i..3 * i + 3]);
-                let v3 = DVec::from_row_slice(&tmp[3 * k..3 * k + 3]);
+                let s = geom.s_vec(s);
+                dsplat!(s, v1 => i, v3 => k);
                 let e21 = geom.unit(*j, *i);
                 let e23 = geom.unit(*j, *k);
                 let t21 = geom.dist(*j, *i);

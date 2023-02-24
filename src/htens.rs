@@ -35,13 +35,22 @@ pub struct Htens {
     pub h444: Tensor3,
 }
 
-/// unpack (splat) an s vector into a series of slices. could also splat into
-/// na::vectors since I need that elsewhere
+/// unpack (splat) an s vector into a series of slices
 #[macro_export]
 macro_rules! splat {
     ($s:expr, $($var:ident => $idx:expr$(,)*)*) => {
 	$(
 	    let $var = &$s[3*$idx..3*$idx+3];
+	)*
+    };
+}
+
+/// unpack (splat) an s vector into a series of DVecs
+#[macro_export]
+macro_rules! dsplat {
+    ($s:expr, $($var:ident => $idx:expr$(,)*)*) => {
+	$(
+	    let $var = nalgebra::DVector::from_row_slice(&$s[3*$idx..3*$idx+3]);
 	)*
     };
 }
