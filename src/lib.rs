@@ -932,7 +932,7 @@ impl Intder {
             srs_sim.push(sr);
         }
         // TODO if nsym = 0, just return the sim versions
-        let mut srs_sym = Vec::new();
+        let mut srs_sym = Vec::with_capacity(nsym);
         for r in 0..nsym {
             let mut sr_sic = DMat::zeros(nc, nc);
             for (i, sr) in srs_sim.iter().enumerate() {
