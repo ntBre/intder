@@ -233,119 +233,7 @@ impl Hmat {
                 h.h22 = -(h.h21.transpose() + &h.h32);
             }
             // from HIJS7
-            Out(i, j, k, l) => {
-                let e21 = geom.unit(*j, *i);
-                let e23 = geom.unit(*j, *k);
-                let e24 = geom.unit(*j, *l);
-                let t21 = geom.dist(*j, *i);
-                let t23 = geom.dist(*j, *k);
-                let t24 = geom.dist(*j, *l);
-
-                // vect2 call
-                let phi = Siic::Bend(*k, *j, *l).value(geom);
-                let svec = geom.s_vec(&Siic::Bend(*k, *j, *l));
-                let bp3 = &svec[3 * k..3 * k + 3];
-                let bp4 = &svec[3 * l..3 * l + 3];
-
-                // vect5 call
-                let svec = geom.s_vec(s);
-                let gamma = s.value(geom);
-                let v1 = &svec[3 * i..3 * i + 3];
-                let v3 = &svec[3 * k..3 * k + 3];
-                let v4 = &svec[3 * l..3 * l + 3];
-
-                // hijs2 call
-                let Hmat {
-                    h31: hp43,
-                    h33: hp44,
-                    ..
-                } = Hmat::new(geom, &Siic::Bend(*k, *j, *l));
-
-                let v5 = e23.cross(&e24);
-                let v6 = e24.cross(&e21);
-                let cp31 = Self::mat1(&e24);
-                let cp41 = Self::mat1(&e23);
-                let cp43 = Self::mat1(&e21);
-                let sp = phi.sin();
-                let cp = phi.cos();
-                let tp = sp / cp;
-                let sg = gamma.sin();
-                let cg = gamma.cos();
-                let tg = sg / cg;
-                let c21 = 1.0 / t21;
-                let c23 = 1.0 / t23;
-                let c24 = 1.0 / t24;
-                let ctp = 1.0 / tp;
-                let c11 = tg * c21 * c21;
-                let c312 = c21 / (cg * sp);
-                let c311 = c312 * c23;
-                let c313 = c312 * ctp;
-                let c411 = c312 * c24;
-                let c3 = c23 / sp;
-                let c4 = c24 / sp;
-                let c331 = t24 * c3;
-                let c332 = c331 * tg;
-                let c441 = t23 * c4;
-                let c442 = c441 * tg;
-                let c431 = c3 * c24 / cg;
-                let c432 = tg;
-                let c434 = tg * c3;
-                let c435 = t24 * c3;
-                let c436 = c435 * tg;
-                for j in 0..3 {
-                    for i in j..3 {
-                        h.h11[(i, j)] = v1[j] * (tg * v1[i] - e21[i] * c21)
-                            - v1[i] * e21[j] * c21;
-                        h.h11[(i, j)] += e21[i] * e21[j] * c11;
-                        if i == j {
-                            h.h11[(i, j)] -= c11
-                        }
-                        h.h11[(j, i)] = h.h11[(i, j)];
-                        h.h33[(i, j)] =
-                            v3[i] * bp4[j] * c331 + hp43[(j, i)] * c332;
-                        h.h33[(i, j)] +=
-                            v3[j] * (tg * v3[i] - e23[i] * c23 - bp3[i] * ctp);
-                        h.h33[(j, i)] = h.h33[(i, j)];
-                        h.h44[(i, j)] =
-                            v4[i] * bp3[j] * c441 + hp43[(i, j)] * c442;
-                        h.h44[(i, j)] +=
-                            v4[j] * (tg * v4[i] - e24[i] * c24 - bp4[i] * ctp);
-                        h.h44[(j, i)] = h.h44[(i, j)];
-                    }
-                }
-                for j in 0..3 {
-                    let xj = tg * v1[j] - e21[j] * c21;
-                    for i in 0..3 {
-                        h.h31[(i, j)] = v3[i] * xj - cp31[(i, j)] * c311;
-                        h.h31[(i, j)] = h.h31[(i, j)]
-                            - e23[i] * v5[j] * c311
-                            - bp3[i] * v5[j] * c313;
-                        h.h41[(i, j)] = v4[i] * xj + cp41[(i, j)] * c411;
-                        h.h41[(i, j)] = h.h41[(i, j)]
-                            - e24[i] * v5[j] * c411
-                            - bp4[i] * v5[j] * c313;
-                        h.h21[(i, j)] =
-                            -(h.h11[(i, j)] + h.h31[(i, j)] + h.h41[(i, j)]);
-                        h.h43[(i, j)] = (cp43[(j, i)] - e24[i] * v6[j]) * c431
-                            + v3[j] * v4[i] * c432;
-                        h.h43[(i, j)] = h.h43[(i, j)] - v3[j] * bp4[i] * ctp
-                            + e24[i] * bp4[j] * c434;
-                        h.h43[(i, j)] = h.h43[(i, j)]
-                            + v4[i] * bp4[j] * c435
-                            + hp44[(i, j)] * c436;
-                    }
-                }
-                for i in 0..3 {
-                    for j in 0..3 {
-                        h.h32[(i, j)] =
-                            -(h.h31[(i, j)] + h.h33[(i, j)] + h.h43[(j, i)]);
-                        h.h42[(i, j)] =
-                            -(h.h41[(i, j)] + h.h43[(i, j)] + h.h44[(i, j)]);
-                        h.h22[(i, j)] =
-                            -(h.h21[(j, i)] + h.h32[(i, j)] + h.h42[(i, j)]);
-                    }
-                }
-            }
+            Out(i, j, k, l) => Self::out(geom, j, i, k, l, s, &mut h),
             // hijs8
             &Linx(i, j, k, l) => {
                 let e2 = geom.unit(k, j);
@@ -470,6 +358,97 @@ impl Hmat {
         em[(0, 2)] = -em[(2, 0)];
         em[(1, 2)] = -em[(2, 1)];
         em
+    }
+
+    fn out(
+        geom: &Geom,
+        j: &usize,
+        i: &usize,
+        k: &usize,
+        l: &usize,
+        s: &Siic,
+        h: &mut Self,
+    ) {
+        let e21 = geom.unit(*j, *i);
+        let e23 = geom.unit(*j, *k);
+        let e24 = geom.unit(*j, *l);
+        let t21 = geom.dist(*j, *i);
+        let t23 = geom.dist(*j, *k);
+        let t24 = geom.dist(*j, *l);
+
+        // vect2 call
+        let phi = Siic::Bend(*k, *j, *l).value(geom);
+        let svec = geom.s_vec(&Siic::Bend(*k, *j, *l));
+        dsplat!(svec, bp3 => k, bp4 => l);
+
+        // vect5 call
+        let svec = geom.s_vec(s);
+        dsplat!(svec, v1 => i, v3 => k, v4 => l);
+        let gamma = s.value(geom);
+
+        // hijs2 call
+        let Hmat {
+            h31: hp43,
+            h33: hp44,
+            ..
+        } = Hmat::new(geom, &Siic::Bend(*k, *j, *l));
+
+        let v5 = e23.cross(&e24);
+        let v6 = e24.cross(&e21);
+        let cp31 = Self::mat1(&e24);
+        let cp41 = Self::mat1(&e23);
+        let cp43 = Self::mat1(&e21);
+        let sp = phi.sin();
+        let cg = gamma.cos();
+        let tg = gamma.tan();
+        let c21 = 1.0 / t21;
+        let c23 = 1.0 / t23;
+        let c24 = 1.0 / t24;
+        let ctp = 1.0 / (sp / phi.cos());
+        let c11 = tg * c21 * c21;
+        let c312 = c21 / (cg * sp);
+        let c311 = c312 * c23;
+        let c313 = c312 * ctp;
+        let c411 = c312 * c24;
+        let c3 = c23 / sp;
+        let c331 = t24 * c3;
+        let c332 = c331 * tg;
+        let c441 = t23 * (c24 / sp);
+        let c442 = c441 * tg;
+        let c431 = c3 * c24 / cg;
+        let c432 = tg;
+        let c434 = tg * c3;
+        let c435 = t24 * c3;
+        let c436 = c435 * tg;
+
+        h.h11 = -c11 * DMat::identity(3, 3);
+        h.h11 += (tg * &v1 - c21 * e21) * v1.transpose()
+            + c11 * e21 * e21.transpose()
+            - c21 * &v1 * e21.transpose();
+
+        h.h33 = c331 * &v3 * bp4.transpose() + c332 * hp43.transpose();
+        h.h33 += (tg * &v3 - e23 * c23 - &bp3 * ctp) * v3.transpose();
+
+        h.h44 = &v4 * bp3.transpose() * c441 + hp43 * c442;
+        h.h44 += (tg * &v4 - e24 * c24 - &bp4 * ctp) * v4.transpose();
+
+        let xj = (tg * &v1 - e21 * c21).transpose();
+        h.h31 = -cp31 * c311;
+        h.h31 += &v3 * xj - (c311 * e23 + c313 * bp3) * v5.transpose();
+
+        h.h41 = cp41 * c411;
+        h.h41 += &v4 * xj - (c411 * e24 + c313 * &bp4) * v5.transpose();
+
+        h.h43 = c431 * cp43.transpose();
+        h.h43 += -c431 * e24 * v6.transpose()
+            + (c432 * &v4 - ctp * &bp4) * v3.transpose()
+            + (c434 * e24 + c435 * v4) * bp4.transpose()
+            + c436 * hp44;
+
+        h.h21 = -(&h.h11 + &h.h31 + &h.h41);
+        h.h32 = -(&h.h31 + &h.h33 + h.h43.transpose());
+        h.h42 = -(&h.h41 + &h.h43 + h.h44.transpose());
+        h.h22 = -(h.h21.transpose() + &h.h32 + &h.h42);
     }
 }
 
