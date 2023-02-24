@@ -95,8 +95,7 @@ impl Hmat {
                 // unpack the s vector. mine are in the opposite order of the
                 // fortran
                 let tmp = geom.s_vec(s);
-                let v1 = &tmp[3 * i..3 * i + 3];
-                let v4 = &tmp[3 * l..3 * l + 3];
+                dsplat!(tmp, v1 => i, v4 => l);
                 // unit and non-unit vectors
                 let e21 = geom.unit(*j, *i);
                 let e23 = geom.unit(*j, *k);
@@ -107,60 +106,35 @@ impl Hmat {
                 // angles
                 let p2 = geom.angle(*i, *j, *k);
                 let tmp = geom.s_vec(&Bend(*i, *j, *k));
-                let bp21 = &tmp[3 * i..3 * i + 3];
-                let bp22 = &tmp[3 * j..3 * j + 3];
-                let bp23 = &tmp[3 * k..3 * k + 3];
+                dsplat!(tmp, bp21 => i, bp22 => j, bp23 => k);
 
                 let p3 = geom.angle(*j, *k, *l);
                 let tmp = geom.s_vec(&Bend(*j, *k, *l));
-                let bp32 = &tmp[3 * j..3 * j + 3];
-                let bp34 = &tmp[3 * l..3 * l + 3];
-                // matrices
-                h.h11 = Self::mat1(&e23);
-                h.h31 = Self::mat1(&e21);
-                h.h44 = Self::mat1(&e23);
-                h.h42 = Self::mat1(&e34);
+                dsplat!(tmp, bp32 => j, bp34 => l);
 
-                let xx = p2.sin();
-                let xy = p3.sin();
-                let xx = t21 * xx * xx;
-                let xy = t34 * xy * xy;
+                let xx = t21 * p2.sin().powi(2);
+                let xy = t34 * p3.sin().powi(2);
                 let w1 = 1.0 / (t21 * xx);
                 let w2 = 1.0 / (t23 * xx);
                 let w3 = 1.0 / (t34 * xy);
                 let w4 = 1.0 / (t23 * xy);
-                for j in 0..3 {
-                    for i in 0..3 {
-                        h.h11[(i, j)] = -h.h11[(i, j)] * w1;
-                        h.h31[(i, j)] *= w2;
-                        h.h44[(i, j)] *= w3;
-                        h.h42[(i, j)] = -h.h42[(i, j)] * w4;
-                    }
-                }
+
+                h.h11 = -w1 * Self::mat1(&e23);
+                h.h31 = w2 * Self::mat1(&e21);
+                h.h44 = w3 * Self::mat1(&e23);
+                h.h42 = -w4 * Self::mat1(&e34);
 
                 // these are cotans
                 let xx = p2.cos() / p2.sin();
                 let xy = p3.cos() / p3.sin();
-                for i in 0..3 {
-                    let w1 = 2.0 * (e21[i] / t21 + bp21[i] * xx);
-                    let w2 = e23[i] / t23 + 2.0 * bp23[i] * xx;
-                    let w3 = 2.0 * (e34[i] / t34 + bp34[i] * xy);
-                    let w4 = e23[i] / t23 - 2.0 * bp32[i] * xy;
-                    for j in 0..3 {
-                        h.h11[(i, j)] -= w1 * v1[j];
-                        h.h31[(i, j)] -= w2 * v1[j];
-                        h.h44[(i, j)] -= w3 * v4[j];
-                        h.h42[(j, i)] += w4 * v4[j];
-                    }
-                }
+                h.h11 -= 2.0 * (e21 / t21 + bp21 * xx) * v1.transpose();
+                h.h31 -= (e23 / t23 + 2.0 * bp23 * xx) * v1.transpose();
+                h.h44 -= (2.0 * (e34 / t34 + &bp34 * xy)) * v4.transpose();
+                h.h42 += ((e23 / t23 - 2.0 * &bp32 * xy) * v4.transpose())
+                    .transpose();
 
-                for j in 0..3 {
-                    for i in 0..3 {
-                        h.h41[(i, j)] = 0.0;
-                        h.h21[(i, j)] = -(h.h11[(i, j)] + h.h31[(i, j)]);
-                        h.h43[(i, j)] = -(h.h44[(i, j)] + h.h42[(i, j)]);
-                    }
-                }
+                h.h21 = -(&h.h11 + &h.h31);
+                h.h43 = -(&h.h44 + &h.h42);
 
                 let x1 = t21 / t23;
                 let y1 = t34 / t23;
@@ -175,30 +149,13 @@ impl Hmat {
                 let c5 = x1 * x2 / t23;
                 let c6 = y1 * y3;
                 let c7 = -y1 * x3 / t23;
-                for i in 0..3 {
-                    let w1 = c3 * e21[i] + c4 * bp22[i] + c5 * e23[i];
-                    let w2 = c6 * bp32[i] + c7 * e23[i];
-                    for j in 0..3 {
-                        h.h22[(i, j)] = c1 * h.h21[(i, j)]
-                            + c2 * h.h42[(j, i)]
-                            + w1 * v1[j]
-                            + w2 * v4[j];
-                    }
-                }
 
-                for j in 0..3 {
-                    for i in 0..3 {
-                        h.h32[(i, j)] =
-                            -(h.h21[(j, i)] + h.h22[(i, j)] + h.h42[(i, j)]);
-                    }
-                }
+                h.h22 = c1 * &h.h21 + c2 * h.h42.transpose();
+                h.h22 += (c3 * e21 + c4 * bp22 + c5 * e23) * v1.transpose()
+                    + (c6 * bp32 + c7 * e23) * v4.transpose();
 
-                for j in 0..3 {
-                    for i in 0..3 {
-                        h.h33[(i, j)] =
-                            -(h.h31[(i, j)] + h.h32[(i, j)] + h.h43[(j, i)]);
-                    }
-                }
+                h.h32 = -(h.h21.transpose() + &h.h22 + &h.h42);
+                h.h33 = -(&h.h31 + &h.h32 + h.h43.transpose());
             }
             // from HIJS3
             Lin1(i, j, k, l) => {
@@ -255,7 +212,6 @@ impl Hmat {
                 let Htens { h111: q444, .. } = Htens::new(geom, &stre);
                 for j in 0..3 {
                     for k in 0..3 {
-                        h.h44[(j, k)] = 0.0;
                         for i in 0..3 {
                             h.h44[(j, k)] -= t32 * q444[(i, j, k)] * q3[i];
                         }
@@ -267,13 +223,10 @@ impl Hmat {
                     h223: q223,
                     ..
                 } = Htens::new(geom, &bend);
+
+                h.h22 = w * e22 / t32;
                 for k in 0..3 {
                     for j in 0..3 {
-                        h.h41[(j, k)] = 0.0;
-                        h.h42[(j, k)] = 0.0;
-                        h.h11[(j, k)] = 0.0;
-                        h.h21[(j, k)] = 0.0;
-                        h.h22[(j, k)] = w * e22[(j, k)] / t32;
                         for i in 0..3 {
                             h.h11[(j, k)] -= t32 * e4[i] * q113[(j, k, i)];
                             h.h21[(j, k)] -= e4[i]
@@ -282,28 +235,16 @@ impl Hmat {
                                 * (e2[j] * q32[(i, k)]
                                     + e2[k] * q32[(i, j)]
                                     + t32 * q223[(j, k, i)]);
-                            h.h41[(j, k)] -= t32 * e44[(i, j)] * q31[(i, k)];
-                            h.h42[(j, k)] -= e44[(i, j)]
-                                * (t32 * q32[(i, k)] + e2[k] * q3[i]);
                         }
                     }
                 }
-                for j in 0..3 {
-                    for k in 0..3 {
-                        h.h31[(j, k)] =
-                            -h.h11[(j, k)] - h.h21[(j, k)] - h.h41[(j, k)];
-                        h.h32[(j, k)] =
-                            -h.h21[(k, j)] - h.h22[(j, k)] - h.h42[(j, k)];
-                        h.h43[(j, k)] =
-                            -h.h41[(j, k)] - h.h42[(j, k)] - h.h44[(j, k)];
-                    }
-                }
-                for j in 0..3 {
-                    for k in 0..3 {
-                        h.h33[(j, k)] =
-                            -h.h31[(j, k)] - h.h32[(j, k)] - h.h43[(k, j)];
-                    }
-                }
+
+                h.h41 -= t32 * e44.transpose() * q31;
+                h.h42 -= e44.transpose() * (t32 * q32 + q3 * e2.transpose());
+                h.h31 = -&h.h11 - &h.h21 - &h.h41;
+                h.h32 = -h.h21.transpose() - &h.h22 - &h.h42;
+                h.h43 = -&h.h41 - &h.h42 - &h.h44;
+                h.h33 = -&h.h31 - &h.h32 - h.h43.transpose();
             }
             // hijs9
             &Liny(k1, k2, k3, k4) => {
@@ -311,10 +252,7 @@ impl Hmat {
                 let out = Siic::Out(k4, k3, k2, k1);
                 let tout = out.value(geom);
                 let s = geom.s_vec(&out);
-                let e1 = &s[3 * k1..3 * k1 + 3];
-                let e2 = &s[3 * k2..3 * k2 + 3];
-                let e3 = &s[3 * k3..3 * k3 + 3];
-                let e4 = &s[3 * k4..3 * k4 + 3];
+                dsplat!(s, e1 => k1, e2 => k2, e3 => k3, e4 => k4);
                 let w = -tout.sin();
                 let cosy = tout.cos();
                 let Hmat {
@@ -329,20 +267,16 @@ impl Hmat {
                     h43: q12,
                     h44: q11,
                 } = Hmat::new(geom, &out);
-                for k in 0..3 {
-                    for j in 0..3 {
-                        h.h22[(j, k)] = -w * e2[j] * e2[k] - cosy * q22[(k, j)];
-                        h.h32[(j, k)] = -w * e3[j] * e2[k] - cosy * q23[(k, j)];
-                        h.h42[(j, k)] = -w * e4[j] * e2[k] - cosy * q24[(k, j)];
-                        h.h33[(j, k)] = -w * e3[j] * e3[k] - cosy * q33[(k, j)];
-                        h.h43[(j, k)] = -w * e4[j] * e3[k] - cosy * q34[(k, j)];
-                        h.h44[(j, k)] = -w * e4[j] * e4[k] - cosy * q44[(k, j)];
-                        h.h41[(j, k)] = -w * e4[j] * e1[k] - cosy * q14[(k, j)];
-                        h.h31[(j, k)] = -w * e3[j] * e1[k] - cosy * q13[(k, j)];
-                        h.h21[(j, k)] = -w * e2[j] * e1[k] - cosy * q12[(k, j)];
-                        h.h11[(j, k)] = -w * e1[j] * e1[k] - cosy * q11[(k, j)];
-                    }
-                }
+                h.h22 = -w * &e2 * e2.transpose() - cosy * q22.transpose();
+                h.h32 = -w * &e3 * e2.transpose() - cosy * q23.transpose();
+                h.h42 = -w * &e4 * e2.transpose() - cosy * q24.transpose();
+                h.h33 = -w * &e3 * e3.transpose() - cosy * q33.transpose();
+                h.h43 = -w * &e4 * e3.transpose() - cosy * q34.transpose();
+                h.h44 = -w * &e4 * e4.transpose() - cosy * q44.transpose();
+                h.h41 = -w * e4 * e1.transpose() - cosy * q14.transpose();
+                h.h31 = -w * e3 * e1.transpose() - cosy * q13.transpose();
+                h.h21 = -w * e2 * e1.transpose() - cosy * q12.transpose();
+                h.h11 = -w * &e1 * e1.transpose() - cosy * q11.transpose();
             }
         }
         h
