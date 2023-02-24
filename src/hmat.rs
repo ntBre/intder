@@ -2,7 +2,6 @@ use std::fmt::Display;
 
 use crate::{dsplat, geom::Geom, htens::Htens, DMat, Siic, Vec3};
 
-use na::dmatrix;
 use nalgebra as na;
 
 #[derive(Debug)]
@@ -215,11 +214,7 @@ impl Hmat {
                 let ea = geom[*l] / geom[*l].magnitude();
                 let tanth = th.tan();
                 let costh = th.cos();
-                let em = dmatrix! [
-                0.0, -ea[2], ea[1];
-                ea[2], 0.0, -ea[0];
-                -ea[1], ea[0], 0.0;
-                        ];
+                let em = Self::mat1(&-ea);
                 let w1 = 1.0 / t21;
                 let w2 = 1.0 / t23;
                 h.h11 = tanth * (-h11a * w1 + &v1 * v1.transpose());
