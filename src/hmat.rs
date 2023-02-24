@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::{geom::Geom, htens::Htens, DMat, Siic, Vec3};
+use crate::{geom::Geom, htens::Htens, DMat, DVec, Siic, Vec3};
 
 use na::Matrix3;
 use nalgebra as na;
@@ -62,8 +62,8 @@ impl Hmat {
             Bend(i, j, k) => {
                 let tmp = geom.s_vec(s);
                 // unpack the s vector
-                let v1 = &tmp[3 * i..3 * i + 3];
-                let v3 = &tmp[3 * k..3 * k + 3];
+                let v1 = DVec::from_row_slice(&tmp[3 * i..3 * i + 3]);
+                let v3 = DVec::from_row_slice(&tmp[3 * k..3 * k + 3]);
                 let e21 = geom.unit(*j, *i);
                 let e23 = geom.unit(*j, *k);
                 let t21 = geom.dist(*j, *i);
@@ -72,44 +72,23 @@ impl Hmat {
                 let h33a = Self::new(geom, &Stretch(*k, *j)).h11;
                 let phi = geom.angle(*i, *j, *k);
                 let sphi = phi.sin();
-                let ctphi = phi.cos() / sphi;
-                let w1 = ctphi;
+                let w1 = phi.cos() / sphi;
                 let w2 = 1.0 / t21;
                 let w3 = w1 * w2;
                 let w4 = 1.0 / t23;
                 let w5 = w1 * w4;
-                // TODO are any of these matrix operations?
-                // TODO can any of these loops be combined?
-                for j in 0..3 {
-                    for i in 0..3 {
-                        h.h11[(i, j)] = h11a[(i, j)] * w3
-                            - v1[i] * v1[j] * w1
-                            - (e21[i] * v1[j] + v1[i] * e21[j]) * w2;
-                        h.h33[(i, j)] = h33a[(i, j)] * w5
-                            - v3[i] * v3[j] * w1
-                            - (e23[i] * v3[j] + v3[i] * e23[j]) * w4;
-                    }
-                }
-                for j in 0..2 {
-                    for i in j + 1..3 {
-                        h.h11[(j, i)] = h.h11[(i, j)];
-                        h.h33[(j, i)] = h.h33[(i, j)];
-                    }
-                }
+                h.h11 = w3 * &h11a;
+                h.h11 += -w1 * &v1 * v1.transpose()
+                    - w2 * (e21 * v1.transpose() + &v1 * e21.transpose());
+                h.h33 = w5 * &h33a;
+                h.h33 += -w1 * &v3 * v3.transpose()
+                    - w4 * (e23 * v3.transpose() + &v3 * e23.transpose());
                 let w3 = 1.0 / (t21 * sphi);
-                for j in 0..3 {
-                    let w4 = w2 * e21[j] + w1 * v1[j];
-                    for i in 0..3 {
-                        h.h31[(i, j)] = -h33a[(i, j)] * w3 - v3[i] * w4;
-                        h.h21[(i, j)] = -(h.h11[(i, j)] + h.h31[(i, j)]);
-                        h.h32[(i, j)] = -(h.h31[(i, j)] + h.h33[(i, j)]);
-                    }
-                }
-                for j in 0..3 {
-                    for i in 0..3 {
-                        h.h22[(i, j)] = -(h.h21[(j, i)] + h.h32[(i, j)]);
-                    }
-                }
+                h.h31 = -w3 * h33a;
+                h.h31 -= v3 * (w1 * v1 + w2 * e21).transpose();
+                h.h21 = -(&h.h11 + &h.h31);
+                h.h32 = -(&h.h31 + &h.h33);
+                h.h22 = -(h.h21.transpose() + &h.h32);
             }
             // from HIJS6
             Torsion(i, j, k, l) => {
