@@ -51,23 +51,12 @@ impl Hmat {
         let mut h = Self::zeros();
         match s {
             // from HIJS1
-            Stretch(i, j) => {
-                let v1 = geom.unit(*i, *j);
-                let t21 = geom.dist(*i, *j);
-                for j in 0..3 {
-                    for i in 0..3 {
-                        h.h11[(i, j)] = -v1[i] * v1[j];
-                    }
-                }
-                for i in 0..3 {
-                    h.h11[(i, i)] += 1.0;
-                }
+            Stretch(a, b) => {
+                let v1 = geom.unit(*a, *b);
+                let t21 = geom.dist(*a, *b);
+                h.h11 = DMat::identity(3, 3);
+                h.h11 -= v1 * v1.transpose();
                 h.h11 /= t21;
-                for j in 0..2 {
-                    for i in j + 1..3 {
-                        h.h11[(j, i)] = h.h11[(i, j)];
-                    }
-                }
             }
             // from HIJS2
             Bend(i, j, k) => {
