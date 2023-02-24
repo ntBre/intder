@@ -75,15 +75,18 @@ impl Hmat {
                 let w3 = w1 * w2;
                 let w4 = 1.0 / t23;
                 let w5 = w1 * w4;
+                let w6 = 1.0 / (t21 * sphi);
                 h.h11 = w3 * &h11a;
                 h.h11 += -w1 * &v1 * v1.transpose()
                     - w2 * (e21 * v1.transpose() + &v1 * e21.transpose());
+		//
                 h.h33 = w5 * &h33a;
                 h.h33 += -w1 * &v3 * v3.transpose()
                     - w4 * (e23 * v3.transpose() + &v3 * e23.transpose());
-                let w3 = 1.0 / (t21 * sphi);
-                h.h31 = -w3 * h33a;
+		//
+                h.h31 = -w6 * h33a;
                 h.h31 -= v3 * (w1 * v1 + w2 * e21).transpose();
+		//
                 h.h21 = -(&h.h11 + &h.h31);
                 h.h32 = -(&h.h31 + &h.h33);
                 h.h22 = -(h.h21.transpose() + &h.h32);
