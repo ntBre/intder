@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::{dsplat, geom::Geom, htens::Htens, DMat, Siic, Vec3};
 
-use na::Matrix3;
+use na::dmatrix;
 use nalgebra as na;
 
 #[derive(Debug)]
@@ -79,14 +79,14 @@ impl Hmat {
                 h.h11 = w3 * &h11a;
                 h.h11 += -w1 * &v1 * v1.transpose()
                     - w2 * (e21 * v1.transpose() + &v1 * e21.transpose());
-		//
+                //
                 h.h33 = w5 * &h33a;
                 h.h33 += -w1 * &v3 * v3.transpose()
                     - w4 * (e23 * v3.transpose() + &v3 * e23.transpose());
-		//
+                //
                 h.h31 = -w6 * h33a;
                 h.h31 -= v3 * (w1 * v1 + w2 * e21).transpose();
-		//
+                //
                 h.h21 = -(&h.h11 + &h.h31);
                 h.h32 = -(&h.h31 + &h.h33);
                 h.h22 = -(h.h21.transpose() + &h.h32);
@@ -204,8 +204,7 @@ impl Hmat {
             // from HIJS3
             Lin1(i, j, k, l) => {
                 let tmp = geom.s_vec(s);
-                let v1 = &tmp[3 * i..3 * i + 3];
-                let v3 = &tmp[3 * k..3 * k + 3];
+                dsplat!(tmp, v1 => i, v3 => k);
                 let th = s.value(geom);
                 let e21 = geom.unit(*j, *i);
                 let e23 = geom.unit(*j, *k);
@@ -213,47 +212,30 @@ impl Hmat {
                 let t23 = geom.dist(*j, *k);
                 let h11a = Self::new(geom, &Stretch(*i, *j)).h11;
                 let h33a = Self::new(geom, &Stretch(*k, *j)).h11;
-                let ea = geom[*l];
-                let d = {
-                    let d = ea.dot(&ea);
-                    1.0 / d.sqrt()
-                };
-                let ea = ea * d;
+                let ea = geom[*l] / geom[*l].magnitude();
                 let tanth = th.tan();
                 let costh = th.cos();
-                let em = Matrix3::new(
-                    0.0, -ea[2], ea[1], ea[2], 0.0, -ea[0], -ea[1], ea[0], 0.0,
-                );
-                for j in 0..3 {
-                    for i in 0..3 {
-                        for k in 0..3 {
-                            h.h22[(i, j)] += em[(i, k)] * h33a[(k, j)];
-                        }
-                    }
-                }
-                // end 2220 loop
+                let em = dmatrix! [
+                0.0, -ea[2], ea[1];
+                ea[2], 0.0, -ea[0];
+                -ea[1], ea[0], 0.0;
+                        ];
                 let w1 = 1.0 / t21;
                 let w2 = 1.0 / t23;
-                for j in 0..3 {
-                    for i in 0..3 {
-                        h.h11[(i, j)] = (-h11a[(i, j)] * w1 + v1[i] * v1[j])
-                            * tanth
-                            - (e21[i] * v1[j] + v1[i] * e21[j]) * w1;
-                        h.h31[(i, j)] =
-                            (h.h22[(j, i)] / costh - v3[i] * e21[j]) / t21
-                                + v3[i] * v1[j] * tanth;
-                        h.h33[(i, j)] = (-h33a[(i, j)] * w2 + v3[i] * v3[j])
-                            * tanth
-                            - (e23[i] * v3[j] + v3[i] * e23[j]) * w2;
-                        h.h21[(i, j)] = -(h.h11[(i, j)] + h.h31[(i, j)]);
-                        h.h32[(i, j)] = -(h.h31[(i, j)] + h.h33[(i, j)]);
-                    }
-                }
-                for j in 0..3 {
-                    for i in 0..3 {
-                        h.h22[(i, j)] = -(h.h21[(j, i)] + h.h32[(i, j)]);
-                    }
-                }
+                h.h11 = tanth * (-h11a * w1 + &v1 * v1.transpose());
+                h.h11 += -w1 * (e21 * v1.transpose() + &v1 * e21.transpose());
+
+                h.h31 = (em * &h33a).transpose() / costh;
+                h.h31 += -&v3 * e21.transpose();
+                h.h31 /= t21;
+                h.h31 += &v3 * v1.transpose() * tanth;
+
+                h.h33 = tanth * (-h33a * w2 + &v3 * v3.transpose());
+                h.h33 -= w2 * (e23 * v3.transpose() + v3 * e23.transpose());
+
+                h.h21 = -(&h.h11 + &h.h31);
+                h.h32 = -(&h.h31 + &h.h33);
+                h.h22 = -(h.h21.transpose() + &h.h32);
             }
             // from HIJS7
             Out(i, j, k, l) => {
