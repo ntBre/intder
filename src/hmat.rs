@@ -252,7 +252,7 @@ impl Hmat {
                 let tout = out.value(geom);
                 let s = geom.s_vec(&out);
                 dsplat!(s, e1 => k1, e2 => k2, e3 => k3, e4 => k4);
-                let w = -tout.sin();
+                let w = tout.sin();
                 let cosy = tout.cos();
                 let Hmat {
                     h11: q44,
@@ -266,16 +266,16 @@ impl Hmat {
                     h43: q12,
                     h44: q11,
                 } = Hmat::new(geom, &out);
-                h.h22 = -w * &e2 * e2.transpose() - cosy * q22.transpose();
-                h.h32 = -w * &e3 * e2.transpose() - cosy * q23.transpose();
-                h.h42 = -w * &e4 * e2.transpose() - cosy * q24.transpose();
-                h.h33 = -w * &e3 * e3.transpose() - cosy * q33.transpose();
-                h.h43 = -w * &e4 * e3.transpose() - cosy * q34.transpose();
-                h.h44 = -w * &e4 * e4.transpose() - cosy * q44.transpose();
-                h.h41 = -w * e4 * e1.transpose() - cosy * q14.transpose();
-                h.h31 = -w * e3 * e1.transpose() - cosy * q13.transpose();
-                h.h21 = -w * e2 * e1.transpose() - cosy * q12.transpose();
-                h.h11 = -w * &e1 * e1.transpose() - cosy * q11.transpose();
+                h.h11 = w * &e1 * e1.transpose() - cosy * q11.transpose();
+                h.h33 = w * &e3 * e3.transpose() - cosy * q33.transpose();
+                h.h44 = w * &e4 * e4.transpose() - cosy * q44.transpose();
+                h.h31 = w * &e3 * e1.transpose() - cosy * q13.transpose();
+                h.h41 = w * &e4 * e1.transpose() - cosy * q14.transpose();
+                h.h43 = w * &e4 * e3.transpose() - cosy * q34.transpose();
+                h.h21 = w * &e2 * e1.transpose() - cosy * q12.transpose();
+                h.h32 = w * &e3 * e2.transpose() - cosy * q23.transpose();
+                h.h42 = w * &e4 * e2.transpose() - cosy * q24.transpose();
+                h.h22 = w * &e2 * e2.transpose() - cosy * q22.transpose();
             }
         }
         h
