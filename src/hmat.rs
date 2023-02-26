@@ -129,9 +129,8 @@ impl Hmat {
                 let xy = p3.cos() / p3.sin();
                 h.h11 -= 2.0 * (e21 / t21 + bp21 * xx) * v1.transpose();
                 h.h31 -= (e23 / t23 + 2.0 * bp23 * xx) * v1.transpose();
-                h.h44 -= (2.0 * (e34 / t34 + &bp34 * xy)) * v4.transpose();
-                h.h42 += ((e23 / t23 - 2.0 * &bp32 * xy) * v4.transpose())
-                    .transpose();
+                h.h44 -= 2.0 * (e34 / t34 + &bp34 * xy) * v4.transpose();
+                h.h42 += &v4 * (e23 / t23 - 2.0 * &bp32 * xy).transpose();
 
                 h.h21 = -(&h.h11 + &h.h31);
                 h.h43 = -(&h.h44 + &h.h42);
