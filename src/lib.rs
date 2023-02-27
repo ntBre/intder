@@ -866,37 +866,29 @@ impl Intder {
         for s in &self.simple_internals {
             let mut sr = DMat::zeros(nc, nc);
             let h = Hmat::new(&self.geom, s);
+            let size = (3, 3);
             match s {
                 Stretch(a, b) => {
                     let l1 = 3 * a;
                     let l2 = 3 * b;
-                    // TODO can you set blocks of matrices with nalgebra?
-                    for j in 0..3 {
-                        for i in 0..3 {
-                            sr[(l1 + i, l1 + j)] = h.h11[(i, j)];
-                            sr[(l2 + i, l2 + j)] = h.h11[(i, j)];
-                            sr[(l1 + i, l2 + j)] = -h.h11[(i, j)];
-                            sr[(l2 + i, l1 + j)] = -h.h11[(i, j)];
-                        }
-                    }
+                    sr.slice_mut((l1, l1), size).copy_from(&h.h11);
+                    sr.slice_mut((l2, l2), size).copy_from(&h.h11);
+                    sr.slice_mut((l1, l2), size).copy_from(&-&h.h11);
+                    sr.slice_mut((l2, l1), size).copy_from(&-&h.h11);
                 }
                 Bend(a, b, c) | Lin1(a, b, c, _) => {
                     let l1 = 3 * a;
                     let l2 = 3 * b;
                     let l3 = 3 * c;
-                    for j in 0..3 {
-                        for i in 0..3 {
-                            sr[(l1 + i, l1 + j)] = h.h11[(i, j)];
-                            sr[(l2 + i, l1 + j)] = h.h21[(i, j)];
-                            sr[(l3 + i, l1 + j)] = h.h31[(i, j)];
-                            sr[(l1 + i, l2 + j)] = h.h21[(j, i)];
-                            sr[(l2 + i, l2 + j)] = h.h22[(i, j)];
-                            sr[(l3 + i, l2 + j)] = h.h32[(i, j)];
-                            sr[(l1 + i, l3 + j)] = h.h31[(j, i)];
-                            sr[(l2 + i, l3 + j)] = h.h32[(j, i)];
-                            sr[(l3 + i, l3 + j)] = h.h33[(i, j)];
-                        }
-                    }
+                    sr.slice_mut((l1, l1), size).copy_from(&h.h11);
+                    sr.slice_mut((l2, l1), size).copy_from(&h.h21);
+                    sr.slice_mut((l3, l1), size).copy_from(&h.h31);
+                    sr.slice_mut((l1, l2), size).copy_from(&h.h21.transpose());
+                    sr.slice_mut((l2, l2), size).copy_from(&h.h22);
+                    sr.slice_mut((l3, l2), size).copy_from(&h.h32);
+                    sr.slice_mut((l1, l3), size).copy_from(&h.h31.transpose());
+                    sr.slice_mut((l2, l3), size).copy_from(&h.h32.transpose());
+                    sr.slice_mut((l3, l3), size).copy_from(&h.h33);
                 }
                 Torsion(a, b, c, d)
                 | Out(a, b, c, d)
@@ -906,26 +898,22 @@ impl Intder {
                     let l2 = 3 * b;
                     let l3 = 3 * c;
                     let l4 = 3 * d;
-                    for j in 0..3 {
-                        for i in 0..3 {
-                            sr[(l1 + i, l1 + j)] = h.h11[(i, j)];
-                            sr[(l2 + i, l1 + j)] = h.h21[(i, j)];
-                            sr[(l3 + i, l1 + j)] = h.h31[(i, j)];
-                            sr[(l4 + i, l1 + j)] = h.h41[(i, j)];
-                            sr[(l1 + i, l2 + j)] = h.h21[(j, i)];
-                            sr[(l2 + i, l2 + j)] = h.h22[(i, j)];
-                            sr[(l3 + i, l2 + j)] = h.h32[(i, j)];
-                            sr[(l4 + i, l2 + j)] = h.h42[(i, j)];
-                            sr[(l1 + i, l3 + j)] = h.h31[(j, i)];
-                            sr[(l2 + i, l3 + j)] = h.h32[(j, i)];
-                            sr[(l3 + i, l3 + j)] = h.h33[(i, j)];
-                            sr[(l4 + i, l3 + j)] = h.h43[(i, j)];
-                            sr[(l1 + i, l4 + j)] = h.h41[(j, i)];
-                            sr[(l2 + i, l4 + j)] = h.h42[(j, i)];
-                            sr[(l3 + i, l4 + j)] = h.h43[(j, i)];
-                            sr[(l4 + i, l4 + j)] = h.h44[(i, j)];
-                        }
-                    }
+                    sr.slice_mut((l1, l1), size).copy_from(&h.h11);
+                    sr.slice_mut((l2, l1), size).copy_from(&h.h21);
+                    sr.slice_mut((l3, l1), size).copy_from(&h.h31);
+                    sr.slice_mut((l4, l1), size).copy_from(&h.h41);
+                    sr.slice_mut((l1, l2), size).copy_from(&h.h21.transpose());
+                    sr.slice_mut((l2, l2), size).copy_from(&h.h22);
+                    sr.slice_mut((l3, l2), size).copy_from(&h.h32);
+                    sr.slice_mut((l4, l2), size).copy_from(&h.h42);
+                    sr.slice_mut((l1, l3), size).copy_from(&h.h31.transpose());
+                    sr.slice_mut((l2, l3), size).copy_from(&h.h32.transpose());
+                    sr.slice_mut((l3, l3), size).copy_from(&h.h33);
+                    sr.slice_mut((l4, l3), size).copy_from(&h.h43);
+                    sr.slice_mut((l1, l4), size).copy_from(&h.h41.transpose());
+                    sr.slice_mut((l2, l4), size).copy_from(&h.h42.transpose());
+                    sr.slice_mut((l3, l4), size).copy_from(&h.h43.transpose());
+                    sr.slice_mut((l4, l4), size).copy_from(&h.h44);
                 }
             }
             srs_sim.push(sr);
