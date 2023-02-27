@@ -404,6 +404,16 @@ fn get_fc4(v: &[f64], i: usize, j: usize, k: usize, l: usize) -> f64 {
     *v.get(fc4_index(i + 1, j + 1, k + 1, l + 1)).unwrap_or(&0.0)
 }
 
+/// the opposite of the Kronecker delta, 0 when equal, 1 otherwise
+#[inline]
+fn delta(i: usize, j: usize) -> f64 {
+    if i == j {
+        0.0
+    } else {
+        1.0
+    }
+}
+
 #[derive(Debug)]
 pub enum IntderError {
     DispError(String),
@@ -1025,30 +1035,14 @@ impl Intder {
         let mut f3 = Tensor3::zeros(nsx, nsx, nsx);
         for i in 0..nsy {
             for j in 0..=i {
+                let dij = delta(i, j);
                 for k in 0..=j {
+                    let djk = delta(j, k);
                     let vik = self.get_fc3(i, j, k);
-                    if i != j && j != k {
-                        for p in 0..nsx {
-                            f3[(i, j, p)] += vik * bs[(k, p)];
-                            f3[(i, k, p)] += vik * bs[(j, p)];
-                            f3[(j, k, p)] += vik * bs[(i, p)];
-                        }
-                    } else if i != j && j == k {
-                        for p in 0..nsx {
-                            f3[(i, j, p)] += vik * bs[(k, p)];
-                            f3[(j, k, p)] += vik * bs[(i, p)];
-                        }
-                    } else if i == j && j != k {
-                        for p in 0..nsx {
-                            f3[(i, j, p)] += vik * bs[(k, p)];
-                            f3[(i, k, p)] += vik * bs[(j, p)];
-                        }
-                    } else if i == j && j == k {
-                        for p in 0..nsx {
-                            f3[(i, i, p)] += vik * bs[(i, p)];
-                        }
-                    } else {
-                        unreachable!()
+                    for p in 0..nsx {
+                        f3[(i, j, p)] += vik * bs[(k, p)];
+                        f3[(i, k, p)] += vik * bs[(j, p)] * djk;
+                        f3[(j, k, p)] += vik * bs[(i, p)] * dij;
                     }
                 }
             }
@@ -1059,17 +1053,12 @@ impl Intder {
         let mut f3 = Tensor3::zeros(nsx, nsx, nsx);
         for i in 0..nsy {
             for j in 0..=i {
+                let dij = delta(i, j);
                 for p in 0..nsx {
                     let vik = f3_disk[(i, j, p)];
-                    if i != j {
-                        for n in 0..=p {
-                            f3[(i, n, p)] += vik * bs[(j, n)];
-                            f3[(j, n, p)] += vik * bs[(i, n)];
-                        }
-                    } else {
-                        for n in 0..=p {
-                            f3[(i, n, p)] += vik * bs[(i, n)];
-                        }
+                    for n in 0..=p {
+                        f3[(i, n, p)] += vik * bs[(j, n)];
+                        f3[(j, n, p)] += vik * bs[(i, n)] * dij;
                     }
                 }
             }
