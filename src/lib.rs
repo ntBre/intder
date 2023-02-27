@@ -1153,10 +1153,10 @@ impl Intder {
         let mut f4 = Tensor4::zeros(nsx, nsx, nsx, nsx);
 
         // begin 224 loop
-        for q in 0..nsx {
-            for p in 0..=q {
-                for n in 0..=p {
-                    for i in 0..nsy {
+        for i in 0..nsy {
+            for q in 0..nsx {
+                for p in 0..=q {
+                    for n in 0..=p {
                         let vik = f4_disk2[(i, n, p, q)];
                         for m in 0..=n {
                             f4[(m, n, p, q)] += vik * bs[(i, m)];
