@@ -998,13 +998,7 @@ impl Intder {
     fn lintr_fc2(&self, bs: &DMat) -> DMat {
         let nsx = self.ncart() - 3 * self.ndum();
         let nsy = self.symmetry_internals.len();
-        let mut f2 = bs.transpose() * self.mat_fc2(nsy) * bs;
-        for m in 1..nsx {
-            for n in 0..m {
-                f2[(m, n)] = (f2[(m, n)] + f2[(n, m)]) / 2.0;
-                f2[(n, m)] = f2[(m, n)];
-            }
-        }
+        let f2 = bs.transpose() * self.mat_fc2(nsy) * bs;
         f2.resize(nsx, nsx, 0.0) * ANGBOHR * ANGBOHR / HART
     }
 
