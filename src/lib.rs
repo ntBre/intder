@@ -1089,55 +1089,17 @@ impl Intder {
         let mut f4 = Tensor4::zeros(nsx, nsx, nsx, nsx);
         for i in 0..nsy {
             for j in 0..=i {
+                let dij = delta(i, j);
                 for k in 0..=j {
+                    let djk = delta(j, k);
                     for l in 0..=k {
+                        let dkl = delta(k, l);
                         let vik = self.get_fc4(i, j, k, l);
-                        if i != j && j != k && k != l {
-                            for q in 0..nsx {
-                                f4[(i, j, k, q)] += vik * bs[(l, q)];
-                                f4[(i, j, l, q)] += vik * bs[(k, q)];
-                                f4[(i, k, l, q)] += vik * bs[(j, q)];
-                                f4[(j, k, l, q)] += vik * bs[(i, q)];
-                            }
-                        } else if i != j && j != k && k == l {
-                            for q in 0..nsx {
-                                f4[(i, j, k, q)] += vik * bs[(k, q)];
-                                f4[(i, k, k, q)] += vik * bs[(j, q)];
-                                f4[(j, k, k, q)] += vik * bs[(i, q)];
-                            }
-                        } else if i != j && j == k && k != l {
-                            for q in 0..nsx {
-                                f4[(i, j, j, q)] += vik * bs[(l, q)];
-                                f4[(i, j, l, q)] += vik * bs[(j, q)];
-                                f4[(j, j, l, q)] += vik * bs[(i, q)];
-                            }
-                        } else if i != j && j == k && k == l {
-                            for q in 0..nsx {
-                                f4[(i, j, j, q)] += vik * bs[(j, q)];
-                                f4[(j, j, j, q)] += vik * bs[(i, q)];
-                            }
-                        } else if i == j && j != k && k != l {
-                            for q in 0..nsx {
-                                f4[(i, i, k, q)] += vik * bs[(l, q)];
-                                f4[(i, i, l, q)] += vik * bs[(k, q)];
-                                f4[(i, k, l, q)] += vik * bs[(i, q)];
-                            }
-                        } else if i == j && j != k && k == l {
-                            for q in 0..nsx {
-                                f4[(i, i, k, q)] += vik * bs[(k, q)];
-                                f4[(i, k, k, q)] += vik * bs[(i, q)];
-                            }
-                        } else if i == j && j == k && k != l {
-                            for q in 0..nsx {
-                                f4[(i, i, i, q)] += vik * bs[(l, q)];
-                                f4[(i, i, l, q)] += vik * bs[(i, q)];
-                            }
-                        } else if i == j && j == k && k == l {
-                            for q in 0..nsx {
-                                f4[(i, i, i, q)] += vik * bs[(i, q)];
-                            }
-                        } else {
-                            unreachable!();
+                        for q in 0..nsx {
+                            f4[(i, j, k, q)] += vik * bs[(l, q)];
+                            f4[(i, j, l, q)] += vik * bs[(k, q)] * dkl;
+                            f4[(i, k, l, q)] += vik * bs[(j, q)] * djk;
+                            f4[(j, k, l, q)] += vik * bs[(i, q)] * dij;
                         }
                     }
                 }
@@ -1151,31 +1113,15 @@ impl Intder {
         // loop starting at line 444
         for i in 0..nsy {
             for j in 0..=i {
+                let dij = delta(i, j);
                 for k in 0..=j {
+                    let djk = delta(j, k);
                     for q in 0..nsx {
                         let vik = f4_disk[(i, j, k, q)];
-                        if i != j && j != k {
-                            for p in 0..=q {
-                                f4[(i, j, p, q)] += vik * bs[(k, p)];
-                                f4[(i, k, p, q)] += vik * bs[(j, p)];
-                                f4[(j, k, p, q)] += vik * bs[(i, p)];
-                            }
-                        } else if i != j && j == k {
-                            for p in 0..=q {
-                                f4[(i, j, p, q)] += vik * bs[(j, p)];
-                                f4[(j, j, p, q)] += vik * bs[(i, p)];
-                            }
-                        } else if i == j && j != k {
-                            for p in 0..=q {
-                                f4[(i, i, p, q)] += vik * bs[(k, p)];
-                                f4[(i, k, p, q)] += vik * bs[(i, p)];
-                            }
-                        } else if i == j && j == k {
-                            for p in 0..=q {
-                                f4[(i, i, p, q)] += vik * bs[(i, p)];
-                            }
-                        } else {
-                            unreachable!();
+                        for p in 0..=q {
+                            f4[(i, j, p, q)] += vik * bs[(k, p)];
+                            f4[(i, k, p, q)] += vik * bs[(j, p)] * djk;
+                            f4[(j, k, p, q)] += vik * bs[(i, p)] * dij;
                         }
                     }
                 }
@@ -1189,18 +1135,13 @@ impl Intder {
         // start of loop at 514
         for i in 0..nsy {
             for j in 0..=i {
+                let dij = delta(i, j);
                 for q in 0..nsx {
                     for p in 0..=q {
                         let vik = f4_disk2[(i, j, p, q)];
-                        if i != j {
-                            for n in 0..=p {
-                                f4[(i, n, p, q)] += vik * bs[(j, n)];
-                                f4[(j, n, p, q)] += vik * bs[(i, n)];
-                            }
-                        } else {
-                            for n in 0..=p {
-                                f4[(i, n, p, q)] += vik * bs[(i, n)];
-                            }
+                        for n in 0..=p {
+                            f4[(i, n, p, q)] += vik * bs[(j, n)];
+                            f4[(j, n, p, q)] += vik * bs[(i, n)] * dij;
                         }
                     }
                 }
