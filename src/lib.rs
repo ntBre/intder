@@ -984,25 +984,6 @@ impl Intder {
         ret
     }
 
-    /// flatten fc2 so it can be accessed as the Fortran code expects
-    fn flatten_fc2(&self, nsy: usize) -> DVec {
-        let mut v = Vec::with_capacity(nsy * nsy);
-        for i in 0..nsy {
-            for j in 0..nsy {
-                // multiply by a coefficient here if you need to convert
-                // units
-                v.push(
-                    self.fc2[fc2_index(
-                        self.symmetry_internals.len(),
-                        i + 1,
-                        j + 1,
-                    )],
-                );
-            }
-        }
-        DVec::from(v)
-    }
-
     /// represent fc2 as a symmetric matrix
     fn mat_fc2(&self, nsy: usize) -> DMat {
         let mut v = DMat::from_row_slice(nsy, nsy, &self.fc2);
@@ -1014,24 +995,10 @@ impl Intder {
         v
     }
 
-    fn lintr_fc2(&self, a: &DMat) -> DMat {
+    fn lintr_fc2(&self, bs: &DMat) -> DMat {
         let nsx = self.ncart() - 3 * self.ndum();
         let nsy = self.symmetry_internals.len();
-        let v = self.flatten_fc2(nsy);
-        let xs = {
-            let mut xs = DMat::zeros(nsy, nsx);
-            let mut kk = 0;
-            for ik in 0..nsy * nsy {
-                kk += 1;
-                let j = (kk - 1) / nsy;
-                let i = kk - nsy * j - 1;
-                for n in 0..nsx {
-                    xs[(i, n)] += a[(j, n)] * v[ik];
-                }
-            }
-            xs
-        };
-        let mut f2 = a.transpose() * xs;
+        let mut f2 = bs.transpose() * self.mat_fc2(nsy) * bs;
         for m in 1..nsx {
             for n in 0..m {
                 f2[(m, n)] = (f2[(m, n)] + f2[(n, m)]) / 2.0;
