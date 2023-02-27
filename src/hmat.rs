@@ -92,69 +92,7 @@ impl Hmat {
             }
             // from HIJS6
             Torsion(i, j, k, l) => {
-                // unpack the s vector. mine are in the opposite order of the
-                // fortran
-                let tmp = geom.s_vec(s);
-                dsplat!(tmp, v1 => i, v4 => l);
-                // unit and non-unit vectors
-                let e21 = geom.unit(*j, *i);
-                let e23 = geom.unit(*j, *k);
-                let e34 = geom.unit(*k, *l);
-                let t21 = geom.dist(*j, *i);
-                let t23 = geom.dist(*j, *k);
-                let t34 = geom.dist(*k, *l);
-                // angles
-                let p2 = geom.angle(*i, *j, *k);
-                let tmp = geom.s_vec(&Bend(*i, *j, *k));
-                dsplat!(tmp, bp21 => i, bp22 => j, bp23 => k);
-
-                let p3 = geom.angle(*j, *k, *l);
-                let tmp = geom.s_vec(&Bend(*j, *k, *l));
-                dsplat!(tmp, bp32 => j, bp34 => l);
-
-                let xx = t21 * p2.sin().powi(2);
-                let xy = t34 * p3.sin().powi(2);
-                let w1 = 1.0 / (t21 * xx);
-                let w2 = 1.0 / (t23 * xx);
-                let w3 = 1.0 / (t34 * xy);
-                let w4 = 1.0 / (t23 * xy);
-
-                h.h11 = -w1 * Self::mat1(&e23);
-                h.h31 = w2 * Self::mat1(&e21);
-                h.h44 = w3 * Self::mat1(&e23);
-                h.h42 = -w4 * Self::mat1(&e34);
-
-                // these are cotans
-                let xx = p2.cos() / p2.sin();
-                let xy = p3.cos() / p3.sin();
-                h.h11 -= 2.0 * (e21 / t21 + bp21 * xx) * v1.transpose();
-                h.h31 -= (e23 / t23 + 2.0 * bp23 * xx) * v1.transpose();
-                h.h44 -= 2.0 * (e34 / t34 + &bp34 * xy) * v4.transpose();
-                h.h42 += &v4 * (e23 / t23 - 2.0 * &bp32 * xy).transpose();
-
-                h.h21 = -(&h.h11 + &h.h31);
-                h.h43 = -(&h.h44 + &h.h42);
-
-                let x1 = t21 / t23;
-                let y1 = t34 / t23;
-                let x2 = p2.cos();
-                let y2 = p2.sin();
-                let x3 = p3.cos();
-                let y3 = p3.sin();
-                let c1 = x1 * x2 - 1.0;
-                let c2 = -x3 * y1;
-                let c3 = -x2 / t23;
-                let c4 = -x1 * y2;
-                let c5 = x1 * x2 / t23;
-                let c6 = y1 * y3;
-                let c7 = -y1 * x3 / t23;
-
-                h.h22 = c1 * &h.h21 + c2 * h.h42.transpose();
-                h.h22 += (c3 * e21 + c4 * bp22 + c5 * e23) * v1.transpose()
-                    + (c6 * bp32 + c7 * e23) * v4.transpose();
-
-                h.h32 = -(h.h21.transpose() + &h.h22 + &h.h42);
-                h.h33 = -(&h.h31 + &h.h32 + h.h43.transpose());
+                Self::torsion(geom, s, i, j, k, l, &mut h);
             }
             // from HIJS3
             Lin1(i, j, k, l) => {
@@ -189,7 +127,7 @@ impl Hmat {
                 h.h22 = -(h.h21.transpose() + &h.h32);
             }
             // from HIJS7
-            Out(i, j, k, l) => Self::out(geom, j, i, k, l, s, &mut h),
+            Out(i, j, k, l) => Self::out(geom, i, j, k, l, s, &mut h),
             // hijs8
             &Linx(i, j, k, l) => {
                 let e2 = geom.unit(k, j);
@@ -295,28 +233,28 @@ impl Hmat {
 
     fn out(
         geom: &Geom,
-        j: &usize,
-        i: &usize,
-        k: &usize,
-        l: &usize,
+        a: &usize,
+        b: &usize,
+        c: &usize,
+        d: &usize,
         s: &Siic,
         h: &mut Self,
     ) {
-        let e21 = geom.unit(*j, *i);
-        let e23 = geom.unit(*j, *k);
-        let e24 = geom.unit(*j, *l);
-        let t21 = geom.dist(*j, *i);
-        let t23 = geom.dist(*j, *k);
-        let t24 = geom.dist(*j, *l);
+        let e21 = geom.unit(*b, *a);
+        let e23 = geom.unit(*b, *c);
+        let e24 = geom.unit(*b, *d);
+        let t21 = geom.dist(*b, *a);
+        let t23 = geom.dist(*b, *c);
+        let t24 = geom.dist(*b, *d);
 
         // vect2 call
-        let phi = Siic::Bend(*k, *j, *l).value(geom);
-        let svec = geom.s_vec(&Siic::Bend(*k, *j, *l));
-        dsplat!(svec, bp3 => k, bp4 => l);
+        let phi = Siic::Bend(*c, *b, *d).value(geom);
+        let svec = geom.s_vec(&Siic::Bend(*c, *b, *d));
+        dsplat!(svec, bp3 => c, bp4 => d);
 
         // vect5 call
         let svec = geom.s_vec(s);
-        dsplat!(svec, v1 => i, v3 => k, v4 => l);
+        dsplat!(svec, v1 => a, v3 => c, v4 => d);
         let gamma = s.value(geom);
 
         // hijs2 call
@@ -324,7 +262,7 @@ impl Hmat {
             h31: hp43,
             h33: hp44,
             ..
-        } = Hmat::new(geom, &Siic::Bend(*k, *j, *l));
+        } = Hmat::new(geom, &Siic::Bend(*c, *b, *d));
 
         let v5 = e23.cross(&e24);
         let v6 = e24.cross(&e21);
@@ -382,6 +320,80 @@ impl Hmat {
         h.h32 = -(&h.h31 + &h.h33 + h.h43.transpose());
         h.h42 = -(&h.h41 + &h.h43 + h.h44.transpose());
         h.h22 = -(h.h21.transpose() + &h.h32 + &h.h42);
+    }
+
+    fn torsion(
+        geom: &Geom,
+        s: &Siic,
+        i: &usize,
+        j: &usize,
+        k: &usize,
+        l: &usize,
+        h: &mut Hmat,
+    ) {
+        // unpack the s vector. mine are in the opposite order of the
+        // fortran
+        let tmp = geom.s_vec(s);
+        dsplat!(tmp, v1 => i, v4 => l);
+        // unit and non-unit vectors
+        let e21 = geom.unit(*j, *i);
+        let e23 = geom.unit(*j, *k);
+        let e34 = geom.unit(*k, *l);
+        let t21 = geom.dist(*j, *i);
+        let t23 = geom.dist(*j, *k);
+        let t34 = geom.dist(*k, *l);
+        // angles
+        let p2 = geom.angle(*i, *j, *k);
+        let tmp = geom.s_vec(&Siic::Bend(*i, *j, *k));
+        dsplat!(tmp, bp21 => i, bp22 => j, bp23 => k);
+
+        let p3 = geom.angle(*j, *k, *l);
+        let tmp = geom.s_vec(&Siic::Bend(*j, *k, *l));
+        dsplat!(tmp, bp32 => j, bp34 => l);
+
+        let xx = t21 * p2.sin().powi(2);
+        let xy = t34 * p3.sin().powi(2);
+        let w1 = 1.0 / (t21 * xx);
+        let w2 = 1.0 / (t23 * xx);
+        let w3 = 1.0 / (t34 * xy);
+        let w4 = 1.0 / (t23 * xy);
+
+        h.h11 = -w1 * Self::mat1(&e23);
+        h.h31 = w2 * Self::mat1(&e21);
+        h.h44 = w3 * Self::mat1(&e23);
+        h.h42 = -w4 * Self::mat1(&e34);
+
+        // these are cotans
+        let xx = p2.cos() / p2.sin();
+        let xy = p3.cos() / p3.sin();
+        h.h11 -= 2.0 * (e21 / t21 + bp21 * xx) * v1.transpose();
+        h.h31 -= (e23 / t23 + 2.0 * bp23 * xx) * v1.transpose();
+        h.h44 -= 2.0 * (e34 / t34 + &bp34 * xy) * v4.transpose();
+        h.h42 += &v4 * (e23 / t23 - 2.0 * &bp32 * xy).transpose();
+
+        h.h21 = -(&h.h11 + &h.h31);
+        h.h43 = -(&h.h44 + &h.h42);
+
+        let x1 = t21 / t23;
+        let y1 = t34 / t23;
+        let x2 = p2.cos();
+        let y2 = p2.sin();
+        let x3 = p3.cos();
+        let y3 = p3.sin();
+        let c1 = x1 * x2 - 1.0;
+        let c2 = -x3 * y1;
+        let c3 = -x2 / t23;
+        let c4 = -x1 * y2;
+        let c5 = x1 * x2 / t23;
+        let c6 = y1 * y3;
+        let c7 = -y1 * x3 / t23;
+
+        h.h22 = c1 * &h.h21 + c2 * h.h42.transpose();
+        h.h22 += (c3 * e21 + c4 * bp22 + c5 * e23) * v1.transpose()
+            + (c6 * bp32 + c7 * e23) * v4.transpose();
+
+        h.h32 = -(h.h21.transpose() + &h.h22 + &h.h42);
+        h.h33 = -(&h.h31 + &h.h32 + h.h43.transpose());
     }
 }
 
