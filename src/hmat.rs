@@ -2,8 +2,6 @@ use std::fmt::Display;
 
 use crate::{dsplat, geom::Geom, htens::Htens, DMat, Siic, Vec3};
 
-use nalgebra as na;
-
 #[derive(Debug)]
 pub struct Hmat {
     pub h11: DMat,
@@ -130,58 +128,7 @@ impl Hmat {
             Out(i, j, k, l) => Self::out(geom, i, j, k, l, s, &mut h),
             // hijs8
             &Linx(i, j, k, l) => {
-                let e2 = geom.unit(k, j);
-                let e4 = geom.unit(k, l);
-                let t32 = geom.dist(j, k);
-                // vect2 call
-                let s = geom.s_vec(&Siic::Bend(i, j, k));
-                let q3 = na::vector![s[3 * k], s[3 * k + 1], s[3 * k + 2]];
-                let t = e4.dot(&q3);
-                let w = -t32 * t;
-                let stre = Siic::Stretch(l, k);
-                let bend = Siic::Bend(i, j, k);
-                let Hmat { h11: e44, .. } = Self::new(geom, &stre);
-                let Hmat {
-                    h31: q31, h32: q32, ..
-                } = Self::new(geom, &bend);
-                let Hmat { h11: e22, .. } =
-                    Self::new(geom, &Siic::Stretch(j, k));
-                let Htens { h111: q444, .. } = Htens::new(geom, &stre);
-                for j in 0..3 {
-                    for k in 0..3 {
-                        for i in 0..3 {
-                            h.h44[(j, k)] -= t32 * q444[(i, j, k)] * q3[i];
-                        }
-                    }
-                }
-                let Htens {
-                    h113: q113,
-                    h123: q123,
-                    h223: q223,
-                    ..
-                } = Htens::new(geom, &bend);
-
-                h.h22 = w * e22 / t32;
-                for k in 0..3 {
-                    for j in 0..3 {
-                        for i in 0..3 {
-                            h.h11[(j, k)] -= t32 * e4[i] * q113[(j, k, i)];
-                            h.h21[(j, k)] -= e4[i]
-                                * (e2[j] * q31[(i, k)] + t32 * q123[(k, j, i)]);
-                            h.h22[(j, k)] -= e4[i]
-                                * (e2[j] * q32[(i, k)]
-                                    + e2[k] * q32[(i, j)]
-                                    + t32 * q223[(j, k, i)]);
-                        }
-                    }
-                }
-
-                h.h41 -= t32 * e44.transpose() * q31;
-                h.h42 -= e44.transpose() * (t32 * q32 + q3 * e2.transpose());
-                h.h31 = -&h.h11 - &h.h21 - &h.h41;
-                h.h32 = -h.h21.transpose() - &h.h22 - &h.h42;
-                h.h43 = -&h.h41 - &h.h42 - &h.h44;
-                h.h33 = -&h.h31 - &h.h32 - h.h43.transpose();
+                Self::linx(geom, i, j, k, l, &mut h);
             }
             // hijs9
             &Liny(k1, k2, k3, k4) => {
@@ -325,38 +272,38 @@ impl Hmat {
     fn torsion(
         geom: &Geom,
         s: &Siic,
-        i: &usize,
-        j: &usize,
-        k: &usize,
-        l: &usize,
+        a: &usize,
+        b: &usize,
+        c: &usize,
+        d: &usize,
         h: &mut Hmat,
     ) {
         // unpack the s vector. mine are in the opposite order of the
         // fortran
         let tmp = geom.s_vec(s);
-        dsplat!(tmp, v1 => i, v4 => l);
+        dsplat!(tmp, v1 => a, v4 => d);
         // unit and non-unit vectors
-        let e21 = geom.unit(*j, *i);
-        let e23 = geom.unit(*j, *k);
-        let e34 = geom.unit(*k, *l);
-        let t21 = geom.dist(*j, *i);
-        let t23 = geom.dist(*j, *k);
-        let t34 = geom.dist(*k, *l);
+        let e21 = geom.unit(*b, *a);
+        let e23 = geom.unit(*b, *c);
+        let e34 = geom.unit(*c, *d);
+        let t21 = geom.dist(*b, *a);
+        let t23 = geom.dist(*b, *c);
+        let t34 = geom.dist(*c, *d);
         // angles
-        let p2 = geom.angle(*i, *j, *k);
-        let tmp = geom.s_vec(&Siic::Bend(*i, *j, *k));
-        dsplat!(tmp, bp21 => i, bp22 => j, bp23 => k);
+        let p2 = geom.angle(*a, *b, *c);
+        let tmp = geom.s_vec(&Siic::Bend(*a, *b, *c));
+        dsplat!(tmp, bp21 => a, bp22 => b, bp23 => c);
 
-        let p3 = geom.angle(*j, *k, *l);
-        let tmp = geom.s_vec(&Siic::Bend(*j, *k, *l));
-        dsplat!(tmp, bp32 => j, bp34 => l);
+        let p3 = geom.angle(*b, *c, *d);
+        let tmp = geom.s_vec(&Siic::Bend(*b, *c, *d));
+        dsplat!(tmp, bp32 => b, bp34 => d);
 
-        let xx = t21 * p2.sin().powi(2);
-        let xy = t34 * p3.sin().powi(2);
-        let w1 = 1.0 / (t21 * xx);
-        let w2 = 1.0 / (t23 * xx);
-        let w3 = 1.0 / (t34 * xy);
-        let w4 = 1.0 / (t23 * xy);
+        let x = t21 * p2.sin().powi(2);
+        let y = t34 * p3.sin().powi(2);
+        let w1 = 1.0 / (t21 * x);
+        let w2 = 1.0 / (t23 * x);
+        let w3 = 1.0 / (t34 * y);
+        let w4 = 1.0 / (t23 * y);
 
         h.h11 = -w1 * Self::mat1(&e23);
         h.h31 = w2 * Self::mat1(&e21);
@@ -394,6 +341,60 @@ impl Hmat {
 
         h.h32 = -(h.h21.transpose() + &h.h22 + &h.h42);
         h.h33 = -(&h.h31 + &h.h32 + h.h43.transpose());
+    }
+
+    /// compute the h matrix for a LINX
+    fn linx(geom: &Geom, a: usize, b: usize, c: usize, d: usize, h: &mut Hmat) {
+        let e2 = geom.unit(c, b);
+        let e4 = geom.unit(c, d);
+        let t32 = geom.dist(b, c);
+        // vect2 call
+        let bend = Siic::Bend(a, b, c);
+        dsplat!(geom.s_vec(&bend), q3 => c);
+        let t = e4.dot(&q3);
+        let w = -t32 * t;
+        let stre = Siic::Stretch(d, c);
+        let Hmat { h11: e44, .. } = Self::new(geom, &stre);
+        let Hmat {
+            h31: q31, h32: q32, ..
+        } = Self::new(geom, &bend);
+        let Hmat { h11: e22, .. } = Self::new(geom, &Siic::Stretch(b, c));
+        let Htens { h111: q444, .. } = Htens::new(geom, &stre);
+        for j in 0..3 {
+            for k in 0..3 {
+                for i in 0..3 {
+                    h.h44[(j, k)] -= t32 * q444[(i, j, k)] * q3[i];
+                }
+            }
+        }
+        let Htens {
+            h113: q113,
+            h123: q123,
+            h223: q223,
+            ..
+        } = Htens::new(geom, &bend);
+
+        h.h22 = w * e22 / t32;
+        for k in 0..3 {
+            for j in 0..3 {
+                for i in 0..3 {
+                    h.h11[(j, k)] -= t32 * e4[i] * q113[(j, k, i)];
+                    h.h21[(j, k)] -=
+                        e4[i] * (e2[j] * q31[(i, k)] + t32 * q123[(k, j, i)]);
+                    h.h22[(j, k)] -= e4[i]
+                        * (e2[j] * q32[(i, k)]
+                            + e2[k] * q32[(i, j)]
+                            + t32 * q223[(j, k, i)]);
+                }
+            }
+        }
+
+        h.h41 -= t32 * e44.transpose() * q31;
+        h.h42 -= e44.transpose() * (t32 * q32 + q3 * e2.transpose());
+        h.h31 = -&h.h11 - &h.h21 - &h.h41;
+        h.h32 = -h.h21.transpose() - &h.h22 - &h.h42;
+        h.h43 = -&h.h41 - &h.h42 - &h.h44;
+        h.h33 = -&h.h31 - &h.h32 - h.h43.transpose();
     }
 }
 
