@@ -864,7 +864,6 @@ impl Intder {
         let mut srs_sim = Vec::new();
         // let nsim = self.simple_internals.len();
         for s in &self.simple_internals {
-            // I thought this was nc x nc but actually nc x nsym
             let mut sr = DMat::zeros(nc, nc);
             let h = Hmat::new(&self.geom, s);
             match s {
