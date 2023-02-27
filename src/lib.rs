@@ -1103,56 +1103,52 @@ impl Intder {
                 for k in 0..=j {
                     for l in 0..=k {
                         let vik = self.get_fc4(i, j, k, l);
-                        if i != j {
-                            if j != k {
-                                if k != l {
-                                    for q in 0..nsx {
-                                        f4[(i, j, k, q)] += vik * bs[(l, q)];
-                                        f4[(i, j, l, q)] += vik * bs[(k, q)];
-                                        f4[(i, k, l, q)] += vik * bs[(j, q)];
-                                        f4[(j, k, l, q)] += vik * bs[(i, q)];
-                                    }
-                                } else {
-                                    for q in 0..nsx {
-                                        f4[(i, j, k, q)] += vik * bs[(k, q)];
-                                        f4[(i, k, k, q)] += vik * bs[(j, q)];
-                                        f4[(j, k, k, q)] += vik * bs[(i, q)];
-                                    }
-                                }
-                            } else if k != l {
-                                for q in 0..nsx {
-                                    f4[(i, j, j, q)] += vik * bs[(l, q)];
-                                    f4[(i, j, l, q)] += vik * bs[(j, q)];
-                                    f4[(j, j, l, q)] += vik * bs[(i, q)];
-                                }
-                            } else {
-                                for q in 0..nsx {
-                                    f4[(i, j, j, q)] += vik * bs[(j, q)];
-                                    f4[(j, j, j, q)] += vik * bs[(i, q)];
-                                }
+                        if i != j && j != k && k != l {
+                            for q in 0..nsx {
+                                f4[(i, j, k, q)] += vik * bs[(l, q)];
+                                f4[(i, j, l, q)] += vik * bs[(k, q)];
+                                f4[(i, k, l, q)] += vik * bs[(j, q)];
+                                f4[(j, k, l, q)] += vik * bs[(i, q)];
                             }
-                        } else if j != k {
-                            if k != l {
-                                for q in 0..nsx {
-                                    f4[(i, i, k, q)] += vik * bs[(l, q)];
-                                    f4[(i, i, l, q)] += vik * bs[(k, q)];
-                                    f4[(i, k, l, q)] += vik * bs[(i, q)];
-                                }
-                            } else {
-                                for q in 0..nsx {
-                                    f4[(i, i, k, q)] += vik * bs[(k, q)];
-                                    f4[(i, k, k, q)] += vik * bs[(i, q)];
-                                }
+                        } else if i != j && j != k && k == l {
+                            for q in 0..nsx {
+                                f4[(i, j, k, q)] += vik * bs[(k, q)];
+                                f4[(i, k, k, q)] += vik * bs[(j, q)];
+                                f4[(j, k, k, q)] += vik * bs[(i, q)];
                             }
-                        } else if k != l {
+                        } else if i != j && j == k && k != l {
+                            for q in 0..nsx {
+                                f4[(i, j, j, q)] += vik * bs[(l, q)];
+                                f4[(i, j, l, q)] += vik * bs[(j, q)];
+                                f4[(j, j, l, q)] += vik * bs[(i, q)];
+                            }
+                        } else if i != j && j == k && k == l {
+                            for q in 0..nsx {
+                                f4[(i, j, j, q)] += vik * bs[(j, q)];
+                                f4[(j, j, j, q)] += vik * bs[(i, q)];
+                            }
+                        } else if i == j && j != k && k != l {
+                            for q in 0..nsx {
+                                f4[(i, i, k, q)] += vik * bs[(l, q)];
+                                f4[(i, i, l, q)] += vik * bs[(k, q)];
+                                f4[(i, k, l, q)] += vik * bs[(i, q)];
+                            }
+                        } else if i == j && j != k && k == l {
+                            for q in 0..nsx {
+                                f4[(i, i, k, q)] += vik * bs[(k, q)];
+                                f4[(i, k, k, q)] += vik * bs[(i, q)];
+                            }
+                        } else if i == j && j == k && k != l {
                             for q in 0..nsx {
                                 f4[(i, i, i, q)] += vik * bs[(l, q)];
                                 f4[(i, i, l, q)] += vik * bs[(i, q)];
                             }
-                        } else {
+                        } else if i == j && j == k && k == l {
                             for q in 0..nsx {
                                 f4[(i, i, i, q)] += vik * bs[(i, q)];
                             }
+                        } else {
+                            unreachable!();
                         }
                     }
                 }
