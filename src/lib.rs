@@ -949,25 +949,16 @@ impl Intder {
             let h = Htens::new(&self.geom, s);
             match s {
                 Stretch(a, b) => {
-                    let l1 = 3 * a;
-                    let l2 = 3 * b;
-                    hsry2(&mut sr, &h, l1, l2);
+                    hsry2(&mut sr, 3 * a, 3 * b, &h);
                 }
                 Bend(a, b, c) | Lin1(a, b, c, _) => {
-                    let l1 = 3 * a;
-                    let l2 = 3 * b;
-                    let l3 = 3 * c;
-                    hsry3(&mut sr, l1, &h, l2, l3);
+                    hsry3(&mut sr, 3 * a, 3 * b, 3 * c, &h);
                 }
                 Torsion(a, b, c, d)
                 | Out(a, b, c, d)
                 | Linx(a, b, c, d)
                 | Liny(a, b, c, d) => {
-                    let l1 = 3 * a;
-                    let l2 = 3 * b;
-                    let l3 = 3 * c;
-                    let l4 = 3 * d;
-                    hsry4(&mut sr, l1, &h, l2, l3, l4);
+                    hsry4(&mut sr, 3 * a, 3 * b, 3 * c, 3 * d, &h);
                 }
             }
             srs_sim.push(sr);
@@ -1717,7 +1708,7 @@ impl Intder {
     }
 }
 
-fn hsry2(sr: &mut tensor::Tensor3<f64>, h: &Htens, l1: usize, l2: usize) {
+fn hsry2(sr: &mut tensor::Tensor3<f64>, l1: usize, l2: usize, h: &Htens) {
     for k in 0..3 {
         for j in 0..3 {
             for i in 0..3 {
@@ -1735,13 +1726,49 @@ fn hsry2(sr: &mut tensor::Tensor3<f64>, h: &Htens, l1: usize, l2: usize) {
     }
 }
 
+fn hsry3(sr: &mut Tensor3, l1: usize, l2: usize, l3: usize, h: &Htens) {
+    for k in 0..3 {
+        for j in 0..3 {
+            for i in 0..3 {
+                sr[(l1 + i, l1 + j, l1 + k)] = h.h111[(i, j, k)];
+                sr[(l1 + i, l1 + j, l2 + k)] = h.h112[(i, j, k)];
+                sr[(l1 + i, l1 + j, l3 + k)] = h.h113[(i, j, k)];
+                sr[(l1 + i, l2 + j, l1 + k)] = h.h112[(i, k, j)];
+                sr[(l1 + i, l2 + j, l2 + k)] = h.h221[(j, k, i)];
+                sr[(l1 + i, l2 + j, l3 + k)] = h.h123[(i, j, k)];
+                sr[(l2 + i, l2 + j, l1 + k)] = h.h221[(i, j, k)];
+                sr[(l2 + i, l2 + j, l2 + k)] = h.h222[(i, j, k)];
+                sr[(l2 + i, l2 + j, l3 + k)] = h.h223[(i, j, k)];
+                sr[(l2 + i, l1 + j, l1 + k)] = h.h112[(j, k, i)];
+                sr[(l2 + i, l1 + j, l2 + k)] = h.h221[(i, k, j)];
+                sr[(l2 + i, l1 + j, l3 + k)] = h.h123[(j, i, k)];
+                sr[(l1 + i, l3 + j, l1 + k)] = h.h113[(i, k, j)];
+                sr[(l1 + i, l3 + j, l2 + k)] = h.h123[(i, k, j)];
+                sr[(l1 + i, l3 + j, l3 + k)] = h.h331[(j, k, i)];
+                sr[(l2 + i, l3 + j, l1 + k)] = h.h123[(k, i, j)];
+                sr[(l2 + i, l3 + j, l2 + k)] = h.h223[(i, k, j)];
+                sr[(l2 + i, l3 + j, l3 + k)] = h.h332[(j, k, i)];
+                sr[(l3 + i, l1 + j, l1 + k)] = h.h113[(j, k, i)];
+                sr[(l3 + i, l1 + j, l2 + k)] = h.h123[(j, k, i)];
+                sr[(l3 + i, l1 + j, l3 + k)] = h.h331[(i, k, j)];
+                sr[(l3 + i, l2 + j, l1 + k)] = h.h123[(k, j, i)];
+                sr[(l3 + i, l2 + j, l2 + k)] = h.h223[(j, k, i)];
+                sr[(l3 + i, l2 + j, l3 + k)] = h.h332[(i, k, j)];
+                sr[(l3 + i, l3 + j, l1 + k)] = h.h331[(i, j, k)];
+                sr[(l3 + i, l3 + j, l2 + k)] = h.h332[(i, j, k)];
+                sr[(l3 + i, l3 + j, l3 + k)] = h.h333[(i, j, k)];
+            }
+        }
+    }
+}
+
 fn hsry4(
     sr: &mut Tensor3,
     l1: usize,
-    h: &Htens,
     l2: usize,
     l3: usize,
     l4: usize,
+    h: &Htens,
 ) {
     for k in 0..3 {
         for j in 0..3 {
@@ -1817,39 +1844,3 @@ fn hsry4(
 
 // NOTE: these functions were extracted automatically by the LSP, so their
 // interface could probably be cleaned up a bit if desired
-
-fn hsry3(sr: &mut Tensor3, l1: usize, h: &Htens, l2: usize, l3: usize) {
-    for k in 0..3 {
-        for j in 0..3 {
-            for i in 0..3 {
-                sr[(l1 + i, l1 + j, l1 + k)] = h.h111[(i, j, k)];
-                sr[(l1 + i, l1 + j, l2 + k)] = h.h112[(i, j, k)];
-                sr[(l1 + i, l1 + j, l3 + k)] = h.h113[(i, j, k)];
-                sr[(l1 + i, l2 + j, l1 + k)] = h.h112[(i, k, j)];
-                sr[(l1 + i, l2 + j, l2 + k)] = h.h221[(j, k, i)];
-                sr[(l1 + i, l2 + j, l3 + k)] = h.h123[(i, j, k)];
-                sr[(l2 + i, l2 + j, l1 + k)] = h.h221[(i, j, k)];
-                sr[(l2 + i, l2 + j, l2 + k)] = h.h222[(i, j, k)];
-                sr[(l2 + i, l2 + j, l3 + k)] = h.h223[(i, j, k)];
-                sr[(l2 + i, l1 + j, l1 + k)] = h.h112[(j, k, i)];
-                sr[(l2 + i, l1 + j, l2 + k)] = h.h221[(i, k, j)];
-                sr[(l2 + i, l1 + j, l3 + k)] = h.h123[(j, i, k)];
-                sr[(l1 + i, l3 + j, l1 + k)] = h.h113[(i, k, j)];
-                sr[(l1 + i, l3 + j, l2 + k)] = h.h123[(i, k, j)];
-                sr[(l1 + i, l3 + j, l3 + k)] = h.h331[(j, k, i)];
-                sr[(l2 + i, l3 + j, l1 + k)] = h.h123[(k, i, j)];
-                sr[(l2 + i, l3 + j, l2 + k)] = h.h223[(i, k, j)];
-                sr[(l2 + i, l3 + j, l3 + k)] = h.h332[(j, k, i)];
-                sr[(l3 + i, l1 + j, l1 + k)] = h.h113[(j, k, i)];
-                sr[(l3 + i, l1 + j, l2 + k)] = h.h123[(j, k, i)];
-                sr[(l3 + i, l1 + j, l3 + k)] = h.h331[(i, k, j)];
-                sr[(l3 + i, l2 + j, l1 + k)] = h.h123[(k, j, i)];
-                sr[(l3 + i, l2 + j, l2 + k)] = h.h223[(j, k, i)];
-                sr[(l3 + i, l2 + j, l3 + k)] = h.h332[(i, k, j)];
-                sr[(l3 + i, l3 + j, l1 + k)] = h.h331[(i, j, k)];
-                sr[(l3 + i, l3 + j, l2 + k)] = h.h332[(i, j, k)];
-                sr[(l3 + i, l3 + j, l3 + k)] = h.h333[(i, j, k)];
-            }
-        }
-    }
-}
