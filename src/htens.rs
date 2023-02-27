@@ -136,10 +136,9 @@ impl Htens {
         ret
     }
 
-    fn stretch(geom: &Geom, siic: &Siic, i: &usize, j: &usize, h: &mut Htens) {
-        let v1 = geom.unit(*i, *j);
-        let t21 = geom.dist(*i, *j);
-        let w1 = 1.0 / t21;
+    fn stretch(geom: &Geom, siic: &Siic, a: &usize, b: &usize, h: &mut Htens) {
+        let v1 = geom.unit(*a, *b);
+        let w1 = 1.0 / geom.dist(*a, *b);
         let hm = Hmat::new(geom, siic);
         for k in 0..3 {
             for j in k..3 {
@@ -157,27 +156,27 @@ impl Htens {
     fn bend(
         geom: &Geom,
         siic: &Siic,
-        i: &usize,
-        j: &usize,
-        k: &usize,
+        a: &usize,
+        b: &usize,
+        c: &usize,
         h: &mut Htens,
     ) {
         use Siic::*;
         // copied from h_mat Bend
         let tmp = geom.s_vec(siic);
-        let v1 = &tmp[3 * i..3 * i + 3];
-        let v3 = &tmp[3 * k..3 * k + 3];
-        let e21 = geom.unit(*j, *i);
-        let e23 = geom.unit(*j, *k);
-        let t21 = geom.dist(*j, *i);
-        let t23 = geom.dist(*j, *k);
-        let h11a = Hmat::new(geom, &Stretch(*i, *j)).h11;
-        let h33a = Hmat::new(geom, &Stretch(*k, *j)).h11;
-        let phi = geom.angle(*i, *j, *k);
+        let v1 = &tmp[3 * a..3 * a + 3];
+        let v3 = &tmp[3 * c..3 * c + 3];
+        let e21 = geom.unit(*b, *a);
+        let e23 = geom.unit(*b, *c);
+        let t21 = geom.dist(*b, *a);
+        let t23 = geom.dist(*b, *c);
+        let h11a = Hmat::new(geom, &Stretch(*a, *b)).h11;
+        let h33a = Hmat::new(geom, &Stretch(*c, *b)).h11;
+        let phi = geom.angle(*a, *b, *c);
         // end copy
         let hijs2 = Hmat::new(geom, siic);
-        let h111a = Self::new(geom, &Stretch(*i, *j)).h111;
-        let h333a = Self::new(geom, &Stretch(*k, *j)).h111;
+        let h111a = Self::new(geom, &Stretch(*a, *b)).h111;
+        let h333a = Self::new(geom, &Stretch(*c, *b)).h111;
         let sphi = phi.sin();
         let ctphi = phi.cos() / sphi;
         let w1 = 1.0 / t21;
@@ -287,35 +286,35 @@ impl Htens {
     fn torsion(
         geom: &Geom,
         siic: &Siic,
-        i: &usize,
-        j: &usize,
-        k: &usize,
-        l: &usize,
+        a: &usize,
+        b: &usize,
+        c: &usize,
+        d: &usize,
         h: &mut Htens,
     ) {
         use Siic::*;
         let tmp = geom.s_vec(siic);
-        let v1 = &tmp[3 * i..3 * i + 3];
-        let v4 = &tmp[3 * l..3 * l + 3];
+        let v1 = &tmp[3 * a..3 * a + 3];
+        let v4 = &tmp[3 * d..3 * d + 3];
         // unit and non-unit vectors
-        let e21 = geom.unit(*j, *i);
-        let e23 = geom.unit(*j, *k);
-        let e34 = geom.unit(*k, *l);
-        let t21 = geom.dist(*j, *i);
-        let t23 = geom.dist(*j, *k);
-        let t34 = geom.dist(*k, *l);
+        let e21 = geom.unit(*b, *a);
+        let e23 = geom.unit(*b, *c);
+        let e34 = geom.unit(*c, *d);
+        let t21 = geom.dist(*b, *a);
+        let t23 = geom.dist(*b, *c);
+        let t34 = geom.dist(*c, *d);
         // angles
-        let p2 = geom.angle(*i, *j, *k);
-        let tmp = geom.s_vec(&Bend(*i, *j, *k));
-        let bp21 = &tmp[3 * i..3 * i + 3];
-        let bp22 = &tmp[3 * j..3 * j + 3];
-        let bp23 = &tmp[3 * k..3 * k + 3];
+        let p2 = geom.angle(*a, *b, *c);
+        let tmp = geom.s_vec(&Bend(*a, *b, *c));
+        let bp21 = &tmp[3 * a..3 * a + 3];
+        let bp22 = &tmp[3 * b..3 * b + 3];
+        let bp23 = &tmp[3 * c..3 * c + 3];
 
-        let p3 = geom.angle(*j, *k, *l);
-        let tmp = geom.s_vec(&Bend(*j, *k, *l));
-        let bp32 = &tmp[3 * j..3 * j + 3];
-        let bp33 = &tmp[3 * k..3 * k + 3];
-        let bp34 = &tmp[3 * l..3 * l + 3];
+        let p3 = geom.angle(*b, *c, *d);
+        let tmp = geom.s_vec(&Bend(*b, *c, *d));
+        let bp32 = &tmp[3 * b..3 * b + 3];
+        let bp33 = &tmp[3 * c..3 * c + 3];
+        let bp34 = &tmp[3 * d..3 * d + 3];
         // matrices
         let h32 = Hmat::mat1(&e23);
         let h21 = Hmat::mat1(&e21);
@@ -410,13 +409,13 @@ impl Htens {
             }
         } // end 112
 
-        let hijs2 = Hmat::new(geom, &Bend(*i, *j, *k));
+        let hijs2 = Hmat::new(geom, &Bend(*a, *b, *c));
         let h11 = hijs2.h11;
         let mut h21 = hijs2.h21;
         let h31 = hijs2.h31;
         let h32 = hijs2.h32;
-        let h44 = Hmat::new(geom, &Stretch(*i, *j)).h11;
-        let h42 = Hmat::new(geom, &Stretch(*j, *k)).h11;
+        let h44 = Hmat::new(geom, &Stretch(*a, *b)).h11;
+        let h42 = Hmat::new(geom, &Stretch(*b, *c)).h11;
         let mut h43 = Hmat::mat1(&e34);
         let w1 = 2.0 * c1;
         let w2 = 2.0 * c12;
@@ -508,12 +507,12 @@ impl Htens {
             }
         } // end 162
 
-        let hijs2 = Hmat::new(geom, &Bend(*j, *k, *l));
+        let hijs2 = Hmat::new(geom, &Bend(*b, *c, *d));
         let h32 = hijs2.h21;
         let h42 = hijs2.h31;
         let h44 = hijs2.h33;
-        let h11 = Hmat::new(geom, &Stretch(*l, *k)).h11;
-        let h31 = Hmat::new(geom, &Stretch(*k, *j)).h11;
+        let h11 = Hmat::new(geom, &Stretch(*d, *c)).h11;
+        let h31 = Hmat::new(geom, &Stretch(*c, *b)).h11;
 
         let w1 = 2.0 * c2;
         let w2 = 2.0 * c13;
@@ -763,28 +762,28 @@ impl Htens {
     fn lin1(
         geom: &Geom,
         siic: &Siic,
-        i: &usize,
-        j: &usize,
-        k: &usize,
+        a: &usize,
+        b: &usize,
+        c: &usize,
         h: &mut Htens,
     ) {
         use Siic::*;
         let tmp = geom.s_vec(siic);
-        let v1 = &tmp[3 * i..3 * i + 3];
-        let v3 = &tmp[3 * k..3 * k + 3];
+        let v1 = &tmp[3 * a..3 * a + 3];
+        let v3 = &tmp[3 * c..3 * c + 3];
         let th = siic.value(geom);
-        let e21 = geom.unit(*j, *i);
-        let e23 = geom.unit(*j, *k);
-        let t21 = geom.dist(*j, *i);
-        let t23 = geom.dist(*j, *k);
-        let h11a = Hmat::new(geom, &Stretch(*i, *j)).h11;
-        let h33a = Hmat::new(geom, &Stretch(*k, *j)).h11;
+        let e21 = geom.unit(*b, *a);
+        let e23 = geom.unit(*b, *c);
+        let t21 = geom.dist(*b, *a);
+        let t23 = geom.dist(*b, *c);
+        let h11a = Hmat::new(geom, &Stretch(*a, *b)).h11;
+        let h33a = Hmat::new(geom, &Stretch(*c, *b)).h11;
         let hijs3 = Hmat::new(geom, siic);
         let h11 = hijs3.h11;
         let h31 = hijs3.h31;
         let h33 = hijs3.h33;
-        let h111a = Self::new(geom, &Stretch(*i, *j)).h111;
-        let h333a = Self::new(geom, &Stretch(*k, *j)).h111;
+        let h111a = Self::new(geom, &Stretch(*a, *b)).h111;
+        let h333a = Self::new(geom, &Stretch(*c, *b)).h111;
 
         let tanth = th.tan();
         let costh = th.cos();
@@ -885,34 +884,34 @@ impl Htens {
     fn out(
         geom: &Geom,
         siic: &Siic,
-        i: &usize,
-        j: &usize,
-        k: &usize,
-        l: &usize,
+        a: &usize,
+        b: &usize,
+        c: &usize,
+        d: &usize,
         h: &mut Htens,
     ) {
-        let e21 = geom.unit(*j, *i);
-        let e23 = geom.unit(*j, *k);
-        let e24 = geom.unit(*j, *l);
-        let t21 = geom.dist(*j, *i);
-        let t23 = geom.dist(*j, *k);
-        let t24 = geom.dist(*j, *l);
+        let e21 = geom.unit(*b, *a);
+        let e23 = geom.unit(*b, *c);
+        let e24 = geom.unit(*b, *d);
+        let t21 = geom.dist(*b, *a);
+        let t23 = geom.dist(*b, *c);
+        let t24 = geom.dist(*b, *d);
 
         // vect2 call
-        let phi = Siic::Bend(*k, *j, *l).value(geom);
-        let svec = geom.s_vec(&Siic::Bend(*k, *j, *l));
-        let bp3 = &svec[3 * k..3 * k + 3];
-        let bp4 = &svec[3 * l..3 * l + 3];
+        let phi = Siic::Bend(*c, *b, *d).value(geom);
+        let svec = geom.s_vec(&Siic::Bend(*c, *b, *d));
+        let bp3 = &svec[3 * c..3 * c + 3];
+        let bp4 = &svec[3 * d..3 * d + 3];
 
         // vect5 call
         let svec = geom.s_vec(siic);
         let gamma = siic.value(geom);
-        let v1 = &svec[3 * i..3 * i + 3];
-        let v3 = &svec[3 * k..3 * k + 3];
-        let v4 = &svec[3 * l..3 * l + 3];
+        let v1 = &svec[3 * a..3 * a + 3];
+        let v3 = &svec[3 * c..3 * c + 3];
+        let v4 = &svec[3 * d..3 * d + 3];
 
         // hijs1 call
-        let ht11 = Hmat::new(geom, &Siic::Stretch(*i, *j)).h11;
+        let ht11 = Hmat::new(geom, &Siic::Stretch(*a, *b)).h11;
 
         // hijs2 call
         let Hmat {
@@ -920,7 +919,7 @@ impl Htens {
             h31: hp43,
             h33: hp44,
             ..
-        } = Hmat::new(geom, &Siic::Bend(*k, *j, *l));
+        } = Hmat::new(geom, &Siic::Bend(*c, *b, *d));
 
         // hijs7 call
         let Hmat {
@@ -934,14 +933,14 @@ impl Htens {
         } = Hmat::new(geom, siic);
 
         // hijks1 call
-        let ht111 = Htens::new(geom, &Siic::Stretch(*i, *j)).h111;
+        let ht111 = Htens::new(geom, &Siic::Stretch(*a, *b)).h111;
 
         // hijks2 call
         let Htens {
             h113: hp334,
             h331: hp443,
             ..
-        } = Htens::new(geom, &Siic::Bend(*k, *j, *l));
+        } = Htens::new(geom, &Siic::Bend(*c, *b, *d));
 
         let cp21 = Hmat::mat1(&e21);
         let cp24 = Hmat::mat1(&e24);
@@ -1170,26 +1169,26 @@ impl Htens {
     fn linx(
         geom: &Geom,
         siic: &Siic,
-        k1: &usize,
-        k2: &usize,
-        k3: &usize,
-        k4: &usize,
+        a: &usize,
+        b: &usize,
+        c: &usize,
+        d: &usize,
         h: &mut Htens,
     ) {
-	use Siic::*;
-        let qb = geom.unit(*k3, *k2);
-        let r23 = geom.dist(*k2, *k3);
-        let qc = geom.unit(*k3, *k4);
-        let bend = Bend(*k1, *k2, *k3);
+        use Siic::*;
+        let qb = geom.unit(*c, *b);
+        let r23 = geom.dist(*b, *c);
+        let qc = geom.unit(*c, *d);
+        let bend = Bend(*a, *b, *c);
         let s = geom.s_vec(&bend);
-        splat!(s, q3 => k3);
+        splat!(s, q3 => c);
         // hijs2
         let Hmat {
             h31: q31, h32: q32, ..
         } = Hmat::new(geom, &bend);
         // hijks1 call
-        let Htens { h111: q444, .. } = Htens::new(geom, &Stretch(*k4, *k3));
-        let q4444 = h4th1(geom, *k3, *k4);
+        let Htens { h111: q444, .. } = Htens::new(geom, &Stretch(*d, *c));
+        let q4444 = h4th1(geom, *c, *d);
 
         // 4
         for i in 0..3 {
@@ -1209,13 +1208,13 @@ impl Htens {
             }
         }
 
-        let q44 = hijs1(geom, *k4, *k3);
+        let q44 = hijs1(geom, *d, *c);
         let Htens {
             h113: q113,
             h123: q123,
             h223: q223,
             ..
-        } = hijks2(geom, *k1, *k2, *k3);
+        } = hijks2(geom, *a, *b, *c);
 
         let Htens4 {
             h1113: q1113,
@@ -1223,7 +1222,7 @@ impl Htens {
             h1223: q1223,
             h2223: q2223,
             ..
-        } = h4th2(geom, *k1, *k2, *k3);
+        } = h4th2(geom, *a, *b, *c);
 
         // 5
         foreach!(i, j, k,
@@ -1273,10 +1272,10 @@ impl Htens {
 
         // vect8 call
         let s = geom.s_vec(siic);
-        splat!(s, q1 => k1, q2 => k2, q4 => k4);
+        splat!(s, q1 => a, q2 => b, q4 => d);
         let w = siic.value(geom);
-        let q22 = hijs1(geom, *k2, *k3);
-        let q222 = hijks1(geom, *k2, *k3);
+        let q22 = hijs1(geom, *b, *c);
+        let q222 = hijks1(geom, *b, *c);
 
         // 22
         foreach!(i, j, k,
@@ -1329,15 +1328,15 @@ impl Htens {
 
     fn liny(
         geom: &Geom,
-        k1: &usize,
-        k2: &usize,
-        k3: &usize,
-        k4: &usize,
+        a: &usize,
+        b: &usize,
+        c: &usize,
+        d: &usize,
         h: &mut Htens,
     ) {
-        let out = Siic::Out(*k4, *k3, *k2, *k1);
+        let out = Siic::Out(*d, *c, *b, *a);
         let sout = geom.s_vec(&out);
-        splat!(sout, e4 => k4, e3 => k3, e2 => k2);
+        splat!(sout, e4 => d, e3 => c, e2 => b);
         let tout = out.value(geom);
         let w = -tout.sin();
         let cosy = tout.cos();

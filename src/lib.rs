@@ -1723,13 +1723,13 @@ fn hsry2(sr: &mut tensor::Tensor3<f64>, h: &Htens, l1: usize, l2: usize) {
             for i in 0..3 {
                 let z = h.h111[(i, j, k)];
                 sr[(l1 + i, l1 + j, l1 + k)] = z;
-                sr[(l1 + i, l1 + j, l2 + k)] = -z;
-                sr[(l1 + i, l2 + j, l1 + k)] = -z;
                 sr[(l1 + i, l2 + j, l2 + k)] = z;
-                sr[(l2 + i, l1 + j, l1 + k)] = -z;
                 sr[(l2 + i, l1 + j, l2 + k)] = z;
                 sr[(l2 + i, l2 + j, l1 + k)] = z;
+                sr[(l1 + i, l1 + j, l2 + k)] = -z;
+                sr[(l1 + i, l2 + j, l1 + k)] = -z;
                 sr[(l2 + i, l2 + j, l2 + k)] = -z;
+                sr[(l2 + i, l1 + j, l1 + k)] = -z;
             }
         }
     }
