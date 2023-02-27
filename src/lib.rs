@@ -1579,17 +1579,15 @@ impl Intder {
     }
 
     /// Perform the linear transformation of the force constants and convert the
-    /// units to those desired by SPECTRO. what they call A here is actually the
-    /// SIC B matrix.
+    /// units to those desired by SPECTRO.
     pub fn lintr(
         &self,
-        a: &DMat,
         bs: &DMat,
         xr: &[DMat],
         yr: &[Tensor3],
     ) -> (DMat, Vec<f64>, Vec<f64>) {
-        let f2 = self.lintr_fc2(a);
-        let (f3, f4) = self.xf2(self.lintr_fc3(a), self.lintr_fc4(a), bs, xr);
+        let f2 = self.lintr_fc2(bs);
+        let (f3, f4) = self.xf2(self.lintr_fc3(bs), self.lintr_fc4(bs), bs, xr);
         let f4 = self.xf3(f4, bs, xr);
         let f4 = self.yf2(f4, bs, yr);
 
@@ -1633,7 +1631,7 @@ impl Intder {
         let b_sym = self.sym_b_matrix(&self.geom);
         let srs = self.machx();
         let srsy = self.machy();
-        let (f2, f3, f4) = self.lintr(&b_sym, &b_sym, &srs, &srsy);
+        let (f2, f3, f4) = self.lintr(&b_sym, &srs, &srsy);
 
         (f2, f3, f4)
     }
