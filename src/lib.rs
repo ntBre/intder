@@ -1165,28 +1165,28 @@ impl Intder {
                 for k in 0..=j {
                     for q in 0..nsx {
                         let vik = f4_disk[(i, j, k, q)];
-                        if i != j {
-                            if j != k {
-                                for p in 0..=q {
-                                    f4[(i, j, p, q)] += vik * bs[(k, p)];
-                                    f4[(i, k, p, q)] += vik * bs[(j, p)];
-                                    f4[(j, k, p, q)] += vik * bs[(i, p)];
-                                }
-                            } else {
-                                for p in 0..=q {
-                                    f4[(i, j, p, q)] += vik * bs[(j, p)];
-                                    f4[(j, j, p, q)] += vik * bs[(i, p)];
-                                }
+                        if i != j && j != k {
+                            for p in 0..=q {
+                                f4[(i, j, p, q)] += vik * bs[(k, p)];
+                                f4[(i, k, p, q)] += vik * bs[(j, p)];
+                                f4[(j, k, p, q)] += vik * bs[(i, p)];
                             }
-                        } else if j != k {
+                        } else if i != j && j == k {
+                            for p in 0..=q {
+                                f4[(i, j, p, q)] += vik * bs[(j, p)];
+                                f4[(j, j, p, q)] += vik * bs[(i, p)];
+                            }
+                        } else if i == j && j != k {
                             for p in 0..=q {
                                 f4[(i, i, p, q)] += vik * bs[(k, p)];
                                 f4[(i, k, p, q)] += vik * bs[(i, p)];
                             }
-                        } else {
+                        } else if i == j && j == k {
                             for p in 0..=q {
                                 f4[(i, i, p, q)] += vik * bs[(i, p)];
                             }
+                        } else {
+                            unreachable!();
                         }
                     }
                 }
