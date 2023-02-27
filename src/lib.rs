@@ -1086,7 +1086,7 @@ impl Intder {
         f3
     }
 
-    pub fn lintr_fc4(&self, a: &DMat) -> Tensor4 {
+    pub fn lintr_fc4(&self, bs: &DMat) -> Tensor4 {
         let nsx = self.ncart() - 3 * self.ndum();
         let nsy = self.nsym();
         let v = &self.fc4;
@@ -1100,51 +1100,51 @@ impl Intder {
                 if j != k {
                     if k != l {
                         for q in 0..nsx {
-                            f4[(i, j, k, q)] += vik * a[(l, q)];
-                            f4[(i, j, l, q)] += vik * a[(k, q)];
-                            f4[(i, k, l, q)] += vik * a[(j, q)];
-                            f4[(j, k, l, q)] += vik * a[(i, q)];
+                            f4[(i, j, k, q)] += vik * bs[(l, q)];
+                            f4[(i, j, l, q)] += vik * bs[(k, q)];
+                            f4[(i, k, l, q)] += vik * bs[(j, q)];
+                            f4[(j, k, l, q)] += vik * bs[(i, q)];
                         }
                     } else {
                         for q in 0..nsx {
-                            f4[(i, j, k, q)] += vik * a[(k, q)];
-                            f4[(i, k, k, q)] += vik * a[(j, q)];
-                            f4[(j, k, k, q)] += vik * a[(i, q)];
+                            f4[(i, j, k, q)] += vik * bs[(k, q)];
+                            f4[(i, k, k, q)] += vik * bs[(j, q)];
+                            f4[(j, k, k, q)] += vik * bs[(i, q)];
                         }
                     }
                 } else if k != l {
                     for q in 0..nsx {
-                        f4[(i, j, j, q)] += vik * a[(l, q)];
-                        f4[(i, j, l, q)] += vik * a[(j, q)];
-                        f4[(j, j, l, q)] += vik * a[(i, q)];
+                        f4[(i, j, j, q)] += vik * bs[(l, q)];
+                        f4[(i, j, l, q)] += vik * bs[(j, q)];
+                        f4[(j, j, l, q)] += vik * bs[(i, q)];
                     }
                 } else {
                     for q in 0..nsx {
-                        f4[(i, j, j, q)] += vik * a[(j, q)];
-                        f4[(j, j, j, q)] += vik * a[(i, q)];
+                        f4[(i, j, j, q)] += vik * bs[(j, q)];
+                        f4[(j, j, j, q)] += vik * bs[(i, q)];
                     }
                 }
             } else if j != k {
                 if k != l {
                     for q in 0..nsx {
-                        f4[(i, i, k, q)] += vik * a[(l, q)];
-                        f4[(i, i, l, q)] += vik * a[(k, q)];
-                        f4[(i, k, l, q)] += vik * a[(i, q)];
+                        f4[(i, i, k, q)] += vik * bs[(l, q)];
+                        f4[(i, i, l, q)] += vik * bs[(k, q)];
+                        f4[(i, k, l, q)] += vik * bs[(i, q)];
                     }
                 } else {
                     for q in 0..nsx {
-                        f4[(i, i, k, q)] += vik * a[(k, q)];
-                        f4[(i, k, k, q)] += vik * a[(i, q)];
+                        f4[(i, i, k, q)] += vik * bs[(k, q)];
+                        f4[(i, k, k, q)] += vik * bs[(i, q)];
                     }
                 }
             } else if k != l {
                 for q in 0..nsx {
-                    f4[(i, i, i, q)] += vik * a[(l, q)];
-                    f4[(i, i, l, q)] += vik * a[(i, q)];
+                    f4[(i, i, i, q)] += vik * bs[(l, q)];
+                    f4[(i, i, l, q)] += vik * bs[(i, q)];
                 }
             } else {
                 for q in 0..nsx {
-                    f4[(i, i, i, q)] += vik * a[(i, q)];
+                    f4[(i, i, i, q)] += vik * bs[(i, q)];
                 }
             }
             if l < k {
@@ -1199,24 +1199,24 @@ impl Intder {
             if i != j {
                 if j != k {
                     for p in 0..=q {
-                        f4[(i, j, p, q)] += vik * a[(k, p)];
-                        f4[(i, k, p, q)] += vik * a[(j, p)];
-                        f4[(j, k, p, q)] += vik * a[(i, p)];
+                        f4[(i, j, p, q)] += vik * bs[(k, p)];
+                        f4[(i, k, p, q)] += vik * bs[(j, p)];
+                        f4[(j, k, p, q)] += vik * bs[(i, p)];
                     }
                 } else {
                     for p in 0..=q {
-                        f4[(i, j, p, q)] += vik * a[(j, p)];
-                        f4[(j, j, p, q)] += vik * a[(i, p)];
+                        f4[(i, j, p, q)] += vik * bs[(j, p)];
+                        f4[(j, j, p, q)] += vik * bs[(i, p)];
                     }
                 }
             } else if j != k {
                 for p in 0..=q {
-                    f4[(i, i, p, q)] += vik * a[(k, p)];
-                    f4[(i, k, p, q)] += vik * a[(i, p)];
+                    f4[(i, i, p, q)] += vik * bs[(k, p)];
+                    f4[(i, k, p, q)] += vik * bs[(i, p)];
                 }
             } else {
                 for p in 0..=q {
-                    f4[(i, i, p, q)] += vik * a[(i, p)];
+                    f4[(i, i, p, q)] += vik * bs[(i, p)];
                 }
             }
             if q < nsx - 1 {
@@ -1270,12 +1270,12 @@ impl Intder {
         for vik in v {
             if i != j {
                 for n in 0..=p {
-                    f4[(i, n, p, q)] += vik * a[(j, n)];
-                    f4[(j, n, p, q)] += vik * a[(i, n)];
+                    f4[(i, n, p, q)] += vik * bs[(j, n)];
+                    f4[(j, n, p, q)] += vik * bs[(i, n)];
                 }
             } else {
                 for n in 0..=p {
-                    f4[(i, n, p, q)] += vik * a[(i, n)];
+                    f4[(i, n, p, q)] += vik * bs[(i, n)];
                 }
             }
             if p < q {
@@ -1327,7 +1327,7 @@ impl Intder {
         // begin 224 loop
         for vik in v {
             for m in 0..=n {
-                f4[(m, n, p, q)] += vik * a[(i, m)];
+                f4[(m, n, p, q)] += vik * bs[(i, m)];
             }
             if i < nsy - 1 {
                 i += 1;
