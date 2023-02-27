@@ -1038,8 +1038,7 @@ impl Intder {
                 f2[(n, m)] = f2[(m, n)];
             }
         }
-        let f2 = f2 * ANGBOHR * ANGBOHR / HART;
-        f2.resize(nsx, nsx, 0.0)
+        f2.resize(nsx, nsx, 0.0) * ANGBOHR * ANGBOHR / HART
     }
 
     pub fn lintr_fc3(&self, a: &DMat) -> Tensor3 {
