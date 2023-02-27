@@ -396,6 +396,10 @@ pub fn fc4_index(i: usize, j: usize, k: usize, l: usize) -> usize {
         - 1
 }
 
+fn get_fc3(v: &[f64], i: usize, j: usize, k: usize) -> f64 {
+    *v.get(fc3_index(i + 1, j + 1, k + 1)).unwrap_or(&0.0)
+}
+
 #[derive(Debug)]
 pub enum IntderError {
     DispError(String),
@@ -602,6 +606,10 @@ impl Intder {
     /// return the number of dummy atoms
     pub fn ndum(&self) -> usize {
         self.input_options[7]
+    }
+
+    fn get_fc3(&self, i: usize, j: usize, k: usize) -> f64 {
+        get_fc3(&self.fc3, i, j, k)
     }
 
     pub fn print_geom(&self) {
