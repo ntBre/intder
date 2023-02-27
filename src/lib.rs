@@ -1010,81 +1010,81 @@ impl Intder {
         f2.resize(nsx, nsx, 0.0) * ANGBOHR * ANGBOHR / HART
     }
 
-pub fn lintr_fc3(&self, bs: &DMat) -> Tensor3 {
-    let nsx = self.ncart() - 3 * self.ndum();
-    let nsy = self.nsym();
+    pub fn lintr_fc3(&self, bs: &DMat) -> Tensor3 {
+        let nsx = self.ncart() - 3 * self.ndum();
+        let nsy = self.nsym();
 
-    let mut f3 = Tensor3::zeros(nsx, nsx, nsx);
-    for i in 0..nsy {
-        for j in 0..=i {
-            for k in 0..=j {
-                let vik = self.get_fc3(i, j, k);
-                if i != j && j != k {
-                    for p in 0..nsx {
-                        f3[(i, j, p)] += vik * bs[(k, p)];
-                        f3[(i, k, p)] += vik * bs[(j, p)];
-                        f3[(j, k, p)] += vik * bs[(i, p)];
-                    }
-                } else if i != j && j == k {
-                    for p in 0..nsx {
-                        f3[(i, j, p)] += vik * bs[(j, p)];
-                        f3[(j, j, p)] += vik * bs[(i, p)];
-                    }
-                } else if i == j && j != k {
-                    for p in 0..nsx {
-                        f3[(i, i, p)] += vik * bs[(k, p)];
-                        f3[(i, k, p)] += vik * bs[(i, p)];
-                    }
-                } else if i == j && j == k {
-                    for p in 0..nsx {
-                        f3[(i, i, p)] += vik * bs[(i, p)];
-                    }
-                } else {
-                    unreachable!()
-                }
-            }
-        }
-    }
-    // end of 1138 loop, looking good so far
-
-    let f3_disk = f3;
-    let mut f3 = Tensor3::zeros(nsx, nsx, nsx);
-    for p in 0..nsx {
+        let mut f3 = Tensor3::zeros(nsx, nsx, nsx);
         for i in 0..nsy {
             for j in 0..=i {
-                let vik = f3_disk[(i, j, p)];
-                if i != j {
-                    for n in 0..=p {
-                        f3[(i, n, p)] += vik * bs[(j, n)];
-                        f3[(j, n, p)] += vik * bs[(i, n)];
-                    }
-                } else {
-                    for n in 0..=p {
-                        f3[(i, n, p)] += vik * bs[(i, n)];
+                for k in 0..=j {
+                    let vik = self.get_fc3(i, j, k);
+                    if i != j && j != k {
+                        for p in 0..nsx {
+                            f3[(i, j, p)] += vik * bs[(k, p)];
+                            f3[(i, k, p)] += vik * bs[(j, p)];
+                            f3[(j, k, p)] += vik * bs[(i, p)];
+                        }
+                    } else if i != j && j == k {
+                        for p in 0..nsx {
+                            f3[(i, j, p)] += vik * bs[(k, p)];
+                            f3[(j, k, p)] += vik * bs[(i, p)];
+                        }
+                    } else if i == j && j != k {
+                        for p in 0..nsx {
+                            f3[(i, j, p)] += vik * bs[(k, p)];
+                            f3[(i, k, p)] += vik * bs[(j, p)];
+                        }
+                    } else if i == j && j == k {
+                        for p in 0..nsx {
+                            f3[(i, i, p)] += vik * bs[(i, p)];
+                        }
+                    } else {
+                        unreachable!()
                     }
                 }
             }
         }
-    }
-    // end of 1146 loop, looking good again
+        // end of 1138 loop, looking good so far
 
-    let f3_disk2 = f3;
-    let mut f3 = Tensor3::zeros(nsx, nsx, nsx);
-    for i in 0..nsy {
-        for p in 0..nsx {
-            for n in 0..=p {
-                let vik = f3_disk2[(i, n, p)];
-                for m in 0..=n {
-                    f3[(m, n, p)] += vik * bs[(i, m)];
+        let f3_disk = f3;
+        let mut f3 = Tensor3::zeros(nsx, nsx, nsx);
+        for i in 0..nsy {
+            for j in 0..=i {
+                for p in 0..nsx {
+                    let vik = f3_disk[(i, j, p)];
+                    if i != j {
+                        for n in 0..=p {
+                            f3[(i, n, p)] += vik * bs[(j, n)];
+                            f3[(j, n, p)] += vik * bs[(i, n)];
+                        }
+                    } else {
+                        for n in 0..=p {
+                            f3[(i, n, p)] += vik * bs[(i, n)];
+                        }
+                    }
                 }
             }
         }
-    }
-    // end of 1152 loop, still looking good
+        // end of 1146 loop, looking good again
 
-    f3.fill3a(nsx);
-    f3
-}
+        let f3_disk2 = f3;
+        let mut f3 = Tensor3::zeros(nsx, nsx, nsx);
+        for i in 0..nsy {
+            for p in 0..nsx {
+                for n in 0..=p {
+                    let vik = f3_disk2[(i, n, p)];
+                    for m in 0..=n {
+                        f3[(m, n, p)] += vik * bs[(i, m)];
+                    }
+                }
+            }
+        }
+        // end of 1152 loop, still looking good
+
+        f3.fill3a(nsx);
+        f3
+    }
 
     pub fn lintr_fc4(&self, a: &DMat) -> Tensor4 {
         let nsx = self.ncart() - 3 * self.ndum();
