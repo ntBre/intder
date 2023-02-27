@@ -1010,47 +1010,38 @@ impl Intder {
         f2.resize(nsx, nsx, 0.0) * ANGBOHR * ANGBOHR / HART
     }
 
-    pub fn lintr_fc3(&self, a: &DMat) -> Tensor3 {
+    pub fn lintr_fc3(&self, bs: &DMat) -> Tensor3 {
         let nsx = self.ncart() - 3 * self.ndum();
         let nsy = self.nsym();
-        let v = &self.fc3;
-        let mut i = 0;
-        let mut j = 0;
-        let mut k = 0;
         let mut f3 = Tensor3::zeros(nsx, nsx, nsx);
-        for vik in v {
-            if i != j {
-                if j != k {
-                    for p in 0..nsx {
-                        f3[(i, j, p)] += vik * a[(k, p)];
-                        f3[(i, k, p)] += vik * a[(j, p)];
-                        f3[(j, k, p)] += vik * a[(i, p)];
+        for i in 0..nsy {
+            for j in 0..=i {
+                for k in 0..=j {
+                    let vik = self.get_fc3(i, j, k);
+                    if i != j && j != k {
+                        for p in 0..nsx {
+                            f3[(i, j, p)] += vik * bs[(k, p)];
+                            f3[(i, k, p)] += vik * bs[(j, p)];
+                            f3[(j, k, p)] += vik * bs[(i, p)];
+                        }
+                    } else if i != j && j == k {
+                        for p in 0..nsx {
+                            f3[(i, j, p)] += vik * bs[(j, p)];
+                            f3[(j, j, p)] += vik * bs[(i, p)];
+                        }
+                    } else if i == j && j != k {
+                        for p in 0..nsx {
+                            f3[(i, i, p)] += vik * bs[(k, p)];
+                            f3[(i, k, p)] += vik * bs[(i, p)];
+                        }
+                    } else if i == j && j == k {
+                        for p in 0..nsx {
+                            f3[(i, i, p)] += vik * bs[(i, p)];
+                        }
+                    } else {
+                        unreachable!()
                     }
-                } else {
-                    for p in 0..nsx {
-                        f3[(i, j, p)] += vik * a[(j, p)];
-                        f3[(j, j, p)] += vik * a[(i, p)];
-                    }
                 }
-            } else if j != k {
-                for p in 0..nsx {
-                    f3[(i, i, p)] += vik * a[(k, p)];
-                    f3[(i, k, p)] += vik * a[(i, p)];
-                }
-            } else {
-                for p in 0..nsx {
-                    f3[(i, i, p)] += vik * a[(i, p)];
-                }
-            }
-            if k < j {
-                k += 1;
-            } else if j < i {
-                j += 1;
-                k = 0;
-            } else {
-                i += 1;
-                j = 0;
-                k = 0;
             }
         }
         // end of 1138 loop, looking good so far
@@ -1065,41 +1056,21 @@ impl Intder {
                 }
             }
         }
-        // flatten f3_disk into the vector the fortran uses
-        let v = {
-            let mut v = Vec::new();
+        for p in 0..nsx {
             for i in 0..nsy {
                 for j in 0..=i {
-                    for p in 0..nsx {
-                        v.push(f3_disk[(i, j, p)]);
+                    let vik = f3_disk[(i, j, p)];
+                    if i != j {
+                        for n in 0..=p {
+                            f3[(i, n, p)] += vik * bs[(j, n)];
+                            f3[(j, n, p)] += vik * bs[(i, n)];
+                        }
+                    } else {
+                        for n in 0..=p {
+                            f3[(i, n, p)] += vik * bs[(i, n)];
+                        }
                     }
                 }
-            }
-            v
-        };
-        let mut i = 0;
-        let mut j = 0;
-        let mut p = 0;
-        for vik in v {
-            if i != j {
-                for n in 0..=p {
-                    f3[(i, n, p)] += vik * a[(j, n)];
-                    f3[(j, n, p)] += vik * a[(i, n)];
-                }
-            } else {
-                for n in 0..=p {
-                    f3[(i, n, p)] += vik * a[(i, n)];
-                }
-            }
-            if p < nsx - 1 {
-                p += 1;
-            } else if j < i {
-                j += 1;
-                p = 0;
-            } else {
-                i += 1;
-                j = 0;
-                p = 0;
             }
         }
         // end of 1146 loop, looking good again
@@ -1112,34 +1083,15 @@ impl Intder {
                 }
             }
         }
-        // flatten f3_disk2 into the vector the fortran uses
-        let v = {
-            let mut v = Vec::new();
+
+        for i in 0..nsy {
             for p in 0..nsx {
                 for n in 0..=p {
-                    for i in 0..nsy {
-                        v.push(f3_disk2[(i, n, p)]);
+                    let vik = f3_disk2[(i, n, p)];
+                    for m in 0..=n {
+                        f3[(m, n, p)] += vik * bs[(i, m)];
                     }
                 }
-            }
-            v
-        };
-        let mut i = 0;
-        let mut n = 0;
-        let mut p = 0;
-        for vik in v {
-            for m in 0..=n {
-                f3[(m, n, p)] += vik * a[(i, m)];
-            }
-            if i < nsy - 1 {
-                i += 1;
-            } else if n < p {
-                n += 1;
-                i = 0;
-            } else {
-                p += 1;
-                n = 0;
-                i = 0;
             }
         }
         // end of 1152 loop, still looking good
