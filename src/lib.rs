@@ -400,6 +400,10 @@ fn get_fc3(v: &[f64], i: usize, j: usize, k: usize) -> f64 {
     *v.get(fc3_index(i + 1, j + 1, k + 1)).unwrap_or(&0.0)
 }
 
+fn get_fc4(v: &[f64], i: usize, j: usize, k: usize, l: usize) -> f64 {
+    *v.get(fc4_index(i + 1, j + 1, k + 1, l + 1)).unwrap_or(&0.0)
+}
+
 #[derive(Debug)]
 pub enum IntderError {
     DispError(String),
@@ -610,6 +614,10 @@ impl Intder {
 
     fn get_fc3(&self, i: usize, j: usize, k: usize) -> f64 {
         get_fc3(&self.fc3, i, j, k)
+    }
+
+    fn get_fc4(&self, i: usize, j: usize, k: usize, l: usize) -> f64 {
+        get_fc4(&self.fc4, i, j, k, l)
     }
 
     pub fn print_geom(&self) {
