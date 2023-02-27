@@ -1097,260 +1097,146 @@ impl Intder {
     pub fn lintr_fc4(&self, bs: &DMat) -> Tensor4 {
         let nsx = self.ncart() - 3 * self.ndum();
         let nsy = self.nsym();
-        let v = &self.fc4;
-        let mut i = 0;
-        let mut j = 0;
-        let mut k = 0;
-        let mut l = 0;
         let mut f4 = Tensor4::zeros(nsx, nsx, nsx, nsx);
-        for vik in v {
-            if i != j {
-                if j != k {
-                    if k != l {
-                        for q in 0..nsx {
-                            f4[(i, j, k, q)] += vik * bs[(l, q)];
-                            f4[(i, j, l, q)] += vik * bs[(k, q)];
-                            f4[(i, k, l, q)] += vik * bs[(j, q)];
-                            f4[(j, k, l, q)] += vik * bs[(i, q)];
+        for i in 0..nsy {
+            for j in 0..=i {
+                for k in 0..=j {
+                    for l in 0..=k {
+                        let vik = self.get_fc4(i, j, k, l);
+                        if i != j {
+                            if j != k {
+                                if k != l {
+                                    for q in 0..nsx {
+                                        f4[(i, j, k, q)] += vik * bs[(l, q)];
+                                        f4[(i, j, l, q)] += vik * bs[(k, q)];
+                                        f4[(i, k, l, q)] += vik * bs[(j, q)];
+                                        f4[(j, k, l, q)] += vik * bs[(i, q)];
+                                    }
+                                } else {
+                                    for q in 0..nsx {
+                                        f4[(i, j, k, q)] += vik * bs[(k, q)];
+                                        f4[(i, k, k, q)] += vik * bs[(j, q)];
+                                        f4[(j, k, k, q)] += vik * bs[(i, q)];
+                                    }
+                                }
+                            } else if k != l {
+                                for q in 0..nsx {
+                                    f4[(i, j, j, q)] += vik * bs[(l, q)];
+                                    f4[(i, j, l, q)] += vik * bs[(j, q)];
+                                    f4[(j, j, l, q)] += vik * bs[(i, q)];
+                                }
+                            } else {
+                                for q in 0..nsx {
+                                    f4[(i, j, j, q)] += vik * bs[(j, q)];
+                                    f4[(j, j, j, q)] += vik * bs[(i, q)];
+                                }
+                            }
+                        } else if j != k {
+                            if k != l {
+                                for q in 0..nsx {
+                                    f4[(i, i, k, q)] += vik * bs[(l, q)];
+                                    f4[(i, i, l, q)] += vik * bs[(k, q)];
+                                    f4[(i, k, l, q)] += vik * bs[(i, q)];
+                                }
+                            } else {
+                                for q in 0..nsx {
+                                    f4[(i, i, k, q)] += vik * bs[(k, q)];
+                                    f4[(i, k, k, q)] += vik * bs[(i, q)];
+                                }
+                            }
+                        } else if k != l {
+                            for q in 0..nsx {
+                                f4[(i, i, i, q)] += vik * bs[(l, q)];
+                                f4[(i, i, l, q)] += vik * bs[(i, q)];
+                            }
+                        } else {
+                            for q in 0..nsx {
+                                f4[(i, i, i, q)] += vik * bs[(i, q)];
+                            }
                         }
-                    } else {
-                        for q in 0..nsx {
-                            f4[(i, j, k, q)] += vik * bs[(k, q)];
-                            f4[(i, k, k, q)] += vik * bs[(j, q)];
-                            f4[(j, k, k, q)] += vik * bs[(i, q)];
-                        }
-                    }
-                } else if k != l {
-                    for q in 0..nsx {
-                        f4[(i, j, j, q)] += vik * bs[(l, q)];
-                        f4[(i, j, l, q)] += vik * bs[(j, q)];
-                        f4[(j, j, l, q)] += vik * bs[(i, q)];
-                    }
-                } else {
-                    for q in 0..nsx {
-                        f4[(i, j, j, q)] += vik * bs[(j, q)];
-                        f4[(j, j, j, q)] += vik * bs[(i, q)];
                     }
                 }
-            } else if j != k {
-                if k != l {
-                    for q in 0..nsx {
-                        f4[(i, i, k, q)] += vik * bs[(l, q)];
-                        f4[(i, i, l, q)] += vik * bs[(k, q)];
-                        f4[(i, k, l, q)] += vik * bs[(i, q)];
-                    }
-                } else {
-                    for q in 0..nsx {
-                        f4[(i, i, k, q)] += vik * bs[(k, q)];
-                        f4[(i, k, k, q)] += vik * bs[(i, q)];
-                    }
-                }
-            } else if k != l {
-                for q in 0..nsx {
-                    f4[(i, i, i, q)] += vik * bs[(l, q)];
-                    f4[(i, i, l, q)] += vik * bs[(i, q)];
-                }
-            } else {
-                for q in 0..nsx {
-                    f4[(i, i, i, q)] += vik * bs[(i, q)];
-                }
-            }
-            if l < k {
-                l += 1;
-            } else if k < j {
-                k += 1;
-                l = 0;
-            } else if j < i {
-                j += 1;
-                k = 0;
-                l = 0;
-            } else {
-                i += 1;
-                j = 0;
-                k = 0;
-                l = 0;
             }
         }
         // end 179 loop, looking good so far
 
-        let f4_disk = f4.clone();
-        for q in 0..nsx {
-            for p in 0..=q {
-                for i in 0..nsy {
-                    for j in 0..=i {
-                        f4[(i, j, p, q)] = 0.0;
-                    }
-                }
-            }
-        }
-        // flatten f4_disk into the vector the fortran uses
-        let v = {
-            let mut v = Vec::new();
-            for i in 0..nsy {
-                for j in 0..=i {
-                    for k in 0..=j {
-                        for q in 0..nsx {
-                            v.push(f4_disk[(i, j, k, q)]);
+        let f4_disk = f4;
+        let mut f4 = Tensor4::zeros(nsx, nsx, nsx, nsx);
+
+        // loop starting at line 444
+        for i in 0..nsy {
+            for j in 0..=i {
+                for k in 0..=j {
+                    for q in 0..nsx {
+                        let vik = f4_disk[(i, j, k, q)];
+                        if i != j {
+                            if j != k {
+                                for p in 0..=q {
+                                    f4[(i, j, p, q)] += vik * bs[(k, p)];
+                                    f4[(i, k, p, q)] += vik * bs[(j, p)];
+                                    f4[(j, k, p, q)] += vik * bs[(i, p)];
+                                }
+                            } else {
+                                for p in 0..=q {
+                                    f4[(i, j, p, q)] += vik * bs[(j, p)];
+                                    f4[(j, j, p, q)] += vik * bs[(i, p)];
+                                }
+                            }
+                        } else if j != k {
+                            for p in 0..=q {
+                                f4[(i, i, p, q)] += vik * bs[(k, p)];
+                                f4[(i, k, p, q)] += vik * bs[(i, p)];
+                            }
+                        } else {
+                            for p in 0..=q {
+                                f4[(i, i, p, q)] += vik * bs[(i, p)];
+                            }
                         }
                     }
                 }
-            }
-            v
-        };
-
-        let mut i = 0;
-        let mut j = 0;
-        let mut k = 0;
-        let mut q = 0;
-        // loop starting at line 444
-        for vik in v {
-            if i != j {
-                if j != k {
-                    for p in 0..=q {
-                        f4[(i, j, p, q)] += vik * bs[(k, p)];
-                        f4[(i, k, p, q)] += vik * bs[(j, p)];
-                        f4[(j, k, p, q)] += vik * bs[(i, p)];
-                    }
-                } else {
-                    for p in 0..=q {
-                        f4[(i, j, p, q)] += vik * bs[(j, p)];
-                        f4[(j, j, p, q)] += vik * bs[(i, p)];
-                    }
-                }
-            } else if j != k {
-                for p in 0..=q {
-                    f4[(i, i, p, q)] += vik * bs[(k, p)];
-                    f4[(i, k, p, q)] += vik * bs[(i, p)];
-                }
-            } else {
-                for p in 0..=q {
-                    f4[(i, i, p, q)] += vik * bs[(i, p)];
-                }
-            }
-            if q < nsx - 1 {
-                q += 1;
-            } else if k < j {
-                k += 1;
-                q = 0;
-            } else if j < i {
-                j += 1;
-                k = 0;
-                q = 0;
-            } else {
-                i += 1;
-                j = 0;
-                k = 0;
-                q = 0;
             }
         }
         // end 200 loop
 
-        let f4_disk2 = f4.clone();
-        for q in 0..nsx {
-            for p in 0..=q {
-                for n in 0..=p {
-                    for i in 0..nsy {
-                        f4[(i, n, p, q)] = 0.0;
-                    }
-                }
-            }
-        }
-        // flatten f4_disk2 into the vector the fortran uses
-        let v = {
-            let mut v = Vec::new();
-            for i in 0..nsy {
-                for j in 0..=i {
-                    for q in 0..nsx {
-                        for p in 0..=q {
-                            v.push(f4_disk2[(i, j, p, q)]);
+        let f4_disk2 = f4;
+        let mut f4 = Tensor4::zeros(nsx, nsx, nsx, nsx);
+
+        // start of loop at 514
+        for i in 0..nsy {
+            for j in 0..=i {
+                for q in 0..nsx {
+                    for p in 0..=q {
+                        let vik = f4_disk2[(i, j, p, q)];
+                        if i != j {
+                            for n in 0..=p {
+                                f4[(i, n, p, q)] += vik * bs[(j, n)];
+                                f4[(j, n, p, q)] += vik * bs[(i, n)];
+                            }
+                        } else {
+                            for n in 0..=p {
+                                f4[(i, n, p, q)] += vik * bs[(i, n)];
+                            }
                         }
                     }
                 }
-            }
-            v
-        };
-
-        let mut p = 0;
-        let mut q = 0;
-        let mut i = 0;
-        let mut j = 0;
-        // start of loop at 514
-        for vik in v {
-            if i != j {
-                for n in 0..=p {
-                    f4[(i, n, p, q)] += vik * bs[(j, n)];
-                    f4[(j, n, p, q)] += vik * bs[(i, n)];
-                }
-            } else {
-                for n in 0..=p {
-                    f4[(i, n, p, q)] += vik * bs[(i, n)];
-                }
-            }
-            if p < q {
-                p += 1;
-            } else if q < nsx - 1 {
-                q += 1;
-                p = 0;
-            } else if j < i {
-                j += 1;
-                p = 0;
-                q = 0;
-            } else {
-                i += 1;
-                j = 0;
-                p = 0;
-                q = 0;
             }
         }
         // end of 214 loop, looking good
 
-        let v = {
-            let mut v = Vec::new();
-            for q in 0..nsx {
-                for p in 0..=q {
-                    for n in 0..=p {
-                        for i in 0..nsy {
-                            v.push(f4[(i, n, p, q)]);
-                        }
-                    }
-                }
-            }
-            v
-        };
+        let f4_disk2 = f4;
+        let mut f4 = Tensor4::zeros(nsx, nsx, nsx, nsx);
 
+        // begin 224 loop
         for q in 0..nsx {
             for p in 0..=q {
                 for n in 0..=p {
-                    for m in 0..=n {
-                        f4[(m, n, p, q)] = 0.0;
+                    for i in 0..nsy {
+                        let vik = f4_disk2[(i, n, p, q)];
+                        for m in 0..=n {
+                            f4[(m, n, p, q)] += vik * bs[(i, m)];
+                        }
                     }
                 }
-            }
-        }
-
-        let mut n = 0;
-        let mut p = 0;
-        let mut q = 0;
-        let mut i = 0;
-        // begin 224 loop
-        for vik in v {
-            for m in 0..=n {
-                f4[(m, n, p, q)] += vik * bs[(i, m)];
-            }
-            if i < nsy - 1 {
-                i += 1;
-            } else if n < p {
-                n += 1;
-                i = 0;
-            } else if p < q {
-                p += 1;
-                n = 0;
-                i = 0;
-            } else {
-                q += 1;
-                p = 0;
-                n = 0;
-                i = 0;
             }
         }
         // end 224 loop
