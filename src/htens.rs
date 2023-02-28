@@ -255,16 +255,15 @@ impl Htens {
             + h.h223.view().permuted_axes((2, 0, 1))
             + h.h223.view().permuted_axes((0, 2, 1)))
             + h333a * w4;
+
         for k in 0..3 {
-            for j in k..3 {
-                for i in j..3 {
+            for j in 0..3 {
+                for i in 0..3 {
                     h.h111[(i, j, k)] += v1[i] * v1[j] * v1[k];
                     h.h333[(i, j, k)] += v3[i] * v3[j] * v3[k];
                 }
             }
         }
-        fill3b(&mut h.h111);
-        fill3b(&mut h.h333);
 
         for i in 0..3 {
             let w3 = v1[i] * ctphi + e21[i] * w1;
@@ -797,10 +796,7 @@ impl Htens {
         let t23 = geom.dist(*b, *c);
         let h11a = Hmat::new(geom, &Stretch(*a, *b)).h11;
         let h33a = Hmat::new(geom, &Stretch(*c, *b)).h11;
-        let hijs3 = Hmat::new(geom, siic);
-        let h11 = hijs3.h11;
-        let h31 = hijs3.h31;
-        let h33 = hijs3.h33;
+        let Hmat { h11, h31, h33, .. } = Hmat::new(geom, siic);
         let h111a = Self::new(geom, &Stretch(*a, *b)).h111;
         let h333a = Self::new(geom, &Stretch(*c, *b)).h111;
 
@@ -814,17 +810,18 @@ impl Htens {
         for k in 0..3 {
             for j in 0..3 {
                 for i in 0..3 {
-                    h.h221[(i, j, k)] =
-                        h11[(i, j)] * (v1[k] * tanth - e21[k] / t21);
-                    h.h221[(i, j, k)] += v1[k] * v1[j] * e21[i] * tanth / t21
+                    h.h221[(i, j, k)] = h11[(i, j)]
+                        * (v1[k] * tanth - e21[k] / t21)
+                        + v1[k] * v1[j] * e21[i] * tanth / t21
                         - (h11a[(i, j)] * v1[k]) / t21;
-                    h.h223[(i, j, k)] =
-                        h33[(i, j)] * (v3[k] * tanth - e23[k] / t23);
-                    h.h223[(i, j, k)] += v3[k] * v3[j] * e23[i] * tanth / t23;
-                    h.h223[(i, j, k)] -= (h33a[(i, j)] * v3[k]) / t23;
+                    h.h223[(i, j, k)] = h33[(i, j)]
+                        * (v3[k] * tanth - e23[k] / t23)
+                        + v3[k] * v3[j] * e23[i] * tanth / t23
+                        - (h33a[(i, j)] * v3[k]) / t23;
                 }
             }
         } // end 12
+
         for k in 0..3 {
             for j in k..3 {
                 for i in j..3 {
@@ -843,6 +840,7 @@ impl Htens {
         }
         fill3b(&mut h.h111);
         fill3b(&mut h.h333);
+
         for i in 0..3 {
             let w5 = v1[i] * tanth - e21[i] * w1;
             let w6 = v3[i] * tanth - e23[i] * w2;
@@ -853,6 +851,7 @@ impl Htens {
                 }
             }
         }
+
         let w5 = 1.0 / (costh * costh);
         for k in 0..3 {
             for j in 0..3 {
@@ -868,36 +867,17 @@ impl Htens {
                 }
             }
         }
-        for k in 0..3 {
-            for j in 0..3 {
-                for i in 0..3 {
-                    h.h123[(i, j, k)] =
-                        -(h.h331[(j, k, i)] + h.h113[(i, j, k)]);
-                    h.h112[(i, j, k)] =
-                        -(h.h111[(i, j, k)] + h.h113[(i, j, k)]);
-                    h.h332[(i, j, k)] =
-                        -(h.h333[(i, j, k)] + h.h331[(i, j, k)]);
-                }
-            }
-        }
-        for k in 0..3 {
-            for j in 0..3 {
-                for i in 0..3 {
-                    h.h221[(j, k, i)] =
-                        -(h.h123[(i, j, k)] + h.h112[(i, k, j)]);
-                    h.h223[(j, k, i)] =
-                        -(h.h332[(i, j, k)] + h.h123[(j, k, i)]);
-                }
-            }
-        }
-        for k in 0..3 {
-            for j in 0..3 {
-                for i in 0..3 {
-                    h.h222[(i, j, k)] =
-                        -(h.h223[(j, k, i)] + h.h221[(j, k, i)]);
-                }
-            }
-        }
+
+        h.h123 = -(&h.h331.clone().permuted_axes((2, 0, 1)) + &h.h113);
+        h.h112 = -(&h.h111 + &h.h113);
+        h.h332 = -(&h.h333 + &h.h331);
+
+        h.h221 = -(h.h123.clone().permuted_axes((1, 2, 0))
+            + h.h112.view().permuted_axes((2, 1, 0)));
+        h.h223 = -(h.h332.clone().permuted_axes((1, 2, 0)) + &h.h123);
+
+        h.h222 = -(h.h223.clone().permuted_axes((2, 0, 1))
+            + h.h221.view().permuted_axes((2, 0, 1)));
     }
 
     fn out(
