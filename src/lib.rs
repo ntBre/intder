@@ -1171,6 +1171,7 @@ impl Intder {
         f4
     }
 
+    /// harmonic contributions of S_x to the cubic and quartic force constants
     fn xf2(
         &self,
         mut f3: Tensor3,
@@ -1200,14 +1201,10 @@ impl Intder {
 
         // this should never be used as zeros. it will be set on the first
         // iteration when r == s == 0
-        let mut xt = DMat::zeros(nc, nc);
         let v = self.mat_fc2(ns);
-        for r in 0..ns {
+        for (r, xt) in xrs.iter().enumerate() {
             let mut xr = DMat::zeros(nc, nc);
             for (s, xs) in xrs.iter().enumerate() {
-                if r == s {
-                    xt = xs.clone();
-                }
                 for j in 0..nc {
                     for i in 0..nc {
                         xr[(i, j)] += v[(r, s)] * xs[(i, j)];
@@ -1231,35 +1228,21 @@ impl Intder {
         (f3, f4)
     }
 
+    /// cubic contributions of S_x to the quartic force constants
     fn xf3(&self, mut f4: Tensor4, bs: &DMat, xrs: &[DMat]) -> Tensor4 {
         let ns = self.nsym();
         let nc = self.ncart() - 3 * self.ndum();
-        // might need to turn this into a Tensor3 and call FILL3B on it, but
-        // we'll see
-        let yr = &self.fc3;
         for (r, xr) in xrs.iter().enumerate() {
             let mut xt = DMat::zeros(ns, nc);
             for l in 0..nc {
                 for n in 0..ns {
                     for p in 0..ns {
-                        if let Some(x) = yr.get(fc3_index(r + 1, n + 1, p + 1))
-                        {
-                            xt[(n, l)] += x * bs[(p, l)]
-                        }
-                        // else that element of fc3 was zero so the addition
-                        // would be zero as well
+                        let x = self.get_fc3(r, n, p);
+                        xt[(n, l)] += x * bs[(p, l)]
                     }
                 }
             }
-            let mut xs = DMat::zeros(nc, nc);
-            for l in 0..nc {
-                for k in 0..nc {
-                    for n in 0..ns {
-                        // I think this is xt.transpose() * bs
-                        xs[(k, l)] += xt[(n, l)] * bs[(n, k)];
-                    }
-                }
-            }
+            let xs = bs.transpose() * xt;
             for l in 0..nc {
                 for k in 0..=l {
                     for j in 0..=k {
@@ -1280,6 +1263,7 @@ impl Intder {
         f4
     }
 
+    /// harmonic contributions of S_y to the quartic force constants
     fn yf2(&self, mut f4: Tensor4, bs: &DMat, yrs: &[Tensor3]) -> Tensor4 {
         let nc = self.ncart() - 3 * self.ndum();
         let ns = self.nsym();
