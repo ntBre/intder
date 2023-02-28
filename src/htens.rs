@@ -784,8 +784,7 @@ impl Htens {
     ) {
         use Siic::*;
         let tmp = geom.s_vec(siic);
-        let v1 = &tmp[3 * a..3 * a + 3];
-        let v3 = &tmp[3 * c..3 * c + 3];
+        splat!(tmp, v1 => a, v3 => c);
         let th = siic.value(geom);
         let e21 = geom.unit(*b, *a);
         let e23 = geom.unit(*b, *c);
