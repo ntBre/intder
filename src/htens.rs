@@ -247,19 +247,19 @@ impl Htens {
             }
         }
 
+        h.h111 = -(h.h221.clone()
+            + h.h221.view().permuted_axes((2, 0, 1))
+            + h.h221.view().permuted_axes((0, 2, 1)))
+            + w3 * h111a;
+        h.h333 = -(h.h223.clone()
+            + h.h223.view().permuted_axes((2, 0, 1))
+            + h.h223.view().permuted_axes((0, 2, 1)))
+            + h333a * w4;
         for k in 0..3 {
             for j in k..3 {
                 for i in j..3 {
-                    h.h111[(i, j, k)] = -(h.h221[(i, j, k)]
-                        + h.h221[(j, k, i)]
-                        + h.h221[(i, k, j)])
-                        + v1[i] * v1[j] * v1[k]
-                        + h111a[(i, j, k)] * w3;
-                    h.h333[(i, j, k)] = -(h.h223[(i, j, k)]
-                        + h.h223[(j, k, i)]
-                        + h.h223[(i, k, j)])
-                        + v3[i] * v3[j] * v3[k]
-                        + h333a[(i, j, k)] * w4;
+                    h.h111[(i, j, k)] += v1[i] * v1[j] * v1[k];
+                    h.h333[(i, j, k)] += v3[i] * v3[j] * v3[k];
                 }
             }
         }
@@ -277,54 +277,28 @@ impl Htens {
             }
         }
 
+        h.h113 = -(h.h221.clone() + h.h221.view().permuted_axes((1, 0, 2)));
+        h.h331 = -(h.h223.clone() + h.h223.view().permuted_axes((1, 0, 2)));
         let w3 = 1.0 / (sphi * sphi);
         for k in 0..3 {
             for j in 0..3 {
                 for i in 0..3 {
-                    h.h113[(i, j, k)] =
-                        v3[k] * (v1[i] * v1[j] - h11a[(i, j)] * w1) * w3
-                            - h.h221[(i, j, k)]
-                            - h.h221[(j, i, k)];
-                    h.h331[(i, j, k)] =
-                        v1[k] * (v3[i] * v3[j] - h33a[(i, j)] * w2) * w3
-                            - h.h223[(i, j, k)]
-                            - h.h223[(j, i, k)];
+                    h.h113[(i, j, k)] +=
+                        v3[k] * (v1[i] * v1[j] - h11a[(i, j)] * w1) * w3;
+                    h.h331[(i, j, k)] +=
+                        v1[k] * (v3[i] * v3[j] - h33a[(i, j)] * w2) * w3;
                 }
             }
         }
 
-        for k in 0..3 {
-            for j in 0..3 {
-                for i in 0..3 {
-                    h.h123[(i, j, k)] =
-                        -(h.h331[(j, k, i)] + h.h113[(i, j, k)]);
-                    h.h112[(i, j, k)] =
-                        -(h.h111[(i, j, k)] + h.h113[(i, j, k)]);
-                    h.h332[(i, j, k)] =
-                        -(h.h333[(i, j, k)] + h.h331[(i, j, k)]);
-                }
-            }
-        }
-
-        for k in 0..3 {
-            for j in 0..3 {
-                for i in 0..3 {
-                    h.h221[(j, k, i)] =
-                        -(h.h123[(i, j, k)] + h.h112[(i, k, j)]);
-                    h.h223[(j, k, i)] =
-                        -(h.h332[(i, j, k)] + h.h123[(j, k, i)]);
-                }
-            }
-        }
-
-        for k in 0..3 {
-            for j in 0..3 {
-                for i in 0..3 {
-                    h.h222[(i, j, k)] =
-                        -(h.h223[(j, k, i)] + h.h221[(j, k, i)]);
-                }
-            }
-        }
+        h.h123 = -(h.h331.clone().permuted_axes((2, 0, 1)) + &h.h113);
+        h.h112 = -(&h.h111 + &h.h113);
+        h.h332 = -(&h.h333 + &h.h331);
+        h.h221 = -(h.h123.clone().permuted_axes((1, 2, 0))
+            + h.h112.view().permuted_axes((2, 1, 0)));
+        h.h223 = -(h.h332.clone().permuted_axes((1, 2, 0)) + &h.h123);
+        h.h222 = -(h.h223.clone().permuted_axes((2, 0, 1))
+            + h.h221.view().permuted_axes((2, 0, 1)));
     }
 
     #[allow(clippy::needless_range_loop)]
