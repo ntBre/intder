@@ -899,15 +899,12 @@ impl Htens {
         // vect2 call
         let phi = Siic::Bend(*c, *b, *d).value(geom);
         let svec = geom.s_vec(&Siic::Bend(*c, *b, *d));
-        let bp3 = &svec[3 * c..3 * c + 3];
-        let bp4 = &svec[3 * d..3 * d + 3];
+        splat!(svec, bp3 => c, bp4 => d);
 
         // vect5 call
         let svec = geom.s_vec(siic);
         let gamma = siic.value(geom);
-        let v1 = &svec[3 * a..3 * a + 3];
-        let v3 = &svec[3 * c..3 * c + 3];
-        let v4 = &svec[3 * d..3 * d + 3];
+        splat!(svec, v1 => a, v3 => c, v4 => d);
 
         // hijs1 call
         let ht11 = Hmat::new(geom, &Siic::Stretch(*a, *b)).h11;
@@ -945,11 +942,9 @@ impl Htens {
         let cp24 = Hmat::mat1(&e24);
         let cp2124 = e21.cross(&e24);
         let cg = gamma.cos();
-        let sg = gamma.sin();
-        let tg = sg / cg;
-        let cp = phi.cos();
+        let tg = gamma.tan();
         let sp = phi.sin();
-        let ctp = cp / sp;
+        let ctp = phi.cos() / sp;
         let c1 = 1.0 / t21;
         let s2g = 1.0 / (cg * cg);
         let c3 = 1.0 / t23;
@@ -1024,20 +1019,18 @@ impl Htens {
         fill3b(&mut h.h444);
 
         for k in 0..3 {
-            for j in 0..=k {
+            for j in 0..3 {
                 for i in 0..3 {
                     h.h113[(j, k, i)] = s2g * v3[i] * v1[j] * v1[k]
                         + tg * h31[(i, j)] * v1[k]
                         + tg * h31[(i, k)] * v1[j]
                         - c1 * (e21[j] * h31[(i, k)] + e21[k] * h31[(i, j)])
                         - c1112 * ht11[(j, k)] * v3[i];
-                    h.h113[(k, j, i)] = h.h113[(j, k, i)];
                     h.h411[(i, j, k)] = s2g * v4[i] * v1[j] * v1[k]
                         + tg * h41[(i, j)] * v1[k]
                         + tg * h41[(i, k)] * v1[j]
                         - c1 * (e21[j] * h41[(i, k)] + e21[k] * h41[(i, j)])
                         - c1112 * ht11[(j, k)] * v4[i];
-                    h.h411[(i, k, j)] = h.h411[(i, j, k)];
                     h.h433[(i, j, k)] = c3331
                         * (h43[(i, j)] * bp4[k]
                             + hp44[(i, k)] * v3[j]
@@ -1051,13 +1044,12 @@ impl Htens {
                             * (tg * h43[(i, j)] + s2g * v4[i] * v3[j]
                                 - ctp * hp43[(i, j)]
                                 + c2p * bp4[i] * bp3[j]);
-                    h.h433[(i, k, j)] = h.h433[(i, j, k)];
                 }
             }
         } // end 22 loop
 
         for i in 0..3 {
-            for j in 0..=i {
+            for j in 0..3 {
                 for k in 0..3 {
                     h.h331[(i, j, k)] = c3331 * h31[(i, k)] * bp4[j]
                         + c3333 * hp43[(j, i)] * v1[k]
@@ -1065,14 +1057,12 @@ impl Htens {
                             * h31[(j, k)]
                         + tg * h31[(i, k)] * v3[j]
                         + s2g * v3[i] * v3[j] * v1[k];
-                    h.h331[(j, i, k)] = h.h331[(i, j, k)];
                     h.h441[(i, j, k)] = c4411 * h41[(i, k)] * bp3[j]
                         + c4412 * hp43[(i, j)] * v1[k]
                         + (tg * v4[i] - ctp * bp4[i] - c4 * e24[i])
                             * h41[(j, k)]
                         + tg * h41[(i, k)] * v4[j]
                         + s2g * v4[i] * v4[j] * v1[k];
-                    h.h441[(j, i, k)] = h.h441[(i, j, k)];
                     h.h443[(i, j, k)] = c4411
                         * (h43[(j, k)] * bp3[i]
                             + hp33[(i, k)] * v4[j]
@@ -1086,7 +1076,6 @@ impl Htens {
                             * (tg * h43[(j, k)] + s2g * v4[j] * v3[k]
                                 - ctp * hp43[(j, k)]
                                 + c2p * bp4[j] * bp3[k]);
-                    h.h443[(j, i, k)] = h.h443[(i, j, k)];
                 }
             }
         } // end 32 loop
