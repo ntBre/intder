@@ -6,7 +6,7 @@ use crate::{
     hmat::{hijs1, Hmat},
     htens::utils::fill3a,
     htens4::{h4th2, Htens4},
-    Siic, Tensor3, Vec3,
+    Siic, Tensor3,
 };
 
 use self::utils::fill3b;
@@ -312,8 +312,8 @@ impl Htens {
     ) {
         use Siic::*;
         let tmp = geom.s_vec(siic);
-        let v1 = &tmp[3 * a..3 * a + 3];
-        let v4 = &tmp[3 * d..3 * d + 3];
+        splat!(tmp, v1 => a, v4 => d);
+
         // unit and non-unit vectors
         let e21 = geom.unit(*b, *a);
         let e23 = geom.unit(*b, *c);
@@ -321,18 +321,16 @@ impl Htens {
         let t21 = geom.dist(*b, *a);
         let t23 = geom.dist(*b, *c);
         let t34 = geom.dist(*c, *d);
+
         // angles
         let p2 = geom.angle(*a, *b, *c);
         let tmp = geom.s_vec(&Bend(*a, *b, *c));
-        let bp21 = &tmp[3 * a..3 * a + 3];
-        let bp22 = &tmp[3 * b..3 * b + 3];
-        let bp23 = &tmp[3 * c..3 * c + 3];
+        splat!(tmp, bp21 => a, bp22 => b, bp23 => c);
 
         let p3 = geom.angle(*b, *c, *d);
         let tmp = geom.s_vec(&Bend(*b, *c, *d));
-        let bp32 = &tmp[3 * b..3 * b + 3];
-        let bp33 = &tmp[3 * c..3 * c + 3];
-        let bp34 = &tmp[3 * d..3 * d + 3];
+        splat!(tmp, bp32 => b, bp33 => c, bp34 => d);
+
         // matrices
         let h32 = Hmat::mat1(&e23);
         let h21 = Hmat::mat1(&e21);
@@ -372,9 +370,9 @@ impl Htens {
         } // end 10
 
         for k in 0..3 {
-            let mut v2 = [0.0; 3];
+            let mut v2 = nalgebra::vector![0.0, 0.0, 0.0];
             v2[k] = 1.0;
-            let h22 = Hmat::mat1(&Vec3::from_row_slice(&v2));
+            let h22 = Hmat::mat1(&v2);
             for j in 0..3 {
                 for i in 0..3 {
                     h.h421[(i, j, k)] = h22[(i, j)];
@@ -462,7 +460,6 @@ impl Htens {
             }
         }
         for k in 0..3 {
-            #[allow(clippy::needless_range_loop)]
             for j in 0..3 {
                 for i in 0..3 {
                     h.h113[(i, j, k)] -= v1[j] * h43[(i, k)];
