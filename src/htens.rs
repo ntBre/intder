@@ -1256,27 +1256,27 @@ impl Htens {
                         / r23;
         );
 
-        // 32
-        foreach!(i, j, k,
-             h.h223[(i,j,k)]=-h.h222[(i,j,k)]-h.h221[(i,j,k)]-h.h422[(k,i,j)];
-             h.h113[(i,j,k)]=-h.h112[(i,j,k)]-h.h111[(i,j,k)]-h.h411[(k,i,j)];
-             h.h123[(i,j,k)]=-h.h112[(i,k,j)]-h.h221[(k,j,i)]-h.h421[(k,j,i)];
-             h.h443[(i,j,k)]=-h.h442[(i,j,k)]-h.h441[(i,j,k)]-h.h444[(i,j,k)];
-             h.h431[(i,j,k)]=-h.h421[(i,j,k)]-h.h411[(i,j,k)]-h.h441[(i,j,k)];
-             h.h432[(i,j,k)]=-h.h422[(i,j,k)]-h.h421[(i,k,j)]-h.h442[(i,j,k)];
-        );
+        h.h223 = -&h.h222 - &h.h221 - h.h422.view().permuted_axes((1, 2, 0));
+        h.h113 = -&h.h112 - &h.h111 - h.h411.view().permuted_axes((1, 2, 0));
+        h.h123 = -h.h112.clone().permuted_axes((0, 2, 1))
+            - h.h221.view().permuted_axes((2, 1, 0))
+            - h.h421.view().permuted_axes((2, 1, 0));
+        h.h443 = -&h.h442 - &h.h441 - &h.h444;
+        h.h431 = -&h.h421 - &h.h411 - &h.h441;
+        h.h432 = -&h.h422 - h.h421.view().permuted_axes((0, 2, 1)) - &h.h442;
 
-        // 42
-        foreach!(k, i, j,
-             h.h331[(i,j,k)]=-h.h431[(i,j,k)]-h.h123[(k,i,j)]-h.h113[(i,k,j)];
-             h.h332[(i,j,k)]=-h.h432[(i,j,k)]-h.h223[(i,k,j)]-h.h123[(i,k,j)];
-             h.h433[(i,j,k)]=-h.h431[(i,j,k)]-h.h432[(i,j,k)]-h.h443[(k,i,j)];
-        );
+        h.h331 = -h.h431.clone()
+            - h.h123.view().permuted_axes((1, 2, 0))
+            - h.h113.view().permuted_axes((0, 2, 1));
+        h.h332 = -h.h432.clone()
+            - h.h223.view().permuted_axes((0, 2, 1))
+            - h.h123.view().permuted_axes((0, 2, 1));
+        h.h433 =
+            -h.h431.clone() - &h.h432 - h.h443.view().permuted_axes((1, 2, 0));
 
-        // 52
-        foreach!(k, i, j,
-             h.h333[(i,j,k)]=-h.h433[(i,j,k)]-h.h331[(j,k,i)]-h.h332[(j,k,i)];
-        );
+        h.h333 = -h.h433.clone()
+            - h.h331.view().permuted_axes((2, 0, 1))
+            - h.h332.view().permuted_axes((2, 0, 1));
     }
 
     fn liny(
@@ -1374,28 +1374,28 @@ impl Htens {
                         + e2[k] * q44[(i, j)]);
         );
 
-        // 2
-        foreach!(k, i, j,
-        h.h221[(i,j,k)]=-h.h222[(i,j,k)]-h.h223[(i,j,k)]-h.h422[(k,i,j)];
-        h.h331[(i,j,k)]=-h.h332[(i,j,k)]-h.h333[(i,j,k)]-h.h433[(k,i,j)];
-        h.h123[(i,j,k)]=-h.h332[(i,k,j)]-h.h223[(i,j,k)]-h.h432[(i,k,j)];
-        h.h441[(i,j,k)]=-h.h442[(i,j,k)]-h.h443[(i,j,k)]-h.h444[(i,j,k)];
-        h.h431[(i,j,k)]=-h.h432[(i,j,k)]-h.h433[(i,k,j)]-h.h443[(i,k,j)];
-        h.h421[(i,j,k)]=-h.h422[(i,j,k)]-h.h432[(i,k,j)]-h.h442[(i,k,j)];
-           );
+        h.h221 = -&h.h222 - &h.h223 - h.h422.view().permuted_axes((1, 2, 0));
+        h.h331 = -&h.h332 - &h.h333 - h.h433.view().permuted_axes((1, 2, 0));
+        h.h123 = -h.h332.clone().permuted_axes((0, 2, 1))
+            - &h.h223
+            - h.h432.view().permuted_axes((0, 2, 1));
+        h.h441 = -&h.h442 - &h.h443 - &h.h444;
+        h.h431 = -&h.h432
+            - h.h433.view().permuted_axes((0, 2, 1))
+            - h.h443.view().permuted_axes((0, 2, 1));
+        h.h421 = -&h.h422
+            - h.h432.view().permuted_axes((0, 2, 1))
+            - h.h442.view().permuted_axes((0, 2, 1));
 
-        // 3
-        foreach!(k, i, j,
-        h.h112[(i,j,k)]=-h.h421[(i,k,j)]-h.h123[(j,k,i)]-h.h221[(i,k,j)];
-        h.h113[(i,j,k)]=-h.h431[(i,k,j)]-h.h331[(i,k,j)]-h.h123[(j,i,k)];
-        h.h411[(i,j,k)]=-h.h441[(i,j,k)]-h.h431[(i,j,k)]-h.h421[(i,j,k)];
-        );
+        h.h112 = -h.h421.clone().permuted_axes((0, 2, 1))
+            - h.h123.view().permuted_axes((2, 0, 1))
+            - h.h221.view().permuted_axes((0, 2, 1));
+        h.h113 = -h.h431.clone().permuted_axes((0, 2, 1))
+            - h.h331.view().permuted_axes((0, 2, 1))
+            - h.h123.view().permuted_axes((1, 0, 2));
+        h.h411 = -&h.h441 - &h.h431 - &h.h421;
 
-        // 4
-        foreach!(k, i, j,
-             h.h111[(i,j,k)]=-h.h411[(k,i,j)]-h.h113[(i,j,k)]-h.h112[(i,j,k)];
-
-        );
+        h.h111 = -h.h411.clone().permuted_axes((1, 2, 0)) - &h.h113 - &h.h112;
     }
 }
 
