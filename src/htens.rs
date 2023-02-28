@@ -6,7 +6,7 @@ use crate::{
     hmat::{hijs1, Hmat},
     htens::utils::fill3a,
     htens4::{h4th2, Htens4},
-    Siic, Tensor3,
+    DMat, Siic, Tensor3,
 };
 
 use self::utils::fill3b;
@@ -325,11 +325,11 @@ impl Htens {
         // angles
         let p2 = geom.angle(*a, *b, *c);
         let tmp = geom.s_vec(&Bend(*a, *b, *c));
-        splat!(tmp, bp21 => a, bp22 => b, bp23 => c);
+        dsplat!(tmp, bp21 => a, bp22 => b, bp23 => c);
 
         let p3 = geom.angle(*b, *c, *d);
         let tmp = geom.s_vec(&Bend(*b, *c, *d));
-        splat!(tmp, bp32 => b, bp33 => c, bp34 => d);
+        dsplat!(tmp, bp32 => b, bp33 => c, bp34 => d);
 
         // matrices
         let h32 = Hmat::mat1(&e23);
@@ -454,11 +454,7 @@ impl Htens {
         let w1 = 2.0 * c6;
         let w2 = 2.0 * c10;
         let w3 = 2.0 * c3;
-        for k in 0..3 {
-            for i in 0..3 {
-                h43[(i, k)] = h31[(k, i)] * w1 - bp21[i] * bp23[k] * w2;
-            }
-        }
+        let h43 = w1 * h31.transpose() - w2 * bp21 * bp23.transpose();
         for k in 0..3 {
             for j in 0..3 {
                 for i in 0..3 {
@@ -466,13 +462,10 @@ impl Htens {
                 }
             }
         }
-        for k in 0..3 {
-            for j in 0..3 {
-                h43[(j, k)] = w3 * h42[(j, k)] - w1 * h32[(k, j)]
-                    + w2 * bp22[j] * bp23[k];
-            }
-            h43[(k, k)] -= c14;
-        }
+
+        let mut h43 = w3 * &h42 - w1 * h32.transpose()
+            + w2 * &bp22 * bp23.transpose()
+            - c14 * DMat::identity(3, 3);
         for k in 0..3 {
             for j in 0..3 {
                 for i in 0..3 {
@@ -551,11 +544,7 @@ impl Htens {
         let w1 = 2.0 * c9;
         let w2 = 2.0 * c11;
         let w3 = 2.0 * c3;
-        for k in 0..3 {
-            for i in 0..3 {
-                h21[(i, k)] = w1 * h42[(i, k)] - w2 * bp34[i] * bp32[k];
-            }
-        }
+        let h21 = w1 * h42 - w2 * bp34 * bp32.transpose();
         for k in 0..3 {
             for j in 0..3 {
                 for i in 0..3 {
@@ -564,13 +553,8 @@ impl Htens {
             }
         }
 
-        for k in 0..3 {
-            for j in 0..3 {
-                h21[(j, k)] = w3 * h31[(j, k)] - w1 * h32[(j, k)]
-                    + w2 * bp33[j] * bp32[k];
-            }
-            h21[(k, k)] -= c14;
-        } // end 185
+        let h21 = w3 * &h31 - w1 * &h32 + w2 * &bp33 * bp32.transpose()
+            - c14 * DMat::identity(3, 3);
 
         for k in 0..3 {
             for j in 0..3 {
@@ -585,6 +569,7 @@ impl Htens {
         let w3 = c8 * c16;
         let w4 = w3 * c3;
         let w5 = t34 * c14;
+        let mut h21 = DMat::zeros(3, 3);
         for k in 0..3 {
             for i in 0..3 {
                 let w6 = -e34[i] * bp32[k] * w1
@@ -659,16 +644,10 @@ impl Htens {
         let w1 = w4 - 1.0;
         let w2 = c8 * c16;
         let w3 = w2 - 1.0;
-        for k in 0..3 {
-            for j in 0..3 {
-                for i in 0..3 {
-                    h.h223[(i, j, k)] +=
-                        w1 * h.h123[(j, i, k)] - w2 * h.h432[(j, k, i)];
-                    h.h332[(i, j, k)] +=
-                        w3 * h.h432[(j, i, k)] - w4 * h.h123[(j, k, i)];
-                }
-            }
-        } // end 232
+        h.h223 += &(w1 * h.h123.clone().permuted_axes((1, 0, 2))
+            - w2 * h.h432.clone().permuted_axes((2, 0, 1)));
+        h.h332 += &(w3 * h.h432.clone().permuted_axes((1, 0, 2))
+            - w4 * h.h123.clone().permuted_axes((2, 0, 1)));
 
         for k in 0..3 {
             for j in 0..3 {
@@ -723,55 +702,27 @@ impl Htens {
             }
         }
 
-        for k in 0..3 {
-            for j in 0..3 {
-                for i in 0..3 {
-                    h.h411[(i, j, k)] = 0.0;
-                    h.h421[(i, j, k)] = 0.0;
-                    h.h431[(i, j, k)] = 0.0;
-                    h.h441[(i, j, k)] = 0.0;
-                    h.h443[(j, k, i)] =
-                        -(h.h444[(i, j, k)] + h.h442[(j, k, i)]);
-                    h.h112[(i, j, k)] =
-                        -(h.h111[(i, j, k)] + h.h113[(i, j, k)]);
-                }
-            }
-        }
-        for k in 0..3 {
-            for j in 0..3 {
-                for i in 0..3 {
-                    h.h433[(k, i, j)] =
-                        -(h.h443[(i, k, j)] + h.h432[(k, j, i)]);
-                    h.h221[(i, j, k)] =
-                        -(h.h112[(i, k, j)] + h.h123[(k, j, i)]);
-                }
-            }
-        }
-        for k in 0..3 {
-            for j in 0..3 {
-                for i in 0..3 {
-                    h.h422[(k, i, j)] =
-                        -(h.h432[(k, i, j)] + h.h442[(i, k, j)]);
-                    h.h331[(i, j, k)] =
-                        -(h.h123[(k, i, j)] + h.h113[(i, k, j)]);
-                }
-            }
-        } // end 292
+        // we just used these for scratch space I guess, but apparently they
+        // will be accessed later...
+        h.h411 = Tensor3::zeros((3, 3, 3));
+        h.h421 = Tensor3::zeros((3, 3, 3));
+        h.h431 = Tensor3::zeros((3, 3, 3));
+        h.h441 = Tensor3::zeros((3, 3, 3));
 
-        for k in 0..3 {
-            for j in 0..=k {
-                for i in 0..=j {
-                    h.h222[(i, j, k)] = -(h.h221[(i, j, k)]
-                        + h.h223[(i, j, k)]
-                        + h.h422[(k, i, j)]);
-                    h.h333[(i, j, k)] = -(h.h331[(i, j, k)]
-                        + h.h332[(i, j, k)]
-                        + h.h433[(k, i, j)]);
-                }
-            }
-        } // end 302
-        fill3a(&mut h.h222, 3);
-        fill3a(&mut h.h333, 3);
+        h.h112 = -(&h.h111 + &h.h113);
+        h.h443 = -(h.h444.clone().permuted_axes((1, 2, 0)) + &h.h442);
+
+        h.h221 = -(h.h112.clone().permuted_axes((0, 2, 1))
+            + h.h123.view().permuted_axes((2, 1, 0)));
+        h.h433 = -(h.h443.clone().permuted_axes((1, 0, 2))
+            + h.h432.view().permuted_axes((0, 2, 1)));
+
+        h.h422 = -(h.h432.clone() + h.h442.view().permuted_axes((1, 0, 2)));
+        h.h331 = -(h.h123.clone().permuted_axes((1, 2, 0))
+            + h.h113.view().permuted_axes((0, 2, 1)));
+
+        h.h222 = -(&h.h221 + &h.h223 + h.h422.view().permuted_axes((1, 2, 0)));
+        h.h333 = -(&h.h331 + &h.h332 + h.h433.view().permuted_axes((1, 2, 0)));
     }
 
     fn lin1(
