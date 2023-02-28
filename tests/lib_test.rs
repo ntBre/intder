@@ -6,7 +6,6 @@ use approx::{abs_diff_ne, assert_abs_diff_eq};
 use intder::geom::*;
 use intder::*;
 use nalgebra as na;
-use tensor::tensor3::Tensor3;
 
 const S: f64 = std::f64::consts::SQRT_2 / 2.;
 
@@ -409,13 +408,46 @@ fn test_convert_disps() {
     }
 }
 
+fn load_tensor(filename: &str) -> Tensor3 {
+    let f = std::fs::File::open(filename).expect("failed to open tensor file");
+    let lines = BufReader::new(f).lines();
+    let mut hold = Vec::new();
+    let mut buf = Vec::new();
+    for line in lines.flatten() {
+        let mut fields = line.split_whitespace().peekable();
+        if fields.peek().is_none() {
+            // in between chunks
+            hold.push(buf);
+            buf = Vec::new();
+        } else {
+            let row = fields
+                .map(|s| s.parse::<f64>().unwrap())
+                .collect::<Vec<_>>();
+            buf.push(row);
+        }
+    }
+    hold.push(buf);
+    let a = hold.len();
+    let b = hold[0].len();
+    let c = hold[0][0].len();
+    let mut ret = Tensor3::zeros((a, b, c));
+    for i in 0..a {
+        for j in 0..b {
+            for k in 0..c {
+                ret[(i, j, k)] = hold[i][j][k];
+            }
+        }
+    }
+    ret
+}
+
 #[test]
 fn test_lintr_fc3() {
     let intder = Intder::load_file("testfiles/h2o.freq.in");
     let b_sym = intder.sym_b_matrix(&intder.geom);
     let got = intder.lintr_fc3(&b_sym);
-    let want = Tensor3::load("testfiles/h2o.lintr.f3");
-    assert!(got.equal(&want, 1e-6));
+    let want = load_tensor("testfiles/h2o.lintr.f3");
+    assert_abs_diff_eq!(got, want, epsilon = 1e-6);
 }
 
 #[test]

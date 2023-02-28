@@ -4,13 +4,59 @@ use crate::{
     foreach,
     geom::Geom,
     hmat::{hijs1, Hmat},
+    htens::utils::fill3a,
     htens4::{h4th2, Htens4},
-    Siic, Vec3,
+    Siic, Tensor3, Vec3,
 };
 
-type Tensor3 = tensor::tensor3::Tensor3<f64>;
+use self::utils::fill3b;
 
 mod display;
+
+pub(crate) mod utils {
+    use crate::Tensor3;
+
+    pub(crate) fn fill3a(t: &mut Tensor3, nsx: usize) {
+        for p in 0..nsx {
+            for n in 0..p {
+                for m in 0..n {
+                    t[(n, m, p)] = t[(m, n, p)];
+                    t[(n, p, m)] = t[(m, n, p)];
+                    t[(m, p, n)] = t[(m, n, p)];
+                    t[(p, m, n)] = t[(m, n, p)];
+                    t[(p, n, m)] = t[(m, n, p)];
+                }
+                t[(n, p, n)] = t[(n, n, p)];
+                t[(p, n, n)] = t[(n, n, p)];
+            }
+            for m in 0..p {
+                t[(p, m, p)] = t[(m, p, p)];
+                t[(p, p, m)] = t[(m, p, p)];
+            }
+        }
+    }
+
+    /// copy values across the 3D diagonals
+    pub(crate) fn fill3b(t: &mut Tensor3) {
+        for m in 0..3 {
+            for n in 0..m {
+                for p in 0..n {
+                    t[(n, m, p)] = t[(m, n, p)];
+                    t[(n, p, m)] = t[(m, n, p)];
+                    t[(m, p, n)] = t[(m, n, p)];
+                    t[(p, m, n)] = t[(m, n, p)];
+                    t[(p, n, m)] = t[(m, n, p)];
+                }
+                t[(n, m, n)] = t[(m, n, n)];
+                t[(n, n, m)] = t[(m, n, n)];
+            }
+            for p in 0..m {
+                t[(m, p, m)] = t[(m, m, p)];
+                t[(p, m, m)] = t[(m, m, p)];
+            }
+        }
+    }
+}
 
 pub struct Htens {
     pub h111: Tensor3,
@@ -68,26 +114,26 @@ pub fn hijks2(geom: &Geom, i: usize, j: usize, k: usize) -> Htens {
 impl Htens {
     pub fn zeros() -> Self {
         Self {
-            h111: Tensor3::zeros(3, 3, 3),
-            h112: Tensor3::zeros(3, 3, 3),
-            h113: Tensor3::zeros(3, 3, 3),
-            h123: Tensor3::zeros(3, 3, 3),
-            h221: Tensor3::zeros(3, 3, 3),
-            h222: Tensor3::zeros(3, 3, 3),
-            h223: Tensor3::zeros(3, 3, 3),
-            h331: Tensor3::zeros(3, 3, 3),
-            h332: Tensor3::zeros(3, 3, 3),
-            h333: Tensor3::zeros(3, 3, 3),
-            h411: Tensor3::zeros(3, 3, 3),
-            h421: Tensor3::zeros(3, 3, 3),
-            h422: Tensor3::zeros(3, 3, 3),
-            h431: Tensor3::zeros(3, 3, 3),
-            h432: Tensor3::zeros(3, 3, 3),
-            h433: Tensor3::zeros(3, 3, 3),
-            h441: Tensor3::zeros(3, 3, 3),
-            h442: Tensor3::zeros(3, 3, 3),
-            h443: Tensor3::zeros(3, 3, 3),
-            h444: Tensor3::zeros(3, 3, 3),
+            h111: Tensor3::zeros((3, 3, 3)),
+            h112: Tensor3::zeros((3, 3, 3)),
+            h113: Tensor3::zeros((3, 3, 3)),
+            h123: Tensor3::zeros((3, 3, 3)),
+            h221: Tensor3::zeros((3, 3, 3)),
+            h222: Tensor3::zeros((3, 3, 3)),
+            h223: Tensor3::zeros((3, 3, 3)),
+            h331: Tensor3::zeros((3, 3, 3)),
+            h332: Tensor3::zeros((3, 3, 3)),
+            h333: Tensor3::zeros((3, 3, 3)),
+            h411: Tensor3::zeros((3, 3, 3)),
+            h421: Tensor3::zeros((3, 3, 3)),
+            h422: Tensor3::zeros((3, 3, 3)),
+            h431: Tensor3::zeros((3, 3, 3)),
+            h432: Tensor3::zeros((3, 3, 3)),
+            h433: Tensor3::zeros((3, 3, 3)),
+            h441: Tensor3::zeros((3, 3, 3)),
+            h442: Tensor3::zeros((3, 3, 3)),
+            h443: Tensor3::zeros((3, 3, 3)),
+            h444: Tensor3::zeros((3, 3, 3)),
         }
     }
 
@@ -122,7 +168,7 @@ impl Htens {
     /// the name suggests some kind of triple product, but I'm not really sure.
     /// I think it's a Cartesian product of some kind maybe
     fn tripro() -> Tensor3 {
-        let mut ret = Tensor3::zeros(3, 3, 3);
+        let mut ret = Tensor3::zeros((3, 3, 3));
         for k in 0..3 {
             let mut vect = nalgebra::vector![0.0, 0.0, 0.0];
             vect[k] = 1.0;
@@ -150,7 +196,7 @@ impl Htens {
                 }
             }
         }
-        h.h111.fill3b();
+        fill3b(&mut h.h111);
     }
 
     fn bend(
@@ -164,8 +210,7 @@ impl Htens {
         use Siic::*;
         // copied from h_mat Bend
         let tmp = geom.s_vec(siic);
-        let v1 = &tmp[3 * a..3 * a + 3];
-        let v3 = &tmp[3 * c..3 * c + 3];
+        splat!(tmp, v1 => a, v3 => c);
         let e21 = geom.unit(*b, *a);
         let e23 = geom.unit(*b, *c);
         let t21 = geom.dist(*b, *a);
@@ -218,8 +263,8 @@ impl Htens {
                 }
             }
         }
-        h.h111.fill3b();
-        h.h333.fill3b();
+        fill3b(&mut h.h111);
+        fill3b(&mut h.h333);
 
         for i in 0..3 {
             let w3 = v1[i] * ctphi + e21[i] * w1;
@@ -624,8 +669,8 @@ impl Htens {
                 }
             }
         } // end 222
-        h.h111.fill3a(3);
-        h.h444.fill3a(3);
+        fill3a(&mut h.h111, 3);
+        fill3a(&mut h.h444, 3);
 
         for i in 0..3 {
             let w1 = 2.0 * h.h411[(0, 0, i)];
@@ -755,8 +800,8 @@ impl Htens {
                 }
             }
         } // end 302
-        h.h222.fill3a(3);
-        h.h333.fill3a(3);
+        fill3a(&mut h.h222, 3);
+        fill3a(&mut h.h333, 3);
     }
 
     fn lin1(
@@ -822,8 +867,8 @@ impl Htens {
                 }
             }
         }
-        h.h111.fill3b();
-        h.h333.fill3b();
+        fill3b(&mut h.h111);
+        fill3b(&mut h.h333);
         for i in 0..3 {
             let w5 = v1[i] * tanth - e21[i] * w1;
             let w6 = v3[i] * tanth - e23[i] * w2;
@@ -1020,9 +1065,9 @@ impl Htens {
                 }
             }
         } // end 12 loop
-        h.h111.fill3b();
-        h.h333.fill3b();
-        h.h444.fill3b();
+        fill3b(&mut h.h111);
+        fill3b(&mut h.h333);
+        fill3b(&mut h.h444);
 
         for k in 0..3 {
             for j in 0..=k {
@@ -1112,58 +1157,26 @@ impl Htens {
             }
         } // end 42
 
-        for i in 0..3 {
-            for j in 0..3 {
-                for k in 0..3 {
-                    h.h112[(i, j, k)] = -(h.h111[(i, j, k)]
-                        + h.h113[(i, j, k)]
-                        + h.h411[(k, i, j)]);
-                    h.h421[(i, j, k)] = -(h.h411[(i, j, k)]
-                        + h.h431[(i, j, k)]
-                        + h.h441[(i, j, k)]);
-                    h.h123[(i, j, k)] = -(h.h113[(i, j, k)]
-                        + h.h331[(j, k, i)]
-                        + h.h431[(j, k, i)]);
-                    h.h332[(i, j, k)] = -(h.h331[(i, j, k)]
-                        + h.h333[(i, j, k)]
-                        + h.h433[(k, i, j)]);
-                    h.h432[(i, j, k)] = -(h.h431[(i, j, k)]
-                        + h.h433[(i, j, k)]
-                        + h.h443[(i, k, j)]);
-                    h.h442[(i, j, k)] = -(h.h441[(i, j, k)]
-                        + h.h443[(i, j, k)]
-                        + h.h444[(i, j, k)]);
-                }
-            }
-        } // end 52
+        h.h112 = -(&h.h111 + &h.h113 + h.h411.view().permuted_axes((1, 2, 0)));
+        h.h123 = -(h.h113.clone()
+            + h.h331.view().permuted_axes((2, 0, 1))
+            + h.h431.view().permuted_axes((2, 0, 1)));
+        h.h332 = -(&h.h331 + &h.h333 + h.h433.view().permuted_axes((1, 2, 0)));
+        h.h421 = -(&h.h411 + &h.h431 + &h.h441);
+        h.h432 = -(&h.h431 + &h.h433 + h.h443.view().permuted_axes((0, 2, 1)));
+        h.h442 = -(&h.h441 + &h.h443 + &h.h444);
 
-        for i in 0..3 {
-            for j in 0..3 {
-                for k in 0..3 {
-                    h.h221[(i, j, k)] = -(h.h112[(i, k, j)]
-                        + h.h123[(k, j, i)]
-                        + h.h421[(i, j, k)]);
-                    h.h223[(i, j, k)] = -(h.h123[(i, j, k)]
-                        + h.h332[(i, k, j)]
-                        + h.h432[(i, k, j)]);
-                    h.h422[(i, j, k)] = -(h.h421[(i, j, k)]
-                        + h.h432[(i, k, j)]
-                        + h.h442[(i, k, j)]);
-                }
-            }
-        } // end 62
+        h.h221 = -(h.h421.clone()
+            + h.h112.view().permuted_axes((0, 2, 1))
+            + h.h123.view().permuted_axes((2, 1, 0)));
+        h.h223 = -(h.h123.clone()
+            + h.h332.view().permuted_axes((0, 2, 1))
+            + h.h432.view().permuted_axes((0, 2, 1)));
+        h.h422 = -(h.h421.clone()
+            + h.h432.view().permuted_axes((0, 2, 1))
+            + h.h442.view().permuted_axes((0, 2, 1)));
 
-        for i in 0..3 {
-            for j in 0..=i {
-                for k in 0..=j {
-                    h.h222[(i, j, k)] = -(h.h221[(i, j, k)]
-                        + h.h223[(i, j, k)]
-                        + h.h422[(k, i, j)]);
-                }
-            }
-        } // end 72
-
-        h.h222.fill3b();
+        h.h222 = -(&h.h221 + &h.h223 + h.h422.view().permuted_axes((1, 2, 0)));
     }
 
     fn linx(

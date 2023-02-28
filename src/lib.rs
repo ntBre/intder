@@ -21,7 +21,9 @@ use nalgebra as na;
 use regex::Regex;
 use symm::{Axis, Irrep};
 use tensor::Tensor4;
-type Tensor3 = tensor::tensor3::Tensor3<f64>;
+
+use crate::htens::utils::fill3a;
+pub type Tensor3 = ndarray::Array3<f64>;
 
 /// from <https://physics.nist.gov/cgi-bin/cuu/Value?bohrrada0>
 pub const ANGBOHR: f64 = 0.529_177_210_9;
@@ -971,7 +973,7 @@ impl Intder {
         let u = self.u_mat();
         let mut srs_sim = Vec::new();
         for s in &self.simple_internals {
-            let mut sr = Tensor3::zeros(nc, nc, nc);
+            let mut sr = Tensor3::zeros((nc, nc, nc));
             let h = Htens::new(&self.geom, s);
             match s {
                 Stretch(a, b) => {
@@ -993,7 +995,7 @@ impl Intder {
         // convert SR to symmetry internals
         let mut ret = Vec::with_capacity(nsx);
         for r in 0..nsx {
-            let mut sr_sic = Tensor3::zeros(nc, nc, nc);
+            let mut sr_sic = Tensor3::zeros((nc, nc, nc));
             for (i, sr) in srs_sim.iter().enumerate() {
                 let w1 = u[(r, i)];
                 for p in 0..nc {
@@ -1004,7 +1006,7 @@ impl Intder {
                     }
                 }
             }
-            sr_sic.fill3a(nc);
+            fill3a(&mut sr_sic, nc);
             ret.push(sr_sic);
         }
         ret
@@ -1032,7 +1034,7 @@ impl Intder {
         let nsx = self.ncart() - 3 * self.ndum();
         let nsy = self.nsym();
 
-        let mut f3 = Tensor3::zeros(nsx, nsx, nsx);
+        let mut f3 = Tensor3::zeros((nsx, nsx, nsx));
         for i in 0..nsy {
             for j in 0..=i {
                 let dij = delta(i, j);
@@ -1050,7 +1052,7 @@ impl Intder {
         // end of 1138 loop, looking good so far
 
         let f3_disk = f3;
-        let mut f3 = Tensor3::zeros(nsx, nsx, nsx);
+        let mut f3 = Tensor3::zeros((nsx, nsx, nsx));
         for i in 0..nsy {
             for j in 0..=i {
                 let dij = delta(i, j);
@@ -1066,7 +1068,7 @@ impl Intder {
         // end of 1146 loop, looking good again
 
         let f3_disk2 = f3;
-        let mut f3 = Tensor3::zeros(nsx, nsx, nsx);
+        let mut f3 = Tensor3::zeros((nsx, nsx, nsx));
         for i in 0..nsy {
             for p in 0..nsx {
                 for n in 0..=p {
@@ -1079,7 +1081,7 @@ impl Intder {
         }
         // end of 1152 loop, still looking good
 
-        f3.fill3a(nsx);
+        fill3a(&mut f3, nsx);
         f3
     }
 
@@ -1195,7 +1197,7 @@ impl Intder {
                 }
             }
         }
-        f3.fill3a(nc);
+        fill3a(&mut f3, nc);
 
         // begin F4 part
 
@@ -1416,7 +1418,7 @@ impl Intder {
     }
 }
 
-fn hsry2(sr: &mut tensor::Tensor3<f64>, l1: usize, l2: usize, h: &Htens) {
+fn hsry2(sr: &mut Tensor3, l1: usize, l2: usize, h: &Htens) {
     for k in 0..3 {
         for j in 0..3 {
             for i in 0..3 {
