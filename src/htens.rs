@@ -4,7 +4,6 @@ use crate::{
     foreach,
     geom::Geom,
     hmat::{hijs1, Hmat},
-    htens::utils::fill3a,
     htens4::{h4th2, Htens4},
     DMat, Siic, Tensor3,
 };
@@ -300,7 +299,6 @@ impl Htens {
             + h.h221.view().permuted_axes((2, 0, 1)));
     }
 
-    #[allow(clippy::needless_range_loop)]
     fn torsion(
         geom: &Geom,
         siic: &Siic,
@@ -330,11 +328,6 @@ impl Htens {
         let p3 = geom.angle(*b, *c, *d);
         let tmp = geom.s_vec(&Bend(*b, *c, *d));
         dsplat!(tmp, bp32 => b, bp33 => c, bp34 => d);
-
-        // matrices
-        let h32 = Hmat::mat1(&e23);
-        let h21 = Hmat::mat1(&e21);
-        let h43 = Hmat::mat1(&e34);
 
         let c1 = 1.0 / t21;
         let c2 = 1.0 / t34;
@@ -401,6 +394,57 @@ impl Htens {
         let w58 = c5 * c3;
         let w59 = c8 * c3;
 
+        // matrices
+        let hm32 = Hmat::mat1(&e23);
+        let hm21 = Hmat::mat1(&e21);
+        let hm43 = Hmat::mat1(&e34);
+        let Hmat { h11, h31, h32, .. } = Hmat::new(geom, &Bend(*a, *b, *c));
+        let h44 = Hmat::new(geom, &Stretch(*a, *b)).h11;
+        let h42 = Hmat::new(geom, &Stretch(*b, *c)).h11;
+        let h43 = 2.0 * (w15 * h44 + c6 * h11 - c10 * &bp21 * bp21.transpose())
+            - w16 * DMat::identity(3, 3);
+        let h43a = w17 * h31.transpose() - w18 * &bp21 * bp23.transpose();
+        let h43b = w19 * &h42 - w17 * h32.transpose()
+            + w18 * &bp22 * bp23.transpose()
+            - c14 * DMat::identity(3, 3);
+        let h43c = -e21 * bp23.transpose() * w20
+            + h32.transpose() * w21
+            + &bp22 * bp23.transpose() * w22
+            - &h42 * w23;
+        let h43d = &h43c
+            + -w26 * &bp22 * e23.transpose()
+            + w27 * (c15 * e23 - e21) * e23.transpose();
+        let Hmat {
+            h21: h32a,
+            h31: h42a,
+            h33: h44a,
+            ..
+        } = Hmat::new(geom, &Bend(*b, *c, *d));
+        let h11a = Hmat::new(geom, &Stretch(*d, *c)).h11;
+        let h31a = Hmat::new(geom, &Stretch(*c, *b)).h11;
+        let h21 = 2.0
+            * (w28 * h11a + c9 * h44a - c11 * &bp34 * bp34.transpose())
+            - w29 * DMat::identity(3, 3);
+        let h21a = w30 * h42a - w31 * &bp34 * bp32.transpose();
+        let h21b = w32 * &h31a - w30 * &h32a + w31 * &bp33 * bp32.transpose()
+            - c14 * DMat::identity(3, 3);
+        let h21c = -e34 * bp32.transpose() * w33
+            + &h32a * w34
+            + &bp33 * bp32.transpose() * w35
+            - &h31a * w36;
+        let h21d = &h21c
+            + w38 * &bp33 * e23.transpose()
+            + w39 * (e34 + c16 * e23) * e23.transpose();
+        let Hmat {
+            h11: h11b,
+            h21: h21e,
+            h31: h31b,
+            h42: h42b,
+            h43: h43e,
+            h44: h44b,
+            ..
+        } = Hmat::new(geom, siic);
+
         // scratch tensors
         let mut h_alpha = Tensor3::zeros((3, 3, 3));
         for k in 0..3 {
@@ -414,228 +458,74 @@ impl Htens {
             h_alpha[(2, 1, k)] = -e23[k] * w59 + bp32[k] * c7;
         } // end 10
 
+        let mut h_beta = Tensor3::zeros((3, 3, 3));
+        for k in 0..3 {
+            h_beta[(0, 0, k)] = w52 * bp33[k] + w53 * e23[k] + w51 * e34[k];
+            h_beta[(0, 1, k)] = w49 * bp22[k] - w50 * e23[k] + w48 * e21[k];
+            h_beta[(0, 2, k)] = -w48 * e21[k] - w49 * bp22[k] + w50 * e23[k];
+            h_beta[(1, 0, k)] = -w51 * e34[k] - w52 * bp33[k] - w53 * e23[k];
+        }
+
         let p = Self::tripro();
 
         for k in 0..3 {
             for j in 0..3 {
                 for i in 0..3 {
-                    h.h111[(i, j, k)] = w1 * h_alpha[(0, 0, k)] * h32[(i, j)];
-                    h.h444[(i, j, k)] = -w2 * h_alpha[(0, 1, k)] * h32[(i, j)];
-                    h.h113[(i, j, k)] = w5 * h_alpha[(0, 2, k)] * h32[(i, j)]
-                        - w7 * p[(i, j, k)];
-                    h.h442[(i, j, k)] = -w6 * h_alpha[(1, 0, k)] * h32[(i, j)]
-                        - w8 * p[(i, j, k)];
-                    h.h123[(i, k, j)] = -w11 * h_alpha[(1, 1, k)] * h21[(i, j)]
-                        + w7 * p[(i, j, k)];
-                    h.h432[(i, k, j)] = -w12 * h_alpha[(1, 2, k)] * h43[(i, j)]
-                        + w8 * p[(i, j, k)];
+                    h.h111[(i, j, k)] = w1 * h_alpha[(0, 0, k)] * hm32[(i, j)]
+                        - v1[j] * h43[(i, k)]
+                        - 2.0 * h11b[(j, k)] * h_alpha[(0, 0, i)];
+                    h.h444[(i, j, k)] = -w2 * h_alpha[(0, 1, k)] * hm32[(i, j)]
+                        - v4[j] * h21[(i, k)]
+                        - 2.0 * h44b[(j, k)] * h_alpha[(0, 1, i)];
+                    h.h113[(i, j, k)] = w5 * h_alpha[(0, 2, k)] * hm32[(i, j)]
+                        - w7 * p[(i, j, k)]
+                        - v1[j] * h43a[(i, k)]
+                        - 2.0 * h_alpha[(0, 0, i)] * h31b[(k, j)];
+                    h.h442[(i, j, k)] = -w6 * h_alpha[(1, 0, k)] * hm32[(i, j)]
+                        - w8 * p[(i, j, k)]
+                        - v4[j] * h21a[(i, k)]
+                        - 2.0 * h_alpha[(0, 1, i)] * h42b[(j, k)];
+                    h.h123[(i, k, j)] =
+                        -w11 * h_alpha[(1, 1, k)] * hm21[(i, j)]
+                            + w7 * p[(i, j, k)]
+                            + v1[i] * h43b[(k, j)]
+                            - h21e[(k, i)] * h_alpha[(0, 2, j)];
+                    h.h432[(i, k, j)] =
+                        -w12 * h_alpha[(1, 2, k)] * hm43[(i, j)]
+                            + w8 * p[(i, j, k)]
+                            + v4[i] * h21b[(k, j)]
+                            - h43e[(i, k)] * h_alpha[(1, 0, j)];
+                    h.h223[(i, j, k)] = -v1[j]
+                        * (h43c[(i, k)] + e23[i] * w24 * h_alpha[(2, 0, k)])
+                        + v4[j] * h21d[(k, i)]
+                        - c15 * h21e[(i, j)] * h_alpha[(2, 0, k)]
+                        + c16
+                            * (h43e[(j, k)] - c3 * v4[j] * e23[k])
+                            * h_alpha[(2, 1, i)]
+                        + h42b[(j, i)] * h_beta[(0, 0, k)]
+                        + (h31b[(k, j)] - c3 * v1[j] * e23[k])
+                            * h_beta[(0, 2, i)];
+                    h.h332[(i, j, k)] = v1[j] * h43d[(k, i)]
+                        - v4[j]
+                            * (h21c[(i, k)]
+                                - e23[i] * w37 * h_alpha[(2, 1, k)])
+                        - c16 * h43e[(j, i)] * h_alpha[(2, 1, k)]
+                        + c15
+                            * (h21e[(k, j)] + c3 * v1[j] * e23[k])
+                            * h_alpha[(2, 0, i)]
+                        + h31b[(i, j)] * h_beta[(0, 1, k)]
+                        + (h42b[(j, k)] + c3 * v4[j] * e23[k])
+                            * h_beta[(1, 0, i)];
                 }
             }
         } // end 102
 
-        let Hmat { h11, h31, h32, .. } = Hmat::new(geom, &Bend(*a, *b, *c));
-        let h44 = Hmat::new(geom, &Stretch(*a, *b)).h11;
-        let h42 = Hmat::new(geom, &Stretch(*b, *c)).h11;
-        let h43 = 2.0 * (w15 * h44 + c6 * h11 - c10 * &bp21 * bp21.transpose())
-            - w16 * DMat::identity(3, 3);
-        for k in 0..3 {
-            for j in 0..=k {
-                for i in 0..=j {
-                    h.h111[(i, j, k)] -= v1[j] * h43[(i, k)];
-                }
-            }
-        } // end 122
-
-        let h43 = w17 * h31.transpose() - w18 * bp21 * bp23.transpose();
-        for k in 0..3 {
-            for j in 0..3 {
-                for i in 0..3 {
-                    h.h113[(i, j, k)] -= v1[j] * h43[(i, k)];
-                }
-            }
-        }
-
-        let h43 = w19 * &h42 - w17 * h32.transpose()
-            + w18 * &bp22 * bp23.transpose()
-            - c14 * DMat::identity(3, 3);
-        for k in 0..3 {
-            for j in 0..3 {
-                for i in 0..3 {
-                    h.h123[(i, j, k)] += v1[i] * h43[(j, k)];
-                }
-            }
-        } // end 142
-
-        let h43 = -e21 * bp23.transpose() * w20
-            + h32.transpose() * w21
-            + &bp22 * bp23.transpose() * w22
-            - &h42 * w23;
-        for k in 0..3 {
-            for i in 0..3 {
-                let w25 = h43[(i, k)] + e23[i] * w24 * h_alpha[(2, 0, k)];
-                for j in 0..3 {
-                    h.h223[(i, j, k)] = -v1[j] * w25;
-                }
-            }
-        } // end 152
-
-        let h43 = h43
-            + -w26 * &bp22 * e23.transpose()
-            + w27 * (c15 * e23 - e21) * e23.transpose();
-        for k in 0..3 {
-            for j in 0..3 {
-                for i in 0..3 {
-                    h.h332[(i, j, k)] = v1[j] * h43[(k, i)];
-                }
-            }
-        } // end 162
-
-        let Hmat {
-            h21: h32,
-            h31: h42,
-            h33: h44,
-            ..
-        } = Hmat::new(geom, &Bend(*b, *c, *d));
-        let h11 = Hmat::new(geom, &Stretch(*d, *c)).h11;
-        let h31 = Hmat::new(geom, &Stretch(*c, *b)).h11;
-
-        let h21 = 2.0 * (w28 * h11 + c9 * h44 - c11 * &bp34 * bp34.transpose())
-            - w29 * DMat::identity(3, 3);
-        for k in 0..3 {
-            for j in 0..=k {
-                for i in 0..=j {
-                    h.h444[(i, j, k)] -= v4[j] * h21[(i, k)];
-                }
-            }
-        } // end 172
-
-        let h21 = w30 * h42 - w31 * bp34 * bp32.transpose();
-        for k in 0..3 {
-            for j in 0..3 {
-                for i in 0..3 {
-                    h.h442[(i, j, k)] -= v4[j] * h21[(i, k)];
-                }
-            }
-        }
-
-        let h21 = w32 * &h31 - w30 * &h32 + w31 * &bp33 * bp32.transpose()
-            - c14 * DMat::identity(3, 3);
-        for k in 0..3 {
-            for j in 0..3 {
-                for i in 0..3 {
-                    h.h432[(i, j, k)] += v4[i] * h21[(j, k)];
-                }
-            }
-        } // end 192
-
-        let h21 = -e34 * bp32.transpose() * w33
-            + &h32 * w34
-            + &bp33 * bp32.transpose() * w35
-            - &h31 * w36;
-        for k in 0..3 {
-            for i in 0..3 {
-                let w6 = h21[(i, k)] - e23[i] * w37 * h_alpha[(2, 1, k)];
-                for j in 0..3 {
-                    h.h332[(i, j, k)] -= v4[j] * w6;
-                }
-            }
-        } // end 202
-
-        let h21 = h21
-            + w38 * &bp33 * e23.transpose()
-            + w39 * (e34 + c16 * e23) * e23.transpose();
-        for k in 0..3 {
-            for j in 0..3 {
-                for i in 0..3 {
-                    h.h223[(i, j, k)] += v4[j] * h21[(k, i)];
-                }
-            }
-        } // end 212
-
-        let Hmat {
-            h11,
-            h21,
-            h31,
-            h42,
-            h43,
-            h44,
-            ..
-        } = Hmat::new(geom, siic);
-        for k in 0..3 {
-            for j in 0..=k {
-                for i in 0..=j {
-                    h.h111[(i, j, k)] -= 2.0 * h11[(j, k)] * h_alpha[(0, 0, i)];
-                    h.h444[(i, j, k)] -= 2.0 * h44[(j, k)] * h_alpha[(0, 1, i)];
-                }
-            }
-        } // end 222
-        fill3a(&mut h.h111, 3);
-        fill3a(&mut h.h444, 3);
-
-        for i in 0..3 {
-            let w40 = 2.0 * h_alpha[(0, 0, i)];
-            let w41 = 2.0 * h_alpha[(0, 1, i)];
-            for j in 0..3 {
-                for k in 0..3 {
-                    h.h113[(i, j, k)] -= w40 * h31[(k, j)];
-                    h.h442[(i, j, k)] -= w41 * h42[(j, k)];
-                    h.h123[(i, j, k)] -= h21[(j, i)] * h_alpha[(0, 2, k)];
-                    h.h432[(i, j, k)] -= h43[(i, j)] * h_alpha[(1, 0, k)];
-                }
-            }
-        } // end 227
-
+        // I think this part does need to be done separately because the indices
+        // referenced in the other tensors may not be set
         h.h223 += &(w43 * h.h123.clone().permuted_axes((1, 0, 2))
             - w44 * h.h432.clone().permuted_axes((2, 0, 1)));
         h.h332 += &(w45 * h.h432.clone().permuted_axes((1, 0, 2))
             - w42 * h.h123.clone().permuted_axes((2, 0, 1)));
-
-        for k in 0..3 {
-            for j in 0..3 {
-                for i in 0..3 {
-                    h.h223[(i, j, k)] -= c15 * h21[(i, j)] * h_alpha[(2, 0, k)];
-                    h.h332[(i, j, k)] -= c16 * h43[(j, i)] * h_alpha[(2, 1, k)];
-                }
-            }
-        } // end 242
-
-        for k in 0..3 {
-            for j in 0..3 {
-                let w46 = c16 * (h43[(j, k)] - c3 * v4[j] * e23[k]);
-                let w47 = c15 * (h21[(k, j)] + c3 * v1[j] * e23[k]);
-                for i in 0..3 {
-                    h.h223[(i, j, k)] += w46 * h_alpha[(2, 1, i)];
-                    h.h332[(i, j, k)] += w47 * h_alpha[(2, 0, i)];
-                }
-            }
-        } // end 252
-
-        for k in 0..3 {
-            h_alpha[(0, 0, k)] = w52 * bp33[k] + w53 * e23[k] + w51 * e34[k];
-            h_alpha[(0, 1, k)] = w49 * bp22[k] - w50 * e23[k] + w48 * e21[k];
-            h_alpha[(0, 2, k)] = -w48 * e21[k] - w49 * bp22[k] + w50 * e23[k];
-            h_alpha[(1, 0, k)] = -w51 * e34[k] - w52 * bp33[k] - w53 * e23[k];
-        } // end 260
-
-        for k in 0..3 {
-            for j in 0..3 {
-                for i in 0..3 {
-                    h.h223[(i, j, k)] += h42[(j, i)] * h_alpha[(0, 0, k)];
-                    h.h332[(i, j, k)] += h31[(i, j)] * h_alpha[(0, 1, k)];
-                }
-            }
-        } // end 267
-
-        for k in 0..3 {
-            for j in 0..3 {
-                let w55 = h31[(k, j)] - c3 * v1[j] * e23[k];
-                let w56 = h42[(j, k)] + c3 * v4[j] * e23[k];
-                for i in 0..3 {
-                    h.h223[(i, j, k)] += w55 * h_alpha[(0, 2, i)];
-                    h.h332[(i, j, k)] += w56 * h_alpha[(1, 0, i)];
-                }
-            }
-        }
 
         h.h112 = -(&h.h111 + &h.h113);
         h.h443 = -(h.h444.clone().permuted_axes((1, 2, 0)) + &h.h442);
