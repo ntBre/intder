@@ -422,17 +422,10 @@ impl Htens {
         let h32 = hijs2.h32;
         let h44 = Hmat::new(geom, &Stretch(*a, *b)).h11;
         let h42 = Hmat::new(geom, &Stretch(*b, *c)).h11;
-        let mut h43 = Hmat::mat1(&e34);
         let w1 = 2.0 * c1;
         let w2 = 2.0 * c12;
-        for k in 0..3 {
-            for i in 0..=k {
-                h43[(i, k)] = 2.0
-                    * (w1 * h44[(i, k)] + c6 * h11[(i, k)]
-                        - c10 * bp21[i] * bp21[k]);
-            }
-            h43[(k, k)] -= w2;
-        }
+        let h43 = 2.0 * (w1 * h44 + c6 * h11 - c10 * &bp21 * bp21.transpose())
+            - w2 * DMat::identity(3, 3);
         for k in 0..3 {
             for j in 0..=k {
                 for i in 0..=j {
