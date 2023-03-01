@@ -911,24 +911,6 @@ impl Htens {
         let Htens { h111: q444, .. } = Htens::new(geom, &Stretch(*d, *c));
         let q4444 = h4th1(geom, *c, *d);
 
-        // 4
-        for i in 0..3 {
-            for j in 0..3 {
-                for k in 0..3 {
-                    h.h444[(i, j, k)] = 0.0;
-                    h.h441[(i, j, k)] = 0.0;
-                    h.h442[(i, j, k)] = 0.0;
-                    for l in 0..3 {
-                        h.h444[(i, j, k)] -= r23 * q4444[(l, i, j, k)] * q3[l];
-                        h.h441[(i, j, k)] -=
-                            r23 * q444[(l, i, j)] * q31[(l, k)];
-                        h.h442[(i, j, k)] -=
-                            r23 * q444[(l, i, j)] * q32[(l, k)];
-                    }
-                }
-            }
-        }
-
         let q44 = hijs1(geom, *d, *c);
         let Htens {
             h113: q113,
@@ -945,27 +927,6 @@ impl Htens {
             ..
         } = h4th2(geom, *a, *b, *c);
 
-        // 5
-        foreach!(i, j, k,
-             h.h111[(i,j,k)]=0.0;
-             h.h112[(i,j,k)]=0.0;
-             h.h221[(i,j,k)]=0.0;
-             h.h222[(i,j,k)]=0.0;
-             h.h421[(i,j,k)]=0.0;
-             h.h422[(i,j,k)]=0.0;
-             h.h411[(i,j,k)]=0.0;
-             for l in 0..3 {
-                 h.h111[(i,j,k)] -= r23*q1113[(i,j,k,l)]*qc[l];
-                 h.h112[(i,j,k)] -= r23*q1123[(i,j,k,l)]*qc[l];
-                 h.h221[(i,j,k)] -= r23*q1223[(k,j,i,l)]*qc[l];
-                 h.h222[(i,j,k)] -= r23*q2223[(i,j,k,l)]*qc[l];
-                 h.h421[(i,j,k)] -= r23*q123[(k,j,l)]*q44[(l,i)];
-                 h.h422[(i,j,k)] -= r23*q223[(j,k,l)]*q44[(l,i)];
-                 h.h411[(i,j,k)] -= r23*q113[(j,k,l)]*q44[(l,i)];
-
-             };
-        );
-
         // hijs8 call
         let Hmat {
             h11: q11,
@@ -973,56 +934,76 @@ impl Htens {
             h41: q41,
             h22: q22,
             h42: q42,
-            h44: q44,
+            h44: q44a,
             ..
         } = Hmat::new(geom, siic);
-
-        // 12
-        foreach!(i, j, k,
-             h.h442[(i, j, k)] += q44[(i, j)] * qb[k] / r23;
-             h.h421[(i, j, k)] += q41[(i, k)] * qb[j] / r23;
-             h.h112[(i, j, k)] += q11[(i, j)] * qb[k] / r23;
-             h.h222[(i, j, k)] += q22[(j, k)] * qb[i] / r23;
-             h.h222[(i, j, k)] +=
-             (q22[(i, k)] * qb[j] + q22[(i, j)] * qb[k]) / r23;
-             h.h221[(i, j, k)] +=
-             (q21[(i, k)] * qb[j] + q21[(j, k)] * qb[i]) / r23;
-             h.h422[(i, j, k)] +=
-             (q42[(i, k)] * qb[j] + q42[(i, j)] * qb[k]) / r23;
-        );
 
         // vect8 call
         let s = geom.s_vec(siic);
         splat!(s, q1 => a, q2 => b, q4 => d);
         let w = siic.value(geom);
-        let q22 = hijs1(geom, *b, *c);
+        let q22a = hijs1(geom, *b, *c);
         let q222 = hijks1(geom, *b, *c);
 
-        // 22
-        foreach!(i, j, k,
-                h.h422[(i, j, k)] += q22[(j, k)] * q4[i] / r23;
-                h.h422[(i, j, k)] -= 2.0 * qb[j] * qb[k] * q4[i] / r23 / r23;
-                h.h221[(i, j, k)] += q22[(i, j)] * q1[k] / r23;
-                h.h221[(i, j, k)] -= 2.0 * qb[i] * qb[j] * q1[k] / r23 / r23;
-                h.h222[(i, j, k)] += (q22[(i, j)] * q2[k] + q22[(j, k)] * q2[i]) / r23;
-                h.h222[(i, j, k)] += q22[(i, k)] * q2[j] / r23;
-                h.h222[(i, j, k)] = h.h222[(i, j, k)]
-                    + 6.0 * w * qb[i] * qb[j] * qb[k] / r23 / r23 / r23
-                    - (qb[i] * qb[j] * q2[k]
-                        + qb[j] * qb[k] * q2[i]
-                        + qb[i] * qb[k] * q2[j])
-                        * 2.0
-                        / r23
-                        / r23
-                    + w * q222[(i, j, k)] / r23
-                    - 2.0
-                        * w
-                        * (q22[(i, j)] * qb[k]
-                            + q22[(i, k)] * qb[j]
-                            + q22[(j, k)] * qb[i])
-                        / r23
-                        / r23;
-        );
+        // 4
+        for i in 0..3 {
+            for j in 0..3 {
+                for k in 0..3 {
+                    for l in 0..3 {
+                        h.h444[(i, j, k)] -= r23 * q4444[(l, i, j, k)] * q3[l];
+                        h.h441[(i, j, k)] -=
+                            r23 * q444[(l, i, j)] * q31[(l, k)];
+                        h.h442[(i, j, k)] -=
+                            r23 * q444[(l, i, j)] * q32[(l, k)];
+                        h.h111[(i, j, k)] -= r23 * q1113[(i, j, k, l)] * qc[l];
+                        h.h112[(i, j, k)] -= r23 * q1123[(i, j, k, l)] * qc[l];
+                        h.h221[(i, j, k)] -= r23 * q1223[(k, j, i, l)] * qc[l];
+                        h.h222[(i, j, k)] -= r23 * q2223[(i, j, k, l)] * qc[l];
+                        h.h421[(i, j, k)] -=
+                            r23 * q123[(k, j, l)] * q44[(l, i)];
+                        h.h422[(i, j, k)] -=
+                            r23 * q223[(j, k, l)] * q44[(l, i)];
+                        h.h411[(i, j, k)] -=
+                            r23 * q113[(j, k, l)] * q44[(l, i)];
+                    }
+                    h.h442[(i, j, k)] += q44a[(i, j)] * qb[k] / r23;
+                    h.h421[(i, j, k)] += q41[(i, k)] * qb[j] / r23;
+                    h.h112[(i, j, k)] += q11[(i, j)] * qb[k] / r23;
+                    h.h222[(i, j, k)] += q22[(j, k)] * qb[i] / r23;
+                    h.h222[(i, j, k)] +=
+                        (q22[(i, k)] * qb[j] + q22[(i, j)] * qb[k]) / r23;
+                    h.h221[(i, j, k)] +=
+                        (q21[(i, k)] * qb[j] + q21[(j, k)] * qb[i]) / r23;
+                    h.h422[(i, j, k)] +=
+                        (q42[(i, k)] * qb[j] + q42[(i, j)] * qb[k]) / r23;
+                    h.h422[(i, j, k)] += q22a[(j, k)] * q4[i] / r23;
+                    h.h422[(i, j, k)] -=
+                        2.0 * qb[j] * qb[k] * q4[i] / r23 / r23;
+                    h.h221[(i, j, k)] += q22a[(i, j)] * q1[k] / r23;
+                    h.h221[(i, j, k)] -=
+                        2.0 * qb[i] * qb[j] * q1[k] / r23 / r23;
+                    h.h222[(i, j, k)] +=
+                        (q22a[(i, j)] * q2[k] + q22a[(j, k)] * q2[i]) / r23;
+                    h.h222[(i, j, k)] += q22a[(i, k)] * q2[j] / r23;
+                    h.h222[(i, j, k)] +=
+                        6.0 * w * qb[i] * qb[j] * qb[k] / r23 / r23 / r23
+                            - (qb[i] * qb[j] * q2[k]
+                                + qb[j] * qb[k] * q2[i]
+                                + qb[i] * qb[k] * q2[j])
+                                * 2.0
+                                / r23
+                                / r23
+                            + w * q222[(i, j, k)] / r23
+                            - 2.0
+                                * w
+                                * (q22a[(i, j)] * qb[k]
+                                    + q22a[(i, k)] * qb[j]
+                                    + q22a[(j, k)] * qb[i])
+                                / r23
+                                / r23;
+                }
+            }
+        }
 
         h.h223 = -&h.h222 - &h.h221 - h.h422.view().permuted_axes((1, 2, 0));
         h.h113 = -&h.h112 - &h.h111 - h.h411.view().permuted_axes((1, 2, 0));
