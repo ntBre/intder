@@ -358,33 +358,27 @@ impl Htens {
         let w4 = 2.0 * c2;
         let w5 = c5 * c3;
         let w6 = c8 * c3;
+
+        // scratch tensors
+        let mut h_alpha = Tensor3::zeros((3, 3, 3));
         for k in 0..3 {
-            h.h411[(0, 0, k)] = e21[k] * c1 + bp21[k] * c6;
-            h.h411[(0, 1, k)] = e34[k] * c2 + bp34[k] * c9;
-            h.h411[(0, 2, k)] = e23[k] * c3 + bp23[k] * w1;
-            h.h411[(1, 0, k)] = -e23[k] * c3 + bp32[k] * w2;
-            h.h411[(1, 1, k)] = e21[k] * w3 + e23[k] * c3 - bp22[k] * w1;
-            h.h411[(1, 2, k)] = e34[k] * w4 - e23[k] * c3 - bp33[k] * w2;
-            h.h411[(2, 0, k)] = e23[k] * w5 + bp23[k] * c4;
-            h.h411[(2, 1, k)] = -e23[k] * w6 + bp32[k] * c7;
+            h_alpha[(0, 0, k)] = e21[k] * c1 + bp21[k] * c6;
+            h_alpha[(0, 1, k)] = e34[k] * c2 + bp34[k] * c9;
+            h_alpha[(0, 2, k)] = e23[k] * c3 + bp23[k] * w1;
+            h_alpha[(1, 0, k)] = -e23[k] * c3 + bp32[k] * w2;
+            h_alpha[(1, 1, k)] = e21[k] * w3 + e23[k] * c3 - bp22[k] * w1;
+            h_alpha[(1, 2, k)] = e34[k] * w4 - e23[k] * c3 - bp33[k] * w2;
+            h_alpha[(2, 0, k)] = e23[k] * w5 + bp23[k] * c4;
+            h_alpha[(2, 1, k)] = -e23[k] * w6 + bp32[k] * c7;
         } // end 10
 
-        for k in 0..3 {
-            let mut v2 = nalgebra::vector![0.0, 0.0, 0.0];
-            v2[k] = 1.0;
-            let h22 = Hmat::mat1(&v2);
-            for j in 0..3 {
-                for i in 0..3 {
-                    h.h421[(i, j, k)] = h22[(i, j)];
-                }
-            }
-        } // end 15
+        let p = Self::tripro();
 
         let w1 = 2.0 * c10 * c12;
         let w2 = 2.0 * c11 * c13;
         for k in 0..3 {
-            let w3 = w1 * h.h411[(0, 0, k)];
-            let w4 = w2 * h.h411[(0, 1, k)];
+            let w3 = w1 * h_alpha[(0, 0, k)];
+            let w4 = w2 * h_alpha[(0, 1, k)];
             for j in 0..=k {
                 for i in 0..=j {
                     h.h111[(i, j, k)] = w3 * h32[(i, j)];
@@ -398,14 +392,12 @@ impl Htens {
         let w3 = w1 * c3;
         let w4 = w2 * c3;
         for k in 0..3 {
-            let w5 = w1 * h.h411[(0, 2, k)];
-            let w6 = w2 * h.h411[(1, 0, k)];
+            let w5 = w1 * h_alpha[(0, 2, k)];
+            let w6 = w2 * h_alpha[(1, 0, k)];
             for j in 0..3 {
                 for i in 0..3 {
-                    h.h113[(i, j, k)] =
-                        w5 * h32[(i, j)] - w3 * h.h421[(i, j, k)];
-                    h.h442[(i, j, k)] =
-                        -w6 * h32[(i, j)] - w4 * h.h421[(i, j, k)];
+                    h.h113[(i, j, k)] = w5 * h32[(i, j)] - w3 * p[(i, j, k)];
+                    h.h442[(i, j, k)] = -w6 * h32[(i, j)] - w4 * p[(i, j, k)];
                 }
             }
         } // end 107
@@ -413,14 +405,12 @@ impl Htens {
         let w1 = c1 * c3 * c10;
         let w2 = c2 * c3 * c11;
         for k in 0..3 {
-            let w5 = w1 * h.h411[(1, 1, k)];
-            let w6 = w2 * h.h411[(1, 2, k)];
+            let w5 = w1 * h_alpha[(1, 1, k)];
+            let w6 = w2 * h_alpha[(1, 2, k)];
             for j in 0..3 {
                 for i in 0..3 {
-                    h.h123[(i, k, j)] =
-                        -w5 * h21[(i, j)] + w3 * h.h421[(i, j, k)];
-                    h.h432[(i, k, j)] =
-                        -w6 * h43[(i, j)] + w4 * h.h421[(i, j, k)];
+                    h.h123[(i, k, j)] = -w5 * h21[(i, j)] + w3 * p[(i, j, k)];
+                    h.h432[(i, k, j)] = -w6 * h43[(i, j)] + w4 * p[(i, j, k)];
                 }
             }
         } // end 112
@@ -490,7 +480,7 @@ impl Htens {
         }
         for k in 0..3 {
             for i in 0..3 {
-                let w6 = h43[(i, k)] + e23[i] * w5 * h.h411[(2, 0, k)];
+                let w6 = h43[(i, k)] + e23[i] * w5 * h_alpha[(2, 0, k)];
                 for j in 0..3 {
                     h.h223[(i, j, k)] = -v1[j] * w6;
                 }
@@ -582,7 +572,7 @@ impl Htens {
 
         for k in 0..3 {
             for i in 0..3 {
-                let w6 = h21[(i, k)] - e23[i] * w5 * h.h411[(2, 1, k)];
+                let w6 = h21[(i, k)] - e23[i] * w5 * h_alpha[(2, 1, k)];
                 for j in 0..3 {
                     h.h332[(i, j, k)] -= v4[j] * w6;
                 }
@@ -619,8 +609,8 @@ impl Htens {
         for k in 0..3 {
             for j in 0..=k {
                 for i in 0..=j {
-                    h.h111[(i, j, k)] -= 2.0 * h11[(j, k)] * h.h411[(0, 0, i)];
-                    h.h444[(i, j, k)] -= 2.0 * h44[(j, k)] * h.h411[(0, 1, i)];
+                    h.h111[(i, j, k)] -= 2.0 * h11[(j, k)] * h_alpha[(0, 0, i)];
+                    h.h444[(i, j, k)] -= 2.0 * h44[(j, k)] * h_alpha[(0, 1, i)];
                 }
             }
         } // end 222
@@ -628,14 +618,14 @@ impl Htens {
         fill3a(&mut h.h444, 3);
 
         for i in 0..3 {
-            let w1 = 2.0 * h.h411[(0, 0, i)];
-            let w2 = 2.0 * h.h411[(0, 1, i)];
+            let w1 = 2.0 * h_alpha[(0, 0, i)];
+            let w2 = 2.0 * h_alpha[(0, 1, i)];
             for j in 0..3 {
                 for k in 0..3 {
                     h.h113[(i, j, k)] -= w1 * h31[(k, j)];
                     h.h442[(i, j, k)] -= w2 * h42[(j, k)];
-                    h.h123[(i, j, k)] -= h21[(j, i)] * h.h411[(0, 2, k)];
-                    h.h432[(i, j, k)] -= h43[(i, j)] * h.h411[(1, 0, k)];
+                    h.h123[(i, j, k)] -= h21[(j, i)] * h_alpha[(0, 2, k)];
+                    h.h432[(i, j, k)] -= h43[(i, j)] * h_alpha[(1, 0, k)];
                 }
             }
         } // end 227
@@ -652,8 +642,8 @@ impl Htens {
         for k in 0..3 {
             for j in 0..3 {
                 for i in 0..3 {
-                    h.h223[(i, j, k)] -= c15 * h21[(i, j)] * h.h411[(2, 0, k)];
-                    h.h332[(i, j, k)] -= c16 * h43[(j, i)] * h.h411[(2, 1, k)];
+                    h.h223[(i, j, k)] -= c15 * h21[(i, j)] * h_alpha[(2, 0, k)];
+                    h.h332[(i, j, k)] -= c16 * h43[(j, i)] * h_alpha[(2, 1, k)];
                 }
             }
         } // end 242
@@ -663,8 +653,8 @@ impl Htens {
                 let w1 = c16 * (h43[(j, k)] - c3 * v4[j] * e23[k]);
                 let w2 = c15 * (h21[(k, j)] + c3 * v1[j] * e23[k]);
                 for i in 0..3 {
-                    h.h223[(i, j, k)] += w1 * h.h411[(2, 1, i)];
-                    h.h332[(i, j, k)] += w2 * h.h411[(2, 0, i)];
+                    h.h223[(i, j, k)] += w1 * h_alpha[(2, 1, i)];
+                    h.h332[(i, j, k)] += w2 * h_alpha[(2, 0, i)];
                 }
             }
         } // end 252
@@ -676,17 +666,17 @@ impl Htens {
         let w5 = c7 * c16;
         let w6 = c8 * t34 * c14;
         for k in 0..3 {
-            h.h411[(0, 0, k)] = w5 * bp33[k] + w6 * e23[k] + w4 * e34[k];
-            h.h411[(0, 1, k)] = w2 * bp22[k] - w3 * e23[k] + w1 * e21[k];
-            h.h411[(0, 2, k)] = -w1 * e21[k] - w2 * bp22[k] + w3 * e23[k];
-            h.h411[(1, 0, k)] = -w4 * e34[k] - w5 * bp33[k] - w6 * e23[k];
+            h_alpha[(0, 0, k)] = w5 * bp33[k] + w6 * e23[k] + w4 * e34[k];
+            h_alpha[(0, 1, k)] = w2 * bp22[k] - w3 * e23[k] + w1 * e21[k];
+            h_alpha[(0, 2, k)] = -w1 * e21[k] - w2 * bp22[k] + w3 * e23[k];
+            h_alpha[(1, 0, k)] = -w4 * e34[k] - w5 * bp33[k] - w6 * e23[k];
         } // end 260
 
         for k in 0..3 {
             for j in 0..3 {
                 for i in 0..3 {
-                    h.h223[(i, j, k)] += h42[(j, i)] * h.h411[(0, 0, k)];
-                    h.h332[(i, j, k)] += h31[(i, j)] * h.h411[(0, 1, k)];
+                    h.h223[(i, j, k)] += h42[(j, i)] * h_alpha[(0, 0, k)];
+                    h.h332[(i, j, k)] += h31[(i, j)] * h_alpha[(0, 1, k)];
                 }
             }
         } // end 267
@@ -696,18 +686,11 @@ impl Htens {
                 let w1 = h31[(k, j)] - c3 * v1[j] * e23[k];
                 let w2 = h42[(j, k)] + c3 * v4[j] * e23[k];
                 for i in 0..3 {
-                    h.h223[(i, j, k)] += w1 * h.h411[(0, 2, i)];
-                    h.h332[(i, j, k)] += w2 * h.h411[(1, 0, i)];
+                    h.h223[(i, j, k)] += w1 * h_alpha[(0, 2, i)];
+                    h.h332[(i, j, k)] += w2 * h_alpha[(1, 0, i)];
                 }
             }
         }
-
-        // we just used these for scratch space I guess, but apparently they
-        // will be accessed later...
-        h.h411 = Tensor3::zeros((3, 3, 3));
-        h.h421 = Tensor3::zeros((3, 3, 3));
-        h.h431 = Tensor3::zeros((3, 3, 3));
-        h.h441 = Tensor3::zeros((3, 3, 3));
 
         h.h112 = -(&h.h111 + &h.h113);
         h.h443 = -(h.h444.clone().permuted_axes((1, 2, 0)) + &h.h442);
