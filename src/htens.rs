@@ -387,39 +387,35 @@ impl Htens {
             }
         } // end 102
 
-        let w1 = c10 * c12;
-        let w2 = c11 * c13;
-        let w3 = w1 * c3;
-        let w4 = w2 * c3;
+        let w5 = c10 * c12;
+        let w6 = c11 * c13;
+        let w7 = w5 * c3;
+        let w8 = w6 * c3;
         for k in 0..3 {
-            let w5 = w1 * h_alpha[(0, 2, k)];
-            let w6 = w2 * h_alpha[(1, 0, k)];
+            let w9 = w5 * h_alpha[(0, 2, k)];
+            let w10 = w6 * h_alpha[(1, 0, k)];
             for j in 0..3 {
                 for i in 0..3 {
-                    h.h113[(i, j, k)] = w5 * h32[(i, j)] - w3 * p[(i, j, k)];
-                    h.h442[(i, j, k)] = -w6 * h32[(i, j)] - w4 * p[(i, j, k)];
+                    h.h113[(i, j, k)] = w9 * h32[(i, j)] - w7 * p[(i, j, k)];
+                    h.h442[(i, j, k)] = -w10 * h32[(i, j)] - w8 * p[(i, j, k)];
                 }
             }
         } // end 107
 
-        let w1 = c1 * c3 * c10;
-        let w2 = c2 * c3 * c11;
+        let w11 = c1 * c3 * c10;
+        let w12 = c2 * c3 * c11;
         for k in 0..3 {
-            let w5 = w1 * h_alpha[(1, 1, k)];
-            let w6 = w2 * h_alpha[(1, 2, k)];
+            let w13 = w11 * h_alpha[(1, 1, k)];
+            let w14 = w12 * h_alpha[(1, 2, k)];
             for j in 0..3 {
                 for i in 0..3 {
-                    h.h123[(i, k, j)] = -w5 * h21[(i, j)] + w3 * p[(i, j, k)];
-                    h.h432[(i, k, j)] = -w6 * h43[(i, j)] + w4 * p[(i, j, k)];
+                    h.h123[(i, k, j)] = -w13 * h21[(i, j)] + w7 * p[(i, j, k)];
+                    h.h432[(i, k, j)] = -w14 * h43[(i, j)] + w8 * p[(i, j, k)];
                 }
             }
         } // end 112
 
-        let hijs2 = Hmat::new(geom, &Bend(*a, *b, *c));
-        let h11 = hijs2.h11;
-        let mut h21 = hijs2.h21;
-        let h31 = hijs2.h31;
-        let h32 = hijs2.h32;
+        let Hmat { h11, h31, h32, .. } = Hmat::new(geom, &Bend(*a, *b, *c));
         let h44 = Hmat::new(geom, &Stretch(*a, *b)).h11;
         let h42 = Hmat::new(geom, &Stretch(*b, *c)).h11;
         let w1 = 2.0 * c1;
@@ -507,14 +503,8 @@ impl Htens {
 
         let w1 = 2.0 * c2;
         let w2 = 2.0 * c13;
-        for k in 0..3 {
-            for i in 0..=k {
-                h21[(i, k)] = 2.0
-                    * (w1 * h11[(i, k)] + c9 * h44[(i, k)]
-                        - c11 * bp34[i] * bp34[k]);
-            }
-            h21[(k, k)] -= w2;
-        } // end 165
+        let h21 = 2.0 * (w1 * h11 + c9 * h44 - c11 * &bp34 * bp34.transpose())
+            - w2 * DMat::identity(3, 3);
 
         for k in 0..3 {
             for j in 0..=k {
