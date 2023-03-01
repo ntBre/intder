@@ -352,74 +352,90 @@ impl Htens {
         let c14 = c3 * c3;
         let c15 = t21 * c3;
         let c16 = t34 * c3;
-        let w1 = 2.0 * c6;
-        let w2 = 2.0 * c9;
-        let w3 = 2.0 * c1;
-        let w4 = 2.0 * c2;
-        let w5 = c5 * c3;
-        let w6 = c8 * c3;
+        let w1 = 2.0 * c10 * c12;
+        let w2 = 2.0 * c11 * c13;
+        let w5 = c10 * c12;
+        let w6 = c11 * c13;
+        let w7 = w5 * c3;
+        let w8 = w6 * c3;
+        let w11 = c1 * c3 * c10;
+        let w12 = c2 * c3 * c11;
+        let w15 = 2.0 * c1;
+        let w16 = 2.0 * c12;
+        let w17 = 2.0 * c6;
+        let w18 = 2.0 * c10;
+        let w19 = 2.0 * c3;
+        let w20 = c4 * c3;
+        let w21 = c4 * c15;
+        let w22 = c5 * c15;
+        let w23 = w22 * c3;
+        let w24 = c3 * c15;
+        let w26 = c3 * c4 * c15;
+        let w27 = c5 * c14;
+        let w28 = 2.0 * c2;
+        let w29 = 2.0 * c13;
+        let w30 = 2.0 * c9;
+        let w31 = 2.0 * c11;
+        let w32 = 2.0 * c3;
+        let w33 = c7 * c3;
+        let w34 = c7 * c16;
+        let w35 = c8 * c16;
+        let w36 = w35 * c3;
+        let w37 = t34 * c14;
+        let w38 = c3 * c7 * c16;
+        let w39 = c8 * c14;
+        let w42 = c5 * c15;
+        let w43 = w42 - 1.0;
+        let w44 = c8 * c16;
+        let w45 = w44 - 1.0;
+        let w48 = c5 * c3;
+        let w49 = c4 * c15;
+        let w50 = c5 * t21 * c14;
+        let w51 = c8 * c3;
+        let w52 = c7 * c16;
+        let w53 = c8 * t34 * c14;
+        let w54 = 2.0 * c6;
+        let w55 = 2.0 * c9;
+        let w56 = 2.0 * c1;
+        let w57 = 2.0 * c2;
+        let w58 = c5 * c3;
+        let w59 = c8 * c3;
 
         // scratch tensors
         let mut h_alpha = Tensor3::zeros((3, 3, 3));
         for k in 0..3 {
             h_alpha[(0, 0, k)] = e21[k] * c1 + bp21[k] * c6;
             h_alpha[(0, 1, k)] = e34[k] * c2 + bp34[k] * c9;
-            h_alpha[(0, 2, k)] = e23[k] * c3 + bp23[k] * w1;
-            h_alpha[(1, 0, k)] = -e23[k] * c3 + bp32[k] * w2;
-            h_alpha[(1, 1, k)] = e21[k] * w3 + e23[k] * c3 - bp22[k] * w1;
-            h_alpha[(1, 2, k)] = e34[k] * w4 - e23[k] * c3 - bp33[k] * w2;
-            h_alpha[(2, 0, k)] = e23[k] * w5 + bp23[k] * c4;
-            h_alpha[(2, 1, k)] = -e23[k] * w6 + bp32[k] * c7;
+            h_alpha[(0, 2, k)] = e23[k] * c3 + bp23[k] * w54;
+            h_alpha[(1, 0, k)] = -e23[k] * c3 + bp32[k] * w55;
+            h_alpha[(1, 1, k)] = e21[k] * w56 + e23[k] * c3 - bp22[k] * w54;
+            h_alpha[(1, 2, k)] = e34[k] * w57 - e23[k] * c3 - bp33[k] * w55;
+            h_alpha[(2, 0, k)] = e23[k] * w58 + bp23[k] * c4;
+            h_alpha[(2, 1, k)] = -e23[k] * w59 + bp32[k] * c7;
         } // end 10
 
         let p = Self::tripro();
 
-        let w1 = 2.0 * c10 * c12;
-        let w2 = 2.0 * c11 * c13;
         for k in 0..3 {
-            let w3 = w1 * h_alpha[(0, 0, k)];
-            let w4 = w2 * h_alpha[(0, 1, k)];
-            for j in 0..=k {
-                for i in 0..=j {
-                    h.h111[(i, j, k)] = w3 * h32[(i, j)];
-                    h.h444[(i, j, k)] = -w4 * h32[(i, j)];
+            for j in 0..3 {
+                for i in 0..3 {
+                    h.h111[(i, j, k)] = w1 * h_alpha[(0, 0, k)] * h32[(i, j)];
+                    h.h444[(i, j, k)] = -w2 * h_alpha[(0, 1, k)] * h32[(i, j)];
+                    h.h113[(i, j, k)] = w5 * h_alpha[(0, 2, k)] * h32[(i, j)]
+                        - w7 * p[(i, j, k)];
+                    h.h442[(i, j, k)] = -w6 * h_alpha[(1, 0, k)] * h32[(i, j)]
+                        - w8 * p[(i, j, k)];
+                    h.h123[(i, k, j)] = -w11 * h_alpha[(1, 1, k)] * h21[(i, j)]
+                        + w7 * p[(i, j, k)];
+                    h.h432[(i, k, j)] = -w12 * h_alpha[(1, 2, k)] * h43[(i, j)]
+                        + w8 * p[(i, j, k)];
                 }
             }
         } // end 102
 
-        let w5 = c10 * c12;
-        let w6 = c11 * c13;
-        let w7 = w5 * c3;
-        let w8 = w6 * c3;
-        for k in 0..3 {
-            let w9 = w5 * h_alpha[(0, 2, k)];
-            let w10 = w6 * h_alpha[(1, 0, k)];
-            for j in 0..3 {
-                for i in 0..3 {
-                    h.h113[(i, j, k)] = w9 * h32[(i, j)] - w7 * p[(i, j, k)];
-                    h.h442[(i, j, k)] = -w10 * h32[(i, j)] - w8 * p[(i, j, k)];
-                }
-            }
-        } // end 107
-
-        let w11 = c1 * c3 * c10;
-        let w12 = c2 * c3 * c11;
-        for k in 0..3 {
-            let w13 = w11 * h_alpha[(1, 1, k)];
-            let w14 = w12 * h_alpha[(1, 2, k)];
-            for j in 0..3 {
-                for i in 0..3 {
-                    h.h123[(i, k, j)] = -w13 * h21[(i, j)] + w7 * p[(i, j, k)];
-                    h.h432[(i, k, j)] = -w14 * h43[(i, j)] + w8 * p[(i, j, k)];
-                }
-            }
-        } // end 112
-
         let Hmat { h11, h31, h32, .. } = Hmat::new(geom, &Bend(*a, *b, *c));
         let h44 = Hmat::new(geom, &Stretch(*a, *b)).h11;
         let h42 = Hmat::new(geom, &Stretch(*b, *c)).h11;
-        let w15 = 2.0 * c1;
-        let w16 = 2.0 * c12;
         let h43 = 2.0 * (w15 * h44 + c6 * h11 - c10 * &bp21 * bp21.transpose())
             - w16 * DMat::identity(3, 3);
         for k in 0..3 {
@@ -430,9 +446,6 @@ impl Htens {
             }
         } // end 122
 
-        let w17 = 2.0 * c6;
-        let w18 = 2.0 * c10;
-        let w19 = 2.0 * c3;
         let h43 = w17 * h31.transpose() - w18 * bp21 * bp23.transpose();
         for k in 0..3 {
             for j in 0..3 {
@@ -453,11 +466,6 @@ impl Htens {
             }
         } // end 142
 
-        let w20 = c4 * c3;
-        let w21 = c4 * c15;
-        let w22 = c5 * c15;
-        let w23 = w22 * c3;
-        let w24 = c3 * c15;
         let h43 = -e21 * bp23.transpose() * w20
             + h32.transpose() * w21
             + &bp22 * bp23.transpose() * w22
@@ -471,8 +479,6 @@ impl Htens {
             }
         } // end 152
 
-        let w26 = c3 * c4 * c15;
-        let w27 = c5 * c14;
         let h43 = h43
             + -w26 * &bp22 * e23.transpose()
             + w27 * (c15 * e23 - e21) * e23.transpose();
@@ -493,8 +499,6 @@ impl Htens {
         let h11 = Hmat::new(geom, &Stretch(*d, *c)).h11;
         let h31 = Hmat::new(geom, &Stretch(*c, *b)).h11;
 
-        let w28 = 2.0 * c2;
-        let w29 = 2.0 * c13;
         let h21 = 2.0 * (w28 * h11 + c9 * h44 - c11 * &bp34 * bp34.transpose())
             - w29 * DMat::identity(3, 3);
         for k in 0..3 {
@@ -505,9 +509,6 @@ impl Htens {
             }
         } // end 172
 
-        let w30 = 2.0 * c9;
-        let w31 = 2.0 * c11;
-        let w32 = 2.0 * c3;
         let h21 = w30 * h42 - w31 * bp34 * bp32.transpose();
         for k in 0..3 {
             for j in 0..3 {
@@ -527,11 +528,6 @@ impl Htens {
             }
         } // end 192
 
-        let w33 = c7 * c3;
-        let w34 = c7 * c16;
-        let w35 = c8 * c16;
-        let w36 = w35 * c3;
-        let w37 = t34 * c14;
         let h21 = -e34 * bp32.transpose() * w33
             + &h32 * w34
             + &bp33 * bp32.transpose() * w35
@@ -545,8 +541,6 @@ impl Htens {
             }
         } // end 202
 
-        let w38 = c3 * c7 * c16;
-        let w39 = c8 * c14;
         let h21 = h21
             + w38 * &bp33 * e23.transpose()
             + w39 * (e34 + c16 * e23) * e23.transpose();
@@ -591,10 +585,6 @@ impl Htens {
             }
         } // end 227
 
-        let w42 = c5 * c15;
-        let w43 = w42 - 1.0;
-        let w44 = c8 * c16;
-        let w45 = w44 - 1.0;
         h.h223 += &(w43 * h.h123.clone().permuted_axes((1, 0, 2))
             - w44 * h.h432.clone().permuted_axes((2, 0, 1)));
         h.h332 += &(w45 * h.h432.clone().permuted_axes((1, 0, 2))
@@ -620,12 +610,6 @@ impl Htens {
             }
         } // end 252
 
-        let w48 = c5 * c3;
-        let w49 = c4 * c15;
-        let w50 = c5 * t21 * c14;
-        let w51 = c8 * c3;
-        let w52 = c7 * c16;
-        let w53 = c8 * t34 * c14;
         for k in 0..3 {
             h_alpha[(0, 0, k)] = w52 * bp33[k] + w53 * e23[k] + w51 * e34[k];
             h_alpha[(0, 1, k)] = w49 * bp22[k] - w50 * e23[k] + w48 * e21[k];
