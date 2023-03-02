@@ -896,8 +896,8 @@ impl Htens {
     ) {
         use Siic::*;
         let qb = geom.unit(*c, *b);
-        let r23 = geom.dist(*b, *c);
         let qc = geom.unit(*c, *d);
+        let r23 = geom.dist(*b, *c);
         let bend = Bend(*a, *b, *c);
         let s = geom.s_vec(&bend);
         splat!(s, q3 => c);
@@ -967,38 +967,31 @@ impl Htens {
                     h.h442[(i, j, k)] += q44a[(i, j)] * qb[k] / r23;
                     h.h421[(i, j, k)] += q41[(i, k)] * qb[j] / r23;
                     h.h112[(i, j, k)] += q11[(i, j)] * qb[k] / r23;
-                    h.h222[(i, j, k)] += q22[(j, k)] * qb[i] / r23;
-                    h.h222[(i, j, k)] +=
-                        (q22[(i, k)] * qb[j] + q22[(i, j)] * qb[k]) / r23;
+                    h.h222[(i, j, k)] += q22[(j, k)] * qb[i] / r23
+                        + (q22[(i, k)] * qb[j] + q22[(i, j)] * qb[k]) / r23
+                        + (q22a[(i, j)] * q2[k] + q22a[(j, k)] * q2[i]) / r23
+                        + q22a[(i, k)] * q2[j] / r23
+                        + 6.0 * w * qb[i] * qb[j] * qb[k] / r23.powi(3)
+                        - (qb[i] * qb[j] * q2[k]
+                            + qb[j] * qb[k] * q2[i]
+                            + qb[i] * qb[k] * q2[j])
+                            * 2.0
+                            / r23.powi(2)
+                        + w * q222[(i, j, k)] / r23
+                        - 2.0
+                            * w
+                            * (q22a[(i, j)] * qb[k]
+                                + q22a[(i, k)] * qb[j]
+                                + q22a[(j, k)] * qb[i])
+                            / r23.powi(2);
                     h.h221[(i, j, k)] +=
-                        (q21[(i, k)] * qb[j] + q21[(j, k)] * qb[i]) / r23;
+                        (q21[(i, k)] * qb[j] + q21[(j, k)] * qb[i]) / r23
+                            + q22a[(i, j)] * q1[k] / r23
+                            - 2.0 * qb[i] * qb[j] * q1[k] / r23.powi(2);
                     h.h422[(i, j, k)] +=
-                        (q42[(i, k)] * qb[j] + q42[(i, j)] * qb[k]) / r23;
-                    h.h422[(i, j, k)] += q22a[(j, k)] * q4[i] / r23;
-                    h.h422[(i, j, k)] -=
-                        2.0 * qb[j] * qb[k] * q4[i] / r23 / r23;
-                    h.h221[(i, j, k)] += q22a[(i, j)] * q1[k] / r23;
-                    h.h221[(i, j, k)] -=
-                        2.0 * qb[i] * qb[j] * q1[k] / r23 / r23;
-                    h.h222[(i, j, k)] +=
-                        (q22a[(i, j)] * q2[k] + q22a[(j, k)] * q2[i]) / r23;
-                    h.h222[(i, j, k)] += q22a[(i, k)] * q2[j] / r23;
-                    h.h222[(i, j, k)] +=
-                        6.0 * w * qb[i] * qb[j] * qb[k] / r23 / r23 / r23
-                            - (qb[i] * qb[j] * q2[k]
-                                + qb[j] * qb[k] * q2[i]
-                                + qb[i] * qb[k] * q2[j])
-                                * 2.0
-                                / r23
-                                / r23
-                            + w * q222[(i, j, k)] / r23
-                            - 2.0
-                                * w
-                                * (q22a[(i, j)] * qb[k]
-                                    + q22a[(i, k)] * qb[j]
-                                    + q22a[(j, k)] * qb[i])
-                                / r23
-                                / r23;
+                        (q42[(i, k)] * qb[j] + q42[(i, j)] * qb[k]) / r23
+                            + q22a[(j, k)] * q4[i] / r23
+                            - 2.0 * qb[j] * qb[k] * q4[i] / r23.powi(2);
                 }
             }
         }
