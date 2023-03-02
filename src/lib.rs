@@ -1,3 +1,4 @@
+use htens4::fill4a;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
@@ -20,10 +21,10 @@ use lazy_static::lazy_static;
 use nalgebra as na;
 use regex::Regex;
 use symm::{Axis, Irrep};
-use tensor::Tensor4;
 
 use crate::htens::utils::fill3a;
 pub type Tensor3 = ndarray::Array3<f64>;
+pub type Tensor4 = ndarray::Array4<f64>;
 
 /// from <https://physics.nist.gov/cgi-bin/cuu/Value?bohrrada0>
 pub const ANGBOHR: f64 = 0.529_177_210_9;
@@ -1088,7 +1089,7 @@ impl Intder {
     pub fn lintr_fc4(&self, bs: &DMat) -> Tensor4 {
         let nsx = self.ncart() - 3 * self.ndum();
         let nsy = self.nsym();
-        let mut f4 = Tensor4::zeros(nsx, nsx, nsx, nsx);
+        let mut f4 = Tensor4::zeros((nsx, nsx, nsx, nsx));
         for i in 0..nsy {
             for j in 0..=i {
                 let dij = delta(i, j);
@@ -1110,7 +1111,7 @@ impl Intder {
         // end 179 loop, looking good so far
 
         let f4_disk = f4;
-        let mut f4 = Tensor4::zeros(nsx, nsx, nsx, nsx);
+        let mut f4 = Tensor4::zeros((nsx, nsx, nsx, nsx));
 
         // loop starting at line 444
         for i in 0..nsy {
@@ -1132,7 +1133,7 @@ impl Intder {
         // end 200 loop
 
         let f4_disk2 = f4;
-        let mut f4 = Tensor4::zeros(nsx, nsx, nsx, nsx);
+        let mut f4 = Tensor4::zeros((nsx, nsx, nsx, nsx));
 
         // start of loop at 514
         for i in 0..nsy {
@@ -1152,7 +1153,7 @@ impl Intder {
         // end of 214 loop, looking good
 
         let f4_disk2 = f4;
-        let mut f4 = Tensor4::zeros(nsx, nsx, nsx, nsx);
+        let mut f4 = Tensor4::zeros((nsx, nsx, nsx, nsx));
 
         // begin 224 loop
         for i in 0..nsy {
@@ -1169,7 +1170,7 @@ impl Intder {
         }
         // end 224 loop
 
-        f4.fill4a(nsx);
+        fill4a(&mut f4, nsx);
         f4
     }
 
@@ -1226,7 +1227,7 @@ impl Intder {
                 }
             }
         }
-        f4.fill4a(nc);
+        fill4a(&mut f4, nc);
         (f3, f4)
     }
 
@@ -1261,7 +1262,7 @@ impl Intder {
                 }
             }
         }
-        f4.fill4a(nc);
+        fill4a(&mut f4, nc);
         f4
     }
 
@@ -1286,7 +1287,7 @@ impl Intder {
                 }
             }
         }
-        f4.fill4a(nc);
+        fill4a(&mut f4, nc);
         f4
     }
 

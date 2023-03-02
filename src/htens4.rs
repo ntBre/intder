@@ -5,7 +5,7 @@ use crate::{
     splat, Siic,
 };
 type Tensor4 = ndarray::Array4<f64>;
-use tensor::tensor5::Tensor5;
+type Tensor5 = ndarray::Array5<f64>;
 
 pub struct Htens4 {
     pub h1111: Tensor4,
@@ -71,12 +71,12 @@ macro_rules! foreach {
     };
 }
 
-fn h5th1(geom: &Geom, k1: usize, k2: usize) -> Tensor5 {
-    let mut h = Tensor5::zeros(3, 3, 3, 3, 3);
-    let (v1, t21) = geom.vect1(k2, k1);
-    let h11 = hijs1(geom, k1, k2);
-    let h111 = hijks1(geom, k1, k2);
-    let h1111 = h4th1(geom, k1, k2);
+fn h5th1(geom: &Geom, a: usize, b: usize) -> Tensor5 {
+    let mut h = Tensor5::zeros((3, 3, 3, 3, 3));
+    let (v1, t21) = geom.vect1(b, a);
+    let h11 = hijs1(geom, a, b);
+    let h111 = hijks1(geom, a, b);
+    let h1111 = h4th1(geom, a, b);
     for m in 0..3 {
         for l in 0..3 {
             for k in 0..=l {
@@ -314,4 +314,38 @@ pub(crate) fn h4th2(geom: &Geom, a: usize, b: usize, c: usize) -> Htens4 {
     h.h2222 = -&h.h1222 - h.h2223.view().permuted_axes((3, 0, 1, 2));
 
     h
+}
+
+pub fn fill4a(t: &mut Tensor4, ny: usize) {
+    for q in 0..ny {
+        for p in 0..=q {
+            for n in 0..=p {
+                for m in 0..=n {
+                    t[(n, m, p, q)] = t[(m, n, p, q)];
+                    t[(n, p, m, q)] = t[(m, n, p, q)];
+                    t[(n, p, q, m)] = t[(m, n, p, q)];
+                    t[(m, p, n, q)] = t[(m, n, p, q)];
+                    t[(p, m, n, q)] = t[(m, n, p, q)];
+                    t[(p, n, m, q)] = t[(m, n, p, q)];
+                    t[(p, n, q, m)] = t[(m, n, p, q)];
+                    t[(m, p, q, n)] = t[(m, n, p, q)];
+                    t[(p, m, q, n)] = t[(m, n, p, q)];
+                    t[(p, q, m, n)] = t[(m, n, p, q)];
+                    t[(p, q, n, m)] = t[(m, n, p, q)];
+                    t[(m, n, q, p)] = t[(m, n, p, q)];
+                    t[(n, m, q, p)] = t[(m, n, p, q)];
+                    t[(n, q, m, p)] = t[(m, n, p, q)];
+                    t[(n, q, p, m)] = t[(m, n, p, q)];
+                    t[(m, q, n, p)] = t[(m, n, p, q)];
+                    t[(q, m, n, p)] = t[(m, n, p, q)];
+                    t[(q, n, m, p)] = t[(m, n, p, q)];
+                    t[(q, n, p, m)] = t[(m, n, p, q)];
+                    t[(m, q, p, n)] = t[(m, n, p, q)];
+                    t[(q, m, p, n)] = t[(m, n, p, q)];
+                    t[(q, p, m, n)] = t[(m, n, p, q)];
+                    t[(q, p, n, m)] = t[(m, n, p, q)];
+                }
+            }
+        }
+    }
 }

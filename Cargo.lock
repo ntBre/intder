@@ -228,7 +228,6 @@ dependencies = [
  "regex",
  "serde",
  "symm",
- "tensor",
 ]
 
 [[package]]
@@ -574,13 +573,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
-]
-
-[[package]]
-name = "tensor"
-version = "0.1.0"
-dependencies = [
- "approx",
 ]
 
 [[package]]
