@@ -79,69 +79,30 @@ fn h5th1(geom: &Geom, a: usize, b: usize) -> Tensor5 {
     let h1111 = h4th1(geom, a, b);
     for m in 0..3 {
         for l in 0..3 {
-            for k in 0..=l {
-                for j in 0..=k {
-                    for i in 0..=j {
-                        let a = h11[(i, l)] * h111[(k, j, m)]
+            for k in 0..3 {
+                for j in 0..3 {
+                    for i in 0..3 {
+                        h[(i, j, k, l, m)] = h11[(i, l)] * h111[(k, j, m)]
                             + h11[(j, l)] * h111[(k, i, m)]
-                            + h11[(i, j)] * h111[(k, l, m)];
-                        let b = h111[(i, l, m)] * h11[(k, j)]
+                            + h11[(i, j)] * h111[(k, l, m)]
+                            + h111[(i, l, m)] * h11[(k, j)]
                             + h111[(j, l, m)] * h11[(k, i)]
-                            + h111[(i, j, m)] * h11[(k, l)];
-                        let c = h11[(i, m)] * h111[(k, j, l)]
-                            + h11[(j, m)] * h111[(k, i, l)];
-                        let d = h11[(k, m)] * h111[(i, j, l)]
-                            + h11[(l, m)] * h111[(k, i, j)];
-                        let e = v1[i] * h1111[(j, k, l, m)]
+                            + h111[(i, j, m)] * h11[(k, l)]
+                            + h11[(i, m)] * h111[(k, j, l)]
+                            + h11[(j, m)] * h111[(k, i, l)]
+                            + h11[(k, m)] * h111[(i, j, l)]
+                            + h11[(l, m)] * h111[(k, i, j)]
+                            + v1[i] * h1111[(j, k, l, m)]
                             + v1[j] * h1111[(i, k, l, m)]
-                            + v1[k] * h1111[(i, j, l, m)];
-                        let f = v1[l] * h1111[(i, j, k, m)]
+                            + v1[k] * h1111[(i, j, l, m)]
+                            + v1[l] * h1111[(i, j, k, m)]
                             + v1[m] * h1111[(i, j, k, l)];
-                        h[(i, j, k, l, m)] = -(a + b + c + d + e + f) / t21;
                     }
                 }
             }
         }
     }
-    // I think you could do this at the end of the loops above, but not sure
-
-    // NOTE inlined fill4a because calling fill4a on each element of h.data
-    // fills the last four indices instead of the first four as needed.
-    let ny = 3;
-    for mo in 0..3 {
-        for q in 0..ny {
-            for p in 0..=q {
-                for n in 0..=p {
-                    for m in 0..=n {
-                        h[(n, m, p, q, mo)] = h[(m, n, p, q, mo)];
-                        h[(n, p, m, q, mo)] = h[(m, n, p, q, mo)];
-                        h[(n, p, q, m, mo)] = h[(m, n, p, q, mo)];
-                        h[(m, p, n, q, mo)] = h[(m, n, p, q, mo)];
-                        h[(p, m, n, q, mo)] = h[(m, n, p, q, mo)];
-                        h[(p, n, m, q, mo)] = h[(m, n, p, q, mo)];
-                        h[(p, n, q, m, mo)] = h[(m, n, p, q, mo)];
-                        h[(m, p, q, n, mo)] = h[(m, n, p, q, mo)];
-                        h[(p, m, q, n, mo)] = h[(m, n, p, q, mo)];
-                        h[(p, q, m, n, mo)] = h[(m, n, p, q, mo)];
-                        h[(p, q, n, m, mo)] = h[(m, n, p, q, mo)];
-                        h[(m, n, q, p, mo)] = h[(m, n, p, q, mo)];
-                        h[(n, m, q, p, mo)] = h[(m, n, p, q, mo)];
-                        h[(n, q, m, p, mo)] = h[(m, n, p, q, mo)];
-                        h[(n, q, p, m, mo)] = h[(m, n, p, q, mo)];
-                        h[(m, q, n, p, mo)] = h[(m, n, p, q, mo)];
-                        h[(q, m, n, p, mo)] = h[(m, n, p, q, mo)];
-                        h[(q, n, m, p, mo)] = h[(m, n, p, q, mo)];
-                        h[(q, n, p, m, mo)] = h[(m, n, p, q, mo)];
-                        h[(m, q, p, n, mo)] = h[(m, n, p, q, mo)];
-                        h[(q, m, p, n, mo)] = h[(m, n, p, q, mo)];
-                        h[(q, p, m, n, mo)] = h[(m, n, p, q, mo)];
-                        h[(q, p, n, m, mo)] = h[(m, n, p, q, mo)];
-                    }
-                }
-            }
-        }
-    }
-    h
+    -h / t21
 }
 
 pub(crate) fn h4th1(geom: &Geom, a: usize, b: usize) -> Tensor4 {
