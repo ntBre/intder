@@ -299,29 +299,19 @@ pub(crate) fn h4th2(geom: &Geom, a: usize, b: usize, c: usize) -> Htens4 {
         }
     }
 
-    // I guess these have to be separate since each uses the previous, but maybe
-    // not
-    foreach!(l, k, j, i,
-         h.h1112[(i, j, k, l)] = -h.h1111[(i, j, k, l)] - h.h1113[(i, j, k, l)];
-         h.h1123[(i, j, k, l)] = -h.h1113[(i, j, k, l)] - h.h1133[(i, j, k, l)];
-         h.h1233[(i, j, k, l)] = -h.h1133[(i, j, k, l)] - h.h1333[(i, j, k, l)];
-         h.h2333[(i, j, k, l)] = -h.h1333[(i, j, k, l)] - h.h3333[(i, j, k, l)];
-    );
+    h.h1112 = -&h.h1111 - &h.h1113;
+    h.h1123 = -&h.h1113 - &h.h1133;
+    h.h1233 = -&h.h1133 - &h.h1333;
+    h.h2333 = -&h.h1333 - &h.h3333;
 
-    foreach!(l, k, j, i,
-         h.h1122[(i, j, k, l)] = -h.h1112[(i, j, k, l)] - h.h1123[(i, j, l, k)];
-         h.h1223[(i, j, k, l)] = -h.h1123[(i, j, k, l)] - h.h1233[(i, k, j, l)];
-         h.h2233[(i, j, k, l)] = -h.h1233[(i, j, k, l)] - h.h2333[(j, i, k, l)];
-    );
+    h.h1122 = -&h.h1112 - h.h1123.view().permuted_axes((0, 1, 3, 2));
+    h.h1223 = -&h.h1123 - h.h1233.view().permuted_axes((0, 2, 1, 3));
+    h.h2233 = -&h.h1233 - h.h2333.view().permuted_axes((1, 0, 2, 3));
 
-    foreach!(l, k, j, i,
-         h.h1222[(i,j,k,l)]=-h.h1122[(i,j,k,l)]-h.h1223[(i,k,l,j)];
-         h.h2223[(i,j,k,l)]=-h.h1223[(i,j,k,l)]-h.h2233[(j,k,i,l)];
-    );
+    h.h1222 = -&h.h1122 - h.h1223.view().permuted_axes((0, 3, 1, 2));
+    h.h2223 = -&h.h1223 - h.h2233.view().permuted_axes((2, 0, 1, 3));
 
-    foreach!(l, k, j, i,
-         h.h2222[(i, j, k, l)] = -h.h1222[(i, j, k, l)] - h.h2223[(j, k, l, i)];
-    );
+    h.h2222 = -&h.h1222 - h.h2223.view().permuted_axes((3, 0, 1, 2));
 
     h
 }
