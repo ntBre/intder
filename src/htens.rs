@@ -1,10 +1,8 @@
-use tensor::Tensor4;
-
 use crate::{
     foreach,
     geom::Geom,
     hmat::{hijs1, Hmat},
-    htens4::{h4th2, Htens4},
+    htens4::{h4th1, h4th2, Htens4},
     DMat, Siic, Tensor3,
 };
 
@@ -1146,30 +1144,4 @@ impl Htens {
 
         h.h111 = -h.h411.clone().permuted_axes((1, 2, 0)) - &h.h113 - &h.h112;
     }
-}
-
-pub(crate) fn h4th1(geom: &Geom, k1: usize, k2: usize) -> Tensor4 {
-    let (v1, t21) = geom.vect1(k2, k1);
-    let stretch = Siic::Stretch(k1, k2);
-    let h11 = Hmat::new(geom, &stretch).h11;
-    let h111 = Htens::new(geom, &stretch).h111;
-    let mut h1111 = Tensor4::zeros(3, 3, 3, 3);
-    for l in 0..3 {
-        for k in 0..=l {
-            for j in 0..=k {
-                for i in 0..=j {
-                    let f = h11[(i, l)] * h11[(k, j)]
-                        + h11[(j, l)] * h11[(k, i)]
-                        + h11[(i, j)] * h11[(k, l)]
-                        + v1[i] * h111[(j, k, l)]
-                        + v1[j] * h111[(i, k, l)]
-                        + v1[k] * h111[(i, j, l)]
-                        + v1[l] * h111[(i, j, k)];
-                    h1111[(i, j, k, l)] = -f / t21;
-                }
-            }
-        }
-    }
-    h1111.fill4a(3);
-    h1111
 }

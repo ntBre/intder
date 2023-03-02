@@ -1,7 +1,7 @@
 use crate::{
     geom::Geom,
     hmat::{hijs1, hijs2, Hmat},
-    htens::{h4th1, hijks1, hijks2, Htens},
+    htens::{hijks1, hijks2, Htens},
     splat, Siic,
 };
 use tensor::tensor4::Tensor4;
@@ -142,6 +142,32 @@ fn h5th1(geom: &Geom, k1: usize, k2: usize) -> Tensor5 {
         }
     }
     h
+}
+
+pub(crate) fn h4th1(geom: &Geom, a: usize, b: usize) -> Tensor4 {
+    let (v1, t21) = geom.vect1(b, a);
+    let stretch = Siic::Stretch(a, b);
+    let h11 = Hmat::new(geom, &stretch).h11;
+    let h111 = Htens::new(geom, &stretch).h111;
+    let mut h1111 = Tensor4::zeros(3, 3, 3, 3);
+    for l in 0..3 {
+        for k in 0..=l {
+            for j in 0..=k {
+                for i in 0..=j {
+                    let f = h11[(i, l)] * h11[(k, j)]
+                        + h11[(j, l)] * h11[(k, i)]
+                        + h11[(i, j)] * h11[(k, l)]
+                        + v1[i] * h111[(j, k, l)]
+                        + v1[j] * h111[(i, k, l)]
+                        + v1[k] * h111[(i, j, l)]
+                        + v1[l] * h111[(i, j, k)];
+                    h1111[(i, j, k, l)] = -f / t21;
+                }
+            }
+        }
+    }
+    h1111.fill4a(3);
+    h1111
 }
 
 pub(crate) fn h4th2(geom: &Geom, k1: usize, k2: usize, k3: usize) -> Htens4 {
