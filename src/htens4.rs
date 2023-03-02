@@ -4,7 +4,7 @@ use crate::{
     htens::{hijks1, hijks2, Htens},
     splat, Siic,
 };
-use tensor::tensor4::Tensor4;
+type Tensor4 = ndarray::Array4<f64>;
 use tensor::tensor5::Tensor5;
 
 pub struct Htens4 {
@@ -28,21 +28,21 @@ pub struct Htens4 {
 impl Htens4 {
     fn new() -> Self {
         Self {
-            h1111: Tensor4::zeros(3, 3, 3, 3),
-            h1112: Tensor4::zeros(3, 3, 3, 3),
-            h1113: Tensor4::zeros(3, 3, 3, 3),
-            h1122: Tensor4::zeros(3, 3, 3, 3),
-            h1123: Tensor4::zeros(3, 3, 3, 3),
-            h1133: Tensor4::zeros(3, 3, 3, 3),
-            h1222: Tensor4::zeros(3, 3, 3, 3),
-            h1223: Tensor4::zeros(3, 3, 3, 3),
-            h1233: Tensor4::zeros(3, 3, 3, 3),
-            h1333: Tensor4::zeros(3, 3, 3, 3),
-            h2222: Tensor4::zeros(3, 3, 3, 3),
-            h2223: Tensor4::zeros(3, 3, 3, 3),
-            h2233: Tensor4::zeros(3, 3, 3, 3),
-            h2333: Tensor4::zeros(3, 3, 3, 3),
-            h3333: Tensor4::zeros(3, 3, 3, 3),
+            h1111: Tensor4::zeros((3, 3, 3, 3)),
+            h1112: Tensor4::zeros((3, 3, 3, 3)),
+            h1113: Tensor4::zeros((3, 3, 3, 3)),
+            h1122: Tensor4::zeros((3, 3, 3, 3)),
+            h1123: Tensor4::zeros((3, 3, 3, 3)),
+            h1133: Tensor4::zeros((3, 3, 3, 3)),
+            h1222: Tensor4::zeros((3, 3, 3, 3)),
+            h1223: Tensor4::zeros((3, 3, 3, 3)),
+            h1233: Tensor4::zeros((3, 3, 3, 3)),
+            h1333: Tensor4::zeros((3, 3, 3, 3)),
+            h2222: Tensor4::zeros((3, 3, 3, 3)),
+            h2223: Tensor4::zeros((3, 3, 3, 3)),
+            h2233: Tensor4::zeros((3, 3, 3, 3)),
+            h2333: Tensor4::zeros((3, 3, 3, 3)),
+            h3333: Tensor4::zeros((3, 3, 3, 3)),
         }
     }
 }
@@ -149,25 +149,23 @@ pub(crate) fn h4th1(geom: &Geom, a: usize, b: usize) -> Tensor4 {
     let stretch = Siic::Stretch(a, b);
     let h11 = Hmat::new(geom, &stretch).h11;
     let h111 = Htens::new(geom, &stretch).h111;
-    let mut h1111 = Tensor4::zeros(3, 3, 3, 3);
+    let mut h1111 = Tensor4::zeros((3, 3, 3, 3));
     for l in 0..3 {
-        for k in 0..=l {
-            for j in 0..=k {
-                for i in 0..=j {
-                    let f = h11[(i, l)] * h11[(k, j)]
+        for k in 0..3 {
+            for j in 0..3 {
+                for i in 0..3 {
+                    h1111[(i, j, k, l)] = h11[(i, l)] * h11[(k, j)]
                         + h11[(j, l)] * h11[(k, i)]
                         + h11[(i, j)] * h11[(k, l)]
                         + v1[i] * h111[(j, k, l)]
                         + v1[j] * h111[(i, k, l)]
                         + v1[k] * h111[(i, j, l)]
                         + v1[l] * h111[(i, j, k)];
-                    h1111[(i, j, k, l)] = -f / t21;
                 }
             }
         }
     }
-    h1111.fill4a(3);
-    h1111
+    -h1111 / t21
 }
 
 pub(crate) fn h4th2(geom: &Geom, a: usize, b: usize, c: usize) -> Htens4 {
