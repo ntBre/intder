@@ -900,24 +900,24 @@ impl Intder {
                 Stretch(a, b) => {
                     let l1 = 3 * a;
                     let l2 = 3 * b;
-                    sr.slice_mut((l1, l1), size).copy_from(&h.h11);
-                    sr.slice_mut((l2, l2), size).copy_from(&h.h11);
-                    sr.slice_mut((l1, l2), size).copy_from(&-&h.h11);
-                    sr.slice_mut((l2, l1), size).copy_from(&-&h.h11);
+                    sr.view_mut((l1, l1), size).copy_from(&h.h11);
+                    sr.view_mut((l2, l2), size).copy_from(&h.h11);
+                    sr.view_mut((l1, l2), size).copy_from(&-&h.h11);
+                    sr.view_mut((l2, l1), size).copy_from(&-&h.h11);
                 }
                 Bend(a, b, c) | Lin1(a, b, c, _) => {
                     let l1 = 3 * a;
                     let l2 = 3 * b;
                     let l3 = 3 * c;
-                    sr.slice_mut((l1, l1), size).copy_from(&h.h11);
-                    sr.slice_mut((l2, l1), size).copy_from(&h.h21);
-                    sr.slice_mut((l3, l1), size).copy_from(&h.h31);
-                    sr.slice_mut((l1, l2), size).copy_from(&h.h21.transpose());
-                    sr.slice_mut((l2, l2), size).copy_from(&h.h22);
-                    sr.slice_mut((l3, l2), size).copy_from(&h.h32);
-                    sr.slice_mut((l1, l3), size).copy_from(&h.h31.transpose());
-                    sr.slice_mut((l2, l3), size).copy_from(&h.h32.transpose());
-                    sr.slice_mut((l3, l3), size).copy_from(&h.h33);
+                    sr.view_mut((l1, l1), size).copy_from(&h.h11);
+                    sr.view_mut((l2, l1), size).copy_from(&h.h21);
+                    sr.view_mut((l3, l1), size).copy_from(&h.h31);
+                    sr.view_mut((l1, l2), size).copy_from(&h.h21.transpose());
+                    sr.view_mut((l2, l2), size).copy_from(&h.h22);
+                    sr.view_mut((l3, l2), size).copy_from(&h.h32);
+                    sr.view_mut((l1, l3), size).copy_from(&h.h31.transpose());
+                    sr.view_mut((l2, l3), size).copy_from(&h.h32.transpose());
+                    sr.view_mut((l3, l3), size).copy_from(&h.h33);
                 }
                 Torsion(a, b, c, d)
                 | Out(a, b, c, d)
@@ -927,22 +927,22 @@ impl Intder {
                     let l2 = 3 * b;
                     let l3 = 3 * c;
                     let l4 = 3 * d;
-                    sr.slice_mut((l1, l1), size).copy_from(&h.h11);
-                    sr.slice_mut((l2, l1), size).copy_from(&h.h21);
-                    sr.slice_mut((l3, l1), size).copy_from(&h.h31);
-                    sr.slice_mut((l4, l1), size).copy_from(&h.h41);
-                    sr.slice_mut((l1, l2), size).copy_from(&h.h21.transpose());
-                    sr.slice_mut((l2, l2), size).copy_from(&h.h22);
-                    sr.slice_mut((l3, l2), size).copy_from(&h.h32);
-                    sr.slice_mut((l4, l2), size).copy_from(&h.h42);
-                    sr.slice_mut((l1, l3), size).copy_from(&h.h31.transpose());
-                    sr.slice_mut((l2, l3), size).copy_from(&h.h32.transpose());
-                    sr.slice_mut((l3, l3), size).copy_from(&h.h33);
-                    sr.slice_mut((l4, l3), size).copy_from(&h.h43);
-                    sr.slice_mut((l1, l4), size).copy_from(&h.h41.transpose());
-                    sr.slice_mut((l2, l4), size).copy_from(&h.h42.transpose());
-                    sr.slice_mut((l3, l4), size).copy_from(&h.h43.transpose());
-                    sr.slice_mut((l4, l4), size).copy_from(&h.h44);
+                    sr.view_mut((l1, l1), size).copy_from(&h.h11);
+                    sr.view_mut((l2, l1), size).copy_from(&h.h21);
+                    sr.view_mut((l3, l1), size).copy_from(&h.h31);
+                    sr.view_mut((l4, l1), size).copy_from(&h.h41);
+                    sr.view_mut((l1, l2), size).copy_from(&h.h21.transpose());
+                    sr.view_mut((l2, l2), size).copy_from(&h.h22);
+                    sr.view_mut((l3, l2), size).copy_from(&h.h32);
+                    sr.view_mut((l4, l2), size).copy_from(&h.h42);
+                    sr.view_mut((l1, l3), size).copy_from(&h.h31.transpose());
+                    sr.view_mut((l2, l3), size).copy_from(&h.h32.transpose());
+                    sr.view_mut((l3, l3), size).copy_from(&h.h33);
+                    sr.view_mut((l4, l3), size).copy_from(&h.h43);
+                    sr.view_mut((l1, l4), size).copy_from(&h.h41.transpose());
+                    sr.view_mut((l2, l4), size).copy_from(&h.h42.transpose());
+                    sr.view_mut((l3, l4), size).copy_from(&h.h43.transpose());
+                    sr.view_mut((l4, l4), size).copy_from(&h.h44);
                 }
             }
             srs_sim.push(sr);
