@@ -14,7 +14,7 @@ approx = "0.5.1"
 lazy_static = "1.4.0"
 nalgebra = "0.31.1"
 ndarray = { version = "0.15.6", features = ["approx-0_5"] }
-psqs = { path = "/home/brent/Projects/psqs" }
+psqs = { git = "https://github.com/ntBre/psqs" }
 regex = "1.5.5"
 serde = "1.0.152"
 symm = { git = "https://github.com/ntBre/symm" }
