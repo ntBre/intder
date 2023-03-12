@@ -16,5 +16,5 @@ nalgebra = "0.31.1"
 ndarray = { version = "0.15.6", features = ["approx-0_5"] }
 psqs = { git = "https://github.com/ntBre/psqs" }
 regex = "1.5.5"
-serde = "1.0.152"
+serde = "1.0.155"
 symm = { git = "https://github.com/ntBre/symm" }
