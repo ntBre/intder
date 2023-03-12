@@ -12,7 +12,7 @@ path = "src/bin/irreps.rs"
 [dependencies]
 approx = "0.5.1"
 lazy_static = "1.4.0"
-nalgebra = "0.31.1"
+nalgebra = "0.32.2"
 ndarray = { version = "0.15.6", features = ["approx-0_5"] }
 psqs = { git = "https://github.com/ntBre/psqs" }
 regex = "1.5.5"
