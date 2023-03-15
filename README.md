@@ -1,3 +1,6 @@
+[![check](https://github.com/ntBre/intder/actions/workflows/check.yml/badge.svg)](https://github.com/ntBre/intder/actions/workflows/check.yml)
+[![test](https://github.com/ntBre/intder/actions/workflows/test.yml/badge.svg)](https://github.com/ntBre/intder/actions/workflows/test.yml)
+
 # INTDER
 intder performs simple-/symmetry-internal coordinate transformations for geometry
 displacements and derivatives. This is a port of the original Fortran INTDER program
