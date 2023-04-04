@@ -415,7 +415,7 @@ dependencies = [
 [[package]]
 name = "psqs"
 version = "0.1.0"
-source = "git+https://github.com/ntBre/psqs#d2ab16f4e6670d4b4cbbdfbdcbeed45a7f3e111e"
+source = "git+https://github.com/ntBre/psqs#c8b396c3522be9decb35ada38622f5efce40b631"
 dependencies = [
  "chrono",
  "lazy_static",
