@@ -1,3 +1,5 @@
+#![feature(lazy_cell)]
+
 use htens4::fill4a;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -6,7 +8,7 @@ use std::{
     fmt::{Display, Formatter},
     fs::File,
     io::{BufRead, BufReader, Read, Write},
-    sync::Once,
+    sync::LazyLock,
 };
 
 pub mod geom;
@@ -17,7 +19,6 @@ pub mod htens4;
 use geom::Geom;
 use hmat::Hmat;
 use htens::Htens;
-use lazy_static::lazy_static;
 use nalgebra as na;
 use regex::Regex;
 use symm::{Axis, Irrep};
@@ -33,14 +34,11 @@ pub const HART: f64 = 4.3597482;
 // const DEBYE: f64 = 2.54176548;
 
 // flags
-pub static mut VERBOSE: bool = false;
+pub static VERBOSE: LazyLock<bool> =
+    LazyLock::new(|| std::env::var("INTDER_DEBUG").is_ok());
 
-static START: Once = Once::new();
 pub fn is_verbose() -> bool {
-    unsafe {
-        START.call_once(|| VERBOSE = std::env::var("INTDER_DEBUG").is_ok());
-        VERBOSE
-    }
+    *VERBOSE
 }
 
 // TODO make these input or flag params
@@ -176,29 +174,30 @@ impl Siic {
     }
 }
 
-lazy_static! {
-    static ref DEFAULT_WEIGHTS: HashMap<&'static str, usize> = HashMap::from([
-        ("X", 0),
-        ("H", 1),
-        ("He", 4),
-        ("Li", 7),
-        ("Be", 9),
-        ("B", 11),
-        ("C", 12),
-        ("N", 14),
-        ("O", 16),
-        ("F", 19),
-        ("Ne", 20),
-        ("Na", 23),
-        ("Mg", 24),
-        ("Al", 27),
-        ("Si", 28),
-        ("P", 31),
-        ("S", 32),
-        ("Cl", 35),
-        ("Ar", 40),
-    ]);
-}
+static DEFAULT_WEIGHTS: LazyLock<HashMap<&'static str, usize>> =
+    LazyLock::new(|| {
+        HashMap::from([
+            ("X", 0),
+            ("H", 1),
+            ("He", 4),
+            ("Li", 7),
+            ("Be", 9),
+            ("B", 11),
+            ("C", 12),
+            ("N", 14),
+            ("O", 16),
+            ("F", 19),
+            ("Ne", 20),
+            ("Na", 23),
+            ("Mg", 24),
+            ("Al", 27),
+            ("Si", 28),
+            ("P", 31),
+            ("S", 32),
+            ("Cl", 35),
+            ("Ar", 40),
+        ])
+    });
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct Atom {

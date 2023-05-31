@@ -1,15 +1,13 @@
 use std::fs::File;
 use std::io::Write;
 
-use intder::{is_verbose, Intder, VERBOSE};
+use intder::Intder;
 
 fn parse_args<I: Iterator<Item = String>>(args: &mut I) -> Option<String> {
     let mut hold = Vec::new();
     for arg in args {
         if arg == "-v" {
-            // call this and then set manually to override the env stuff
-            let _ = is_verbose();
-            unsafe { VERBOSE = true };
+            std::env::set_var("INTDER_DEBUG", "1");
         } else {
             hold.push(arg);
         }
