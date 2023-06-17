@@ -1351,10 +1351,13 @@ impl Intder {
     pub fn dump_fcs(dir: &str, f2: &DMat, f3: &[f64], f4: &[f64]) {
         let f2 = f2.as_slice();
         let pairs = [(f2, "fort.15"), (f3, "fort.30"), (f4, "fort.40")];
-        for p in pairs {
-            let mut f = File::create(format!("{dir}/{}", p.1))
-                .expect("failed to create fort.15");
-            for chunk in p.0.chunks(3) {
+        for (fcs, file) in pairs {
+            let filename = format!("{dir}/{}", file);
+            let mut f = match File::create(&filename) {
+                Ok(f) => f,
+                Err(e) => panic!("failed to create `{filename}` for `{e}`"),
+            };
+            for chunk in fcs.chunks(3) {
                 for c in chunk {
                     write!(f, " {c:>19.10}").unwrap();
                 }
