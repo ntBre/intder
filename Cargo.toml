@@ -11,7 +11,7 @@ path = "src/bin/irreps.rs"
 
 [dependencies]
 approx = "0.5.1"
-nalgebra = { version = "0.32.3", features = ["serde-serialize"] }
+nalgebra = { version = "0.32.4", features = ["serde-serialize"] }
 ndarray = { version = "0.15.6", features = ["approx-0_5"] }
 psqs = { git = "https://github.com/ntBre/psqs" }
 regex = "1.10.3"
