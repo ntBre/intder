@@ -492,7 +492,7 @@ impl Intder {
         let reader = BufReader::new(r);
         let mut in_disps = false;
         let mut disp_tmp = vec![];
-        for line in reader.lines().flatten() {
+        for line in reader.lines().map(Result::unwrap) {
             if line.contains("# INTDER #") || line.is_empty() {
                 continue;
             } else if in_disps {
