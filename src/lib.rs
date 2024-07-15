@@ -1,5 +1,3 @@
-#![feature(lazy_cell)]
-
 use htens4::fill4a;
 use serde::{Deserialize, Serialize};
 use std::{
